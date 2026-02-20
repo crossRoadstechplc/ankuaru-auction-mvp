@@ -1,26 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
-import { LoginData } from "../../lib/types";
+import { RegisterData } from "../../lib/types";
 
-export default function LoginPage() {
-  const [formData, setFormData] = useState<LoginData>({
+export default function RegisterPage() {
+  const [formData, setFormData] = useState<RegisterData>({
+    username: "",
     email: "",
     password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const { login } = useAuth();
+  const { register } = useAuth();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value,
     }));
@@ -30,10 +31,15 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     // Basic validation
-    if (!formData.email || !formData.password) {
-      setError("Email and password are required");
+    if (!formData.username || !formData.email || !formData.password) {
+      setError("All fields are required");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long");
       return;
     }
 
@@ -45,62 +51,67 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       setError(null);
-
-      await login(formData);
-
-      // Redirect to feed after successful login
-      router.push("/feed");
+      
+      await register(formData);
+      setSuccess(true);
+      
+      // Redirect to feed after successful registration
+      setTimeout(() => {
+        router.push("/feed");
+      }, 2000);
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (success) {
+    return (
+      <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center p-4 font-display">
+        <div className="w-full max-w-[440px] flex flex-col items-center">
+          <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">check_circle</span>
+            </div>
+            <h2 className="text-2xl font-bold text-coffee-bean dark:text-slate-100 mb-2">Registration Successful!</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">Welcome to Ankuaru. Redirecting to your dashboard...</p>
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+              <div className="bg-primary h-full animate-pulse" style={{ width: "100%" }}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center p-4 font-display">
-      {/* Main Login Container */}
+      {/* Main Register Container */}
       <div className="w-full max-w-[440px] flex flex-col items-center">
         {/* Logo Header */}
         <div className="mb-8 flex flex-col items-center gap-2">
           <div className="size-12 bg-primary flex items-center justify-center rounded-xl text-white shadow-lg shadow-primary/20">
-            <svg
-              className="w-8 h-8"
-              fill="none"
-              viewBox="0 0 48 48"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z"
-                fill="currentColor"
-              ></path>
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z" fill="currentColor"></path>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-coffee-bean dark:text-slate-100">
-            Ankuaru
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-            B2B Coffee Auction Platform
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-coffee-bean dark:text-slate-100">Ankuaru</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">B2B Coffee Auction Platform</p>
         </div>
 
-        {/* Authentication Card */}
+        {/* Registration Card */}
         <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-8 flex flex-col gap-6">
           <div className="text-center mb-2">
-            <h2 className="text-xl font-bold text-coffee-bean dark:text-slate-100">
-              Welcome Back
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-              Sign in to access your auction dashboard
-            </p>
+            <h2 className="text-xl font-bold text-coffee-bean dark:text-slate-100">Create Account</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Join the coffee marketplace</p>
           </div>
 
           {/* Error Message */}
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-2">
-              <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-sm">
-                error
-              </span>
+              <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-sm">error</span>
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
@@ -116,11 +127,29 @@ export default function LoginPage() {
           </div>
 
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+            {/* Username Field */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 px-1">Username</label>
+              <div className="relative group">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-xl">
+                  person
+                </span>
+                <input
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                  placeholder="Choose a username"
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+            </div>
+
             {/* Email Field */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 px-1">
-                Email
-              </label>
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 px-1">Email</label>
               <div className="relative group">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-xl">
                   email
@@ -140,59 +169,39 @@ export default function LoginPage() {
 
             {/* Password Field */}
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Password
-                </label>
-                <Link
-                  className="text-xs font-medium text-primary hover:underline"
-                  href="#"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 px-1">Password</label>
               <div className="relative group">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-xl">
                   lock
                 </span>
                 <input
                   className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
-                  placeholder="••••••••"
-                  type={showPassword ? "text" : "password"}
+                  placeholder="Create a strong password"
+                  type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   disabled={isLoading}
                   required
+                  minLength={6}
                 />
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  <span className="material-symbols-outlined text-xl">
-                    {showPassword ? "visibility_off" : "visibility"}
-                  </span>
-                </button>
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center gap-2 px-1">
+            {/* Terms and Conditions */}
+            <div className="flex items-start gap-2 px-1">
               <input
-                className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
-                id="remember"
+                className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary mt-0.5"
+                id="terms"
                 type="checkbox"
+                required
               />
-              <label
-                className="text-sm text-slate-600 dark:text-slate-400"
-                htmlFor="remember"
-              >
-                Keep me logged in
+              <label className="text-sm text-slate-600 dark:text-slate-400" htmlFor="terms">
+                I agree to the <Link href="#" className="text-primary hover:underline">Terms of Service</Link> and <Link href="#" className="text-primary hover:underline">Privacy Policy</Link>
               </label>
             </div>
 
-            {/* Login Button */}
+            {/* Register Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -200,17 +209,13 @@ export default function LoginPage() {
             >
               {isLoading ? (
                 <>
-                  <span className="material-symbols-outlined text-xl animate-spin">
-                    refresh
-                  </span>
-                  Signing In...
+                  <span className="material-symbols-outlined text-xl animate-spin">refresh</span>
+                  Creating Account...
                 </>
               ) : (
                 <>
-                  Login to Auction
-                  <span className="material-symbols-outlined text-xl">
-                    arrow_forward
-                  </span>
+                  Create Account
+                  <span className="material-symbols-outlined text-xl">arrow_forward</span>
                 </>
               )}
             </button>
@@ -221,21 +226,17 @@ export default function LoginPage() {
               <div className="w-full border-t border-slate-200 dark:border-slate-800"></div>
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white dark:bg-slate-900 px-2 text-slate-400">
-                New to Ankuaru?
-              </span>
+              <span className="bg-white dark:bg-slate-900 px-2 text-slate-400">Already have an account?</span>
             </div>
           </div>
 
-          {/* Register Link */}
+          {/* Login Link */}
           <Link
-            href="/register"
+            href="/login"
             className="w-full flex items-center justify-center gap-2 py-3 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
-            <span className="material-symbols-outlined text-xl">
-              how_to_reg
-            </span>
-            Create Account
+            <span className="material-symbols-outlined text-xl">login</span>
+            Sign In Instead
           </Link>
         </div>
 
@@ -244,17 +245,11 @@ export default function LoginPage() {
           <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
             Ankuaru B2B Coffee Platform © 2024
             <span className="mx-1">•</span>
-            <Link
-              className="hover:text-primary underline decoration-primary/30"
-              href="#"
-            >
+            <Link className="hover:text-primary underline decoration-primary/30" href="#">
               Terms
             </Link>
             <span className="mx-1">•</span>
-            <Link
-              className="hover:text-primary underline decoration-primary/30"
-              href="#"
-            >
+            <Link className="hover:text-primary underline decoration-primary/30" href="#">
               Privacy
             </Link>
           </p>
