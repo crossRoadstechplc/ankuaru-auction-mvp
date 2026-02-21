@@ -11,6 +11,7 @@ import { CreateAuctionData } from "../../../lib/types";
 
 export default function PostAuctionPage() {
   const [activeTab, setActiveTab] = useState("sell");
+  const [selectedVisibility, setSelectedVisibility] = useState("PUBLIC");
   const [formData, setFormData] = useState<CreateAuctionData>({
     title: "",
     auctionCategory: "Coffee",
@@ -57,50 +58,22 @@ export default function PostAuctionPage() {
       required: true,
     },
     {
-      id: "reservePrice",
-      label: "Reserve Price",
-      placeholder: "e.g. 1000",
-      type: "number",
-      required: true,
-    },
-    {
       id: "minBid",
-      label: "Minimum Bid",
+      label: "Initial Bid",
       placeholder: "e.g. 100",
       type: "number",
       required: true,
     },
     {
-      id: "auctionType",
-      label: "Auction Type",
-      type: "select",
-      options: [
-        { value: "SELL", label: "Sell" },
-        { value: "BUY", label: "Buy Request" },
-      ],
-      required: true,
-    },
-    {
-      id: "visibility",
-      label: "Visibility",
-      type: "select",
-      options: [
-        { value: "PUBLIC", label: "Public" },
-        { value: "FOLLOWERS", label: "Followers Only" },
-        { value: "CUSTOM", label: "Custom" },
-      ],
-      required: true,
-    },
-    {
       id: "startAt",
-      label: "Start Time",
-      type: "datetime-local",
+      label: "Start Date",
+      type: "date",
       required: true,
     },
     {
       id: "endAt",
-      label: "End Time",
-      type: "datetime-local",
+      label: "End Date",
+      type: "date",
       required: true,
     },
   ];
@@ -123,12 +96,7 @@ export default function PostAuctionPage() {
     e.preventDefault();
 
     // Basic validation
-    if (
-      !formData.title ||
-      !formData.itemDescription ||
-      !formData.reservePrice ||
-      !formData.minBid
-    ) {
+    if (!formData.title || !formData.itemDescription || !formData.minBid) {
       setError("All required fields must be filled");
       return;
     }
@@ -137,12 +105,25 @@ export default function PostAuctionPage() {
       setIsLoading(true);
       setError(null);
 
-      // Update auction type based on active tab
-      const auctionData = {
-        ...formData,
-        auctionType: activeTab as "SELL" | "BUY",
+      // Format date to proper ISO format
+      const formatDate = (dateString: string) => {
+        if (!dateString) return new Date().toISOString();
+        return new Date(dateString).toISOString();
       };
 
+      // Prepare auction data based on active tab
+      const auctionData = {
+        title: formData.title,
+        auctionCategory: formData.auctionCategory,
+        itemDescription: formData.itemDescription,
+        minBid: formData.minBid.toString(),
+        auctionType: activeTab.toUpperCase() as "SELL" | "BUY",
+        visibility: selectedVisibility,
+        startAt: formatDate(formData.startAt),
+        endAt: formatDate(formData.endAt),
+      };
+
+      console.log("Submitting auction data:", auctionData);
       await apiClient.createAuction(auctionData);
       setSuccess(true);
 
@@ -151,6 +132,7 @@ export default function PostAuctionPage() {
         router.push("/feed");
       }, 2000);
     } catch (err) {
+      console.error("Auction creation error:", err);
       setError(err instanceof Error ? err.message : "Failed to create auction");
     } finally {
       setIsLoading(false);
@@ -353,7 +335,76 @@ export default function PostAuctionPage() {
               </div>
             </div>
 
+            {/* Section 2: Visibility Selection */}
             <div className="p-6 md:p-8">
+              <div className="mb-6 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">
+                  groups
+                </span>
+                <h2 className="text-lg font-bold">Visibility & Audience</h2>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {[
+                  {
+                    value: "PUBLIC",
+                    label: "Public",
+                    icon: "public",
+                    description: "Platform-wide visibility.",
+                  },
+                  {
+                    value: "FOLLOWERS",
+                    label: "Followers Only",
+                    icon: "stars",
+                    description: "Only your followers can bid.",
+                  },
+                  {
+                    value: "CUSTOM",
+                    label: "Custom",
+                    icon: "person_add",
+                    description: "Selected partners only.",
+                  },
+                ].map((type) => (
+                  <label
+                    key={type.value}
+                    className={`group relative flex cursor-pointer flex-col gap-3 rounded-xl border p-4 transition-all hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50 ${
+                      selectedVisibility === type.value
+                        ? "border-primary bg-primary/5"
+                        : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value={type.value}
+                      checked={selectedVisibility === type.value}
+                      onChange={(e) => setSelectedVisibility(e.target.value)}
+                      className="sr-only"
+                    />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <span className="material-symbols-outlined">
+                        {type.icon}
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold">{type.label}</h4>
+                      <p className="text-xs text-slate-500">
+                        {type.description}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer Action */}
+            <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-6 dark:border-slate-800 dark:bg-slate-900/80 md:px-8">
+              <button
+                className="text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                type="button"
+                disabled={isLoading}
+              >
+                Save as Draft
+              </button>
               <div className="flex items-center gap-4">
                 <button
                   className="rounded-lg border border-slate-200 bg-white px-6 py-2.5 text-sm font-bold hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800"
