@@ -14,6 +14,7 @@ export default function Header() {
     // Close any open dropdowns
     setIsNotificationsOpen(false);
     setIsProfileOpen(false);
+    window.location.href = "/login";
   };
 
   const notifications = [
@@ -87,11 +88,32 @@ export default function Header() {
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYzTLgf9Glq2aTVTcK4XYI5sjPBX-ADGt3SDQVQphrpXikLgiGDgQ4BBKFZ3Mv_BRjChOVtU2n69B24rghLJNgdDs5lYM0qgauupN1jDoxI0Udv6lZi9QafFa4R67fljtUcVAiOVlUC1ZtSO7HNsPHJLvklrDcchEy6IjHACP6jjtInyJecVWe5Oy41QTBrjHHXKB60oIksw7KpsjeAcU-wPWrcLn7dBqUYBXBX_H7O4WJkYVPMwXK57I4duHDV86iNTXFW3f1ys4"
                   />
                 </button>
+                {isProfileOpen && (
+                  <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 z-[100]">
+                    <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        {user?.username || "Account"}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Signed in
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        logout
+                      </span>
+                      Logout
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           ) : (
             <>
-              <Link
+              {/* <Link
                 href="/login"
                 className="bg-primary hover:bg-primary-dark active:scale-[0.98] text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
               >
@@ -104,7 +126,7 @@ export default function Header() {
               >
                 <span className="material-symbols-outlined">how_to_reg</span>
                 Register
-              </Link>
+              </Link> */}
             </>
           )}
         </div>

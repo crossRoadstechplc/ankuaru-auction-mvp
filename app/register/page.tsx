@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register } = useAuth();
   const router = useRouter();
@@ -117,14 +118,14 @@ export default function RegisterPage() {
           )}
 
           {/* Illustration / Image placeholder */}
-          <div className="w-full h-32 rounded-lg overflow-hidden relative">
+          {/* <div className="w-full h-32 rounded-lg overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/30"></div>
             <img
               alt="Coffee Beans"
               className="w-full h-full object-cover opacity-60 mix-blend-overlay"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuAn0paDiJU44mytkJBeZLTI4IM8-SVAQuuL0ci9pa6b-ro0m7hL9J3wko-xzM-Kur8yHQ0GSq_cBJDY9qsKkB5VLYuAB_9HCLEYBNwHPNeMLvO57LgOpJFis_mtULJVUdY9NZh599nWeSstIE4dTvX_EmESlHEFYwSE0bBo4-RXJaYXxGKuIL-jOLgugn_JNJJiwtQEPyUIi58l7IOA3WA-gKqHIv26mPRh7uICRSS0FZKdAmBQk0oSTJQDM4OMv1YXBpBYpknfcy8"
             />
-          </div>
+          </div> */}
 
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
             {/* Username Field */}
@@ -177,7 +178,7 @@ export default function RegisterPage() {
                 <input
                   className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
                   placeholder="Create a strong password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
@@ -185,8 +186,20 @@ export default function RegisterPage() {
                   required
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword(prev => !prev)}
+                  disabled={isLoading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showPassword ? "visibility_off" : "visibility"}
+                  </span>
+                </button>
               </div>
             </div>
+            
 
             {/* Terms and Conditions */}
             <div className="flex items-start gap-2 px-1">

@@ -106,14 +106,14 @@ export default function LoginPage() {
           )}
 
           {/* Illustration / Image placeholder */}
-          <div className="w-full h-32 rounded-lg overflow-hidden relative">
+          {/* <div className="w-full h-32 rounded-lg overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/30"></div>
             <img
               alt="Coffee Beans"
               className="w-full h-full object-cover opacity-60 mix-blend-overlay"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuAn0paDiJU44mytkJBeZLTI4IM8-SVAQuuL0ci9pa6b-ro0m7hL9J3wko-xzM-Kur8yHQ0GSq_cBJDY9qsKkB5VLYuAB_9HCLEYBNwHPNeMLvO57LgOpJFis_mtULJVUdY9NZh599nWeSstIE4dTvX_EmESlHEFYwSE0bBo4-RXJaYXxGKuIL-jOLgugn_JNJJiwtQEPyUIi58l7IOA3WA-gKqHIv26mPRh7uICRSS0FZKdAmBQk0oSTJQDM4OMv1YXBpBYpknfcy8"
             />
-          </div>
+          </div> */}
 
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
             {/* Email Field */}
