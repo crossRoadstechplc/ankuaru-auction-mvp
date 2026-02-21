@@ -11,7 +11,9 @@ import { CreateAuctionData } from "../../../lib/types";
 
 export default function PostAuctionPage() {
   const [activeTab, setActiveTab] = useState("sell");
-  const [selectedVisibility, setSelectedVisibility] = useState("PUBLIC");
+  const [selectedVisibility, setSelectedVisibility] = useState<
+    "PUBLIC" | "FOLLOWERS" | "CUSTOM"
+  >("PUBLIC");
   const [formData, setFormData] = useState<CreateAuctionData>({
     title: "",
     auctionCategory: "Coffee",
@@ -116,7 +118,8 @@ export default function PostAuctionPage() {
         title: formData.title,
         auctionCategory: formData.auctionCategory,
         itemDescription: formData.itemDescription,
-        minBid: formData.minBid.toString(),
+        reservePrice: formData.minBid, // Use minBid as reservePrice for simplicity
+        minBid: formData.minBid,
         auctionType: activeTab.toUpperCase() as "SELL" | "BUY",
         visibility: selectedVisibility,
         startAt: formatDate(formData.startAt),
@@ -377,7 +380,11 @@ export default function PostAuctionPage() {
                       name="visibility"
                       value={type.value}
                       checked={selectedVisibility === type.value}
-                      onChange={(e) => setSelectedVisibility(e.target.value)}
+                      onChange={(e) =>
+                        setSelectedVisibility(
+                          e.target.value as "PUBLIC" | "FOLLOWERS" | "CUSTOM",
+                        )
+                      }
                       className="sr-only"
                     />
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
