@@ -8,12 +8,19 @@ import { useAuth } from "../../contexts/AuthContext";
 import apiClient from "../../lib/api";
 import { Auction } from "../../lib/types";
 
+// Helper to calculate time remaining for sorting
+function getTimeRemaining(endAt: string): number {
+  const now = new Date().getTime();
+  const end = new Date(endAt).getTime();
+  return end - now;
+}
+
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     const fetchAuctions = async () => {
@@ -34,27 +41,42 @@ export default function FeedPage() {
     };
 
     fetchAuctions();
-  }, []);
+  }, [user]); // Re-fetch when user changes
 
-  // Filter auctions based on active tab
+  // Filter auctions based on active tab, user ownership, and status
   const filteredAuctions = Array.isArray(auctions)
-    ? auctions.filter((auction) => {
-        if (activeTab === "all") return true;
+    ? auctions
+        .filter((auction) => {
+          // Filter out user's own auctions
+          if (user?.id && auction.createdBy === user.id) {
+            return false;
+          }
 
-        // Map tab names to visibility levels
-        const visibilityMap = {
-          public: "PUBLIC",
-          private: "FOLLOWERS",
-          custom: "SELECTED",
-        };
+          // Filter out closed auctions
+          if (auction.status === "CLOSED") {
+            return false;
+          }
 
-        // Check if auction matches the selected category
-        const targetVisibility =
-          visibilityMap[activeTab as keyof typeof visibilityMap];
-        return targetVisibility
-          ? auction.visibility === targetVisibility
-          : true;
-      })
+          // Map tab names to visibility levels
+          const visibilityMap = {
+            public: "PUBLIC",
+            private: "FOLLOWERS",
+            custom: "SELECTED",
+          };
+
+          // Check if auction matches the selected category
+          const targetVisibility =
+            visibilityMap[activeTab as keyof typeof visibilityMap];
+          return targetVisibility
+            ? auction.visibility === targetVisibility
+            : true;
+        })
+        .sort((a, b) => {
+          // Sort by remaining time (closest ending first)
+          const timeRemainingA = getTimeRemaining(a.endAt);
+          const timeRemainingB = getTimeRemaining(b.endAt);
+          return timeRemainingA - timeRemainingB;
+        })
     : [];
 
   return (
