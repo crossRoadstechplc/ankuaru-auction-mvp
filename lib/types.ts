@@ -32,7 +32,7 @@ export interface Auction {
   reservePrice: string;
   minBid: string;
   auctionType: "SELL" | "BUY";
-  visibility: "PUBLIC" | "FOLLOWERS" | "CUSTOM";
+  visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
   startAt: string;
   endAt: string;
   status: "LIVE" | "CLOSED" | "UPCOMING";
@@ -58,7 +58,8 @@ export interface CreateAuctionData {
   reservePrice: string;
   minBid: string;
   auctionType: "SELL" | "BUY";
-  visibility: "PUBLIC" | "FOLLOWERS" | "CUSTOM";
+  visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
+  selectedUserIds?: string[];
   startAt: string;
   endAt: string;
 }

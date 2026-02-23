@@ -33,12 +33,8 @@ export default function FeedPage() {
       }
     };
 
-    if (isAuthenticated) {
-      fetchAuctions();
-    } else {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated]);
+    fetchAuctions();
+  }, []);
 
   // Filter auctions based on active tab
   const filteredAuctions = Array.isArray(auctions)
@@ -49,27 +45,7 @@ export default function FeedPage() {
         const visibilityMap = {
           public: "PUBLIC",
           private: "FOLLOWERS",
-          custom: "CUSTOM",
-        };
-
-        // Check if auction matches the selected category
-        const targetVisibility =
-          visibilityMap[activeTab as keyof typeof visibilityMap];
-        return targetVisibility
-          ? auction.visibility === targetVisibility
-          : true;
-      })
-    : [];
-
-  const currentAuctions = Array.isArray(auctions)
-    ? auctions.filter((auction) => {
-        if (activeTab === "all") return true;
-
-        // Map tab names to visibility levels
-        const visibilityMap = {
-          public: "PUBLIC",
-          private: "FOLLOWERS",
-          custom: "CUSTOM",
+          custom: "SELECTED",
         };
 
         // Check if auction matches the selected category
