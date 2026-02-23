@@ -36,6 +36,7 @@ export function AuctionDetailsCard({
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [myBid, setMyBid] = useState<any>(null);
+  const [idCopied, setIdCopied] = useState(false);
 
   // Fetch my bid status if not creator
   useEffect(() => {
@@ -53,19 +54,53 @@ export function AuctionDetailsCard({
     }
   }, [data.id, isCreator, user]);
 
-  const handleFollowToggle = async () => {
-    if (!data.createdBy || isFollowLoading) return;
+  // Pre-check if this creator is already being followed
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      try {
+        const following = await apiClient.getMyFollowing();
+        const alreadyFollowing = following.some(
+          (u) => u.id === data.createdBy,
+        );
+        setIsFollowing(alreadyFollowing);
+      } catch (error) {
+        console.warn("Could not check follow status:", error);
+      }
+    };
 
+    if (!isCreator && user) {
+      checkFollowStatus();
+    }
+  }, [data.createdBy, isCreator, user]);
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(data.id).then(() => {
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 2000);
+    });
+  };
+
+  const handleFollow = async () => {
+    if (!data.createdBy || isFollowLoading) return;
     try {
       setIsFollowLoading(true);
-      if (isFollowing) {
-        await apiClient.unfollowUser(data.createdBy);
-      } else {
-        await apiClient.followUser(data.createdBy);
-      }
-      setIsFollowing(!isFollowing);
+      await apiClient.followUser(data.createdBy);
+      setIsFollowing(true);
     } catch (error) {
-      console.error("Follow toggle failed:", error);
+      console.error("Follow failed:", error);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  const handleUnfollow = async () => {
+    if (!data.createdBy || isFollowLoading) return;
+    try {
+      setIsFollowLoading(true);
+      await apiClient.unfollowUser(data.createdBy);
+      setIsFollowing(false);
+    } catch (error) {
+      console.error("Unfollow failed:", error);
     } finally {
       setIsFollowLoading(false);
     }
@@ -158,9 +193,21 @@ export function AuctionDetailsCard({
             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">
               Auction ID
             </p>
-            <p className="text-slate-900 dark:text-white font-mono font-bold">
-              ANK-{data.id || "000"}
-            </p>
+            <div className="flex items-center justify-end gap-2">
+              <p className="text-slate-900 dark:text-white font-mono font-bold text-sm" title={data.id}>
+                ANK-{data.id ? `${data.id.slice(0, 8)}…` : "000"}
+              </p>
+              <button
+                onClick={handleCopyId}
+                title="Copy full Auction ID"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
+              >
+                <span className="material-symbols-outlined text-sm">
+                  {idCopied ? "check_circle" : "content_copy"}
+                </span>
+                <span>{idCopied ? "Copied!" : "Copy"}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -240,20 +287,35 @@ export function AuctionDetailsCard({
             </div>
           </div>
           {!isCreator && (
-            <button
-              onClick={handleFollowToggle}
-              disabled={isFollowLoading}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isFollowing
-                ? "border border-slate-300 text-slate-600 hover:bg-slate-100"
-                : "border border-primary text-primary hover:bg-primary hover:text-white"
-                } ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              {isFollowLoading
-                ? "Loading..."
-                : isFollowing
-                  ? "Following"
-                  : "Follow"}
-            </button>
+            <div className="flex items-center gap-2">
+              {isFollowing ? (
+                <>
+                  {/* Following badge */}
+                  <span className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
+                    <span className="material-symbols-outlined text-sm">check</span>
+                    Following
+                  </span>
+                  {/* Unfollow button */}
+                  <button
+                    onClick={handleUnfollow}
+                    disabled={isFollowLoading}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold transition-all border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <span className="material-symbols-outlined text-sm">person_remove</span>
+                    {isFollowLoading ? "..." : "Unfollow"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleFollow}
+                  disabled={isFollowLoading}
+                  className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all border border-primary text-primary hover:bg-primary hover:text-white ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span className="material-symbols-outlined text-sm">person_add</span>
+                  {isFollowLoading ? "Loading..." : "Follow"}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

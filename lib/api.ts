@@ -174,6 +174,22 @@ class ApiClient {
     }
   }
 
+  async getMyFollowing(): Promise<User[]> {
+    try {
+      const response = await this.request<User[] | { following: User[] }>(
+        "/api/auth/following/me",
+      );
+      if (Array.isArray(response)) return response;
+      if (response && Array.isArray((response as { following: User[] }).following)) {
+        return (response as { following: User[] }).following;
+      }
+      return [];
+    } catch (error) {
+      console.error("Failed to fetch following list:", error);
+      return [];
+    }
+  }
+
   async getMyNotifications(): Promise<Notification[]> {
     return this.request<Notification[]>("/api/auth/notifications/me");
   }

@@ -64,10 +64,27 @@ function getTimeRemaining(endAt: string): {
 
 export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
   const isSell = data.auctionType === "SELL";
-  const { days, hours, minutes, seconds, isClosed } = getTimeRemaining(
-    data.endAt,
-  );
   const { user } = useAuth();
+
+  // --- Live countdown timer ---
+  const [timeLeft, setTimeLeft] = useState(() => getTimeRemaining(data.endAt));
+
+  useEffect(() => {
+    // Only start the interval when the auction is actively OPEN
+    if (data.status !== "OPEN" || timeLeft.isClosed) return;
+
+    const timer = setInterval(() => {
+      const remaining = getTimeRemaining(data.endAt);
+      setTimeLeft(remaining);
+      if (remaining.isClosed) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data.endAt, data.status]);
+
+  const { days, hours, minutes, seconds, isClosed } = timeLeft;
 
   const [bidAmount, setBidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
