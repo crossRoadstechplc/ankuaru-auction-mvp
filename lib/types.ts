@@ -39,7 +39,7 @@ export interface Auction {
   visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
   startAt: string;
   endAt: string;
-  status: "OPEN" | "REVEAL" | "CLOSED";
+  status: "SCHEDULED" | "OPEN" | "REVEAL" | "CLOSED";
   createdBy: string;
   createdAt: string;
   bidCount?: number;
@@ -154,4 +154,3 @@ export interface ApiError {
   status?: number;
   code?: string;
 }
-

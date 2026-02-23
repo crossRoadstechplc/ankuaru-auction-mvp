@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
 import apiClient from "../../../../lib/api";
 import { Bid } from "../../../../lib/types";
+import { CloseEarlyModal } from "./CloseEarlyModal";
+import { FinalReportModal } from "./FinalReportModal";
 
 interface BiddingSidebarProps {
   data: {
@@ -18,13 +21,14 @@ interface BiddingSidebarProps {
     visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
     startAt: string;
     endAt: string;
-    status: "OPEN" | "REVEAL" | "CLOSED";
+    status: "SCHEDULED" | "OPEN" | "REVEAL" | "CLOSED";
     createdBy: string;
     createdAt: string;
     bidCount?: number;
     currentBid?: string;
   };
   isCreator: boolean;
+  onAuctionUpdate?: () => void;
 }
 
 // Helper function to generate SHA256 hash
@@ -38,20 +42,80 @@ async function generateSHA256Hash(message: string): Promise<string> {
   return hashHex;
 }
 
-// Helper to calculate time remaining
-function getTimeRemaining(endAt: string): {
+// Helper to calculate time remaining and determine auction status
+function getTimeRemaining(
+  startAt: string,
+  endAt: string,
+  status: string,
+): {
   days: number;
   hours: number;
   minutes: number;
   seconds: number;
   isClosed: boolean;
+  shouldReveal: boolean;
+  isScheduled: boolean;
+  timeUntilStart?: {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
 } {
   const now = new Date().getTime();
+  const start = new Date(startAt).getTime();
   const end = new Date(endAt).getTime();
+
+  // If auction is SCHEDULED, calculate time until start
+  if (status === "SCHEDULED") {
+    const startDiff = start - now;
+
+    if (startDiff <= 0) {
+      // Should transition to OPEN, but still return as scheduled for safety
+      return {
+        days: 0,
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+        isClosed: false,
+        shouldReveal: false,
+        isScheduled: true,
+        timeUntilStart: { days: 0, hours: 0, minutes: 0, seconds: 0 },
+      };
+    }
+
+    const days = Math.floor(startDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor(
+      (startDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+    );
+    const minutes = Math.floor((startDiff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((startDiff % (1000 * 60)) / 1000);
+
+    return {
+      days: 0, // Not relevant for scheduled
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isClosed: false,
+      shouldReveal: false,
+      isScheduled: true,
+      timeUntilStart: { days, hours, minutes, seconds },
+    };
+  }
+
+  // For OPEN, REVEAL, CLOSED status, calculate time until end
   const diff = end - now;
 
   if (diff <= 0) {
-    return { days: 0, hours: 0, minutes: 0, seconds: 0, isClosed: true };
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isClosed: true,
+      shouldReveal: true,
+      isScheduled: false,
+    };
   }
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -59,15 +123,38 @@ function getTimeRemaining(endAt: string): {
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-  return { days, hours, minutes, seconds, isClosed: false };
+  return {
+    days,
+    hours,
+    minutes,
+    seconds,
+    isClosed: false,
+    shouldReveal: false,
+    isScheduled: false,
+  };
 }
 
-export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
+export function BiddingSidebar({
+  data,
+  isCreator,
+  onAuctionUpdate,
+}: BiddingSidebarProps) {
   const isSell = data.auctionType === "SELL";
-  const { days, hours, minutes, seconds, isClosed } = getTimeRemaining(
-    data.endAt,
-  );
+  const {
+    days,
+    hours,
+    minutes,
+    seconds,
+    shouldReveal,
+    isScheduled,
+    timeUntilStart,
+  } = getTimeRemaining(data.startAt, data.endAt, data.status);
   const { user } = useAuth();
+  const router = useRouter();
+
+  // Modal state
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const [bidAmount, setBidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,7 +173,7 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
   };
 
   // Helper to load bid details
-  const loadBidLocally = () => {
+  const loadBidLocally = useCallback(() => {
     if (typeof window !== "undefined" && user?.id) {
       const storageKey = `bid_${data.id}_${user.id}`;
       const saved = localStorage.getItem(storageKey);
@@ -100,7 +187,7 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
       }
     }
     return null;
-  };
+  }, [data.id, user?.id]);
 
   // Check for local bid on mount or when user changes
   useEffect(() => {
@@ -108,7 +195,18 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
       const saved = loadBidLocally();
       setLocalBid(saved);
     }
-  }, [user?.id, data.id]);
+  }, [user?.id, data.id, loadBidLocally]);
+
+  // Determine actual auction status based on time and backend status
+  const actualStatus =
+    data.status === "SCHEDULED"
+      ? "SCHEDULED"
+      : shouldReveal && data.status === "OPEN"
+        ? "REVEAL"
+        : data.status;
+  const isScheduledPhase = actualStatus === "SCHEDULED";
+  const isRevealPhase = actualStatus === "REVEAL";
+  const isClosedPhase = actualStatus === "CLOSED";
 
   // Fetch user's current bid
   useEffect(() => {
@@ -121,10 +219,10 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
       }
     };
 
-    if (!isCreator && !isClosed) {
+    if (!isCreator && !isClosedPhase && !isScheduledPhase) {
       fetchMyBid();
     }
-  }, [data.id, isCreator, isClosed]);
+  }, [data.id, isCreator, isClosedPhase, isScheduledPhase]);
 
   const handleBidSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,7 +261,9 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
       setMyBid(updatedBid);
     } catch (error) {
       console.error("Bid submission failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to submit bid");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to submit bid",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -212,7 +312,9 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
       // localStorage.removeItem(`bid_${data.id}_${user?.id}`);
     } catch (error) {
       console.error("Bid reveal failed:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to reveal bid");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reveal bid",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -222,56 +324,149 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
     <div className="lg:col-span-4 flex flex-col gap-6">
       {/* Countdown Card */}
       <div
-        className={`${isClosed ? "bg-slate-700" : "bg-primary dark:bg-primary/90"} rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
+        className={`${
+          isClosedPhase
+            ? "bg-slate-700"
+            : isRevealPhase
+              ? "bg-orange-600 dark:bg-orange-600/90"
+              : isScheduledPhase
+                ? "bg-blue-600 dark:bg-blue-600/90"
+                : "bg-primary dark:bg-primary/90"
+        } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80">
-          {isClosed ? "Auction Ended" : "Auction Ends In"}
+          {isClosedPhase
+            ? "Auction Closed"
+            : isRevealPhase
+              ? "Reveal Phase"
+              : isScheduledPhase
+                ? "Auction Starts In"
+                : "Auction Ends In"}
         </p>
-        <div className="flex justify-between items-center text-center">
-          <div>
-            <p className="text-2xl font-black">
-              {String(days).padStart(2, "0")}
-            </p>
-            <p className="text-[10px] font-bold uppercase">Days</p>
+        {!isClosedPhase && !isScheduledPhase ? (
+          <div className="flex justify-between items-center text-center">
+            <div>
+              <p className="text-2xl font-black">
+                {String(days).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Days</p>
+            </div>
+            <div className="text-2xl opacity-50 font-light">:</div>
+            <div>
+              <p className="text-2xl font-black">
+                {String(hours).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Hours</p>
+            </div>
+            <div className="text-2xl opacity-50 font-light">:</div>
+            <div>
+              <p className="text-2xl font-black">
+                {String(minutes).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Mins</p>
+            </div>
+            <div className="text-2xl opacity-50 font-light">:</div>
+            <div>
+              <p className="text-2xl font-black">
+                {String(seconds).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Secs</p>
+            </div>
           </div>
-          <div className="text-2xl opacity-50 font-light">:</div>
-          <div>
-            <p className="text-2xl font-black">
-              {String(hours).padStart(2, "0")}
-            </p>
-            <p className="text-[10px] font-bold uppercase">Hours</p>
+        ) : isScheduledPhase && timeUntilStart ? (
+          <div className="flex justify-between items-center text-center">
+            <div>
+              <p className="text-2xl font-black">
+                {String(timeUntilStart.days).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Days</p>
+            </div>
+            <div className="text-2xl opacity-50 font-light">:</div>
+            <div>
+              <p className="text-2xl font-black">
+                {String(timeUntilStart.hours).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Hours</p>
+            </div>
+            <div className="text-2xl opacity-50 font-light">:</div>
+            <div>
+              <p className="text-2xl font-black">
+                {String(timeUntilStart.minutes).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Mins</p>
+            </div>
+            <div className="text-2xl opacity-50 font-light">:</div>
+            <div>
+              <p className="text-2xl font-black">
+                {String(timeUntilStart.seconds).padStart(2, "0")}
+              </p>
+              <p className="text-[10px] font-bold uppercase">Secs</p>
+            </div>
           </div>
-          <div className="text-2xl opacity-50 font-light">:</div>
-          <div>
-            <p className="text-2xl font-black">
-              {String(minutes).padStart(2, "0")}
-            </p>
-            <p className="text-[10px] font-bold uppercase">Mins</p>
+        ) : null}
+        {isScheduledPhase && (
+          <div className="text-center">
+            <span className="material-symbols-outlined text-3xl mb-2">
+              schedule
+            </span>
+            <p className="text-sm">Auction has not started yet</p>
           </div>
-          <div className="text-2xl opacity-50 font-light">:</div>
-          <div>
-            <p className="text-2xl font-black">
-              {String(seconds).padStart(2, "0")}
-            </p>
-            <p className="text-[10px] font-bold uppercase">Secs</p>
+        )}
+        {isRevealPhase && (
+          <div className="text-center">
+            <span className="material-symbols-outlined text-3xl mb-2">
+              visibility
+            </span>
+            <p className="text-sm">Bidders can now reveal their bids</p>
           </div>
-        </div>
+        )}
+        {isClosedPhase && (
+          <div className="text-center">
+            <span className="material-symbols-outlined text-3xl mb-2">
+              lock
+            </span>
+            <p className="text-sm">Auction has ended</p>
+          </div>
+        )}
       </div>
 
       {!isCreator ? (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
-          {isClosed ? (
+          {isScheduledPhase ? (
+            <div className="text-center py-4">
+              <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="material-symbols-outlined text-blue-500 text-3xl">
+                  schedule
+                </span>
+              </div>
+              <h3 className="text-xl font-bold mb-2">Auction Scheduled</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
+                This auction has not started yet. Bidding will be available when
+                the auction begins.
+              </p>
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                <p className="text-[10px] text-blue-600 dark:text-blue-300 font-bold uppercase mb-1">
+                  Starting Bid
+                </p>
+                <p className="text-2xl font-black text-blue-900 dark:text-white">
+                  {data.minBid}
+                </p>
+              </div>
+              <div className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+                <p>Auction starts: {new Date(data.startAt).toLocaleString()}</p>
+              </div>
+            </div>
+          ) : isClosedPhase ? (
             <div className="text-center py-4">
               <div className="h-16 w-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="material-symbols-outlined text-slate-400 text-3xl">
                   event_busy
                 </span>
               </div>
-              <h3 className="text-xl font-bold mb-2">Bidding Closed</h3>
+              <h3 className="text-xl font-bold mb-2">Auction Closed</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
-                {" "}
                 This auction has officially concluded. No further bids are being
-                accepted.{" "}
+                accepted.
               </p>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
                 <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">
@@ -281,6 +476,92 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
                   {data.currentBid}
                 </p>
               </div>
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="w-full mt-4 bg-primary hover:opacity-90 text-white py-3 rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  description
+                </span>
+                View Final Report
+              </button>
+            </div>
+          ) : isRevealPhase ? (
+            <div className="text-center py-4">
+              <div className="h-16 w-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="material-symbols-outlined text-orange-500 text-3xl">
+                  visibility
+                </span>
+              </div>
+              <h3 className="text-xl font-bold mb-2">Reveal Phase</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
+                Bidding has ended. You can now reveal your bid to participate in
+                the final selection.
+              </p>
+              {myBid && (
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-300 font-bold uppercase mb-1">
+                    My Bid
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-black text-blue-900 dark:text-white">
+                      {myBid.amount || localBid?.amount || "Pending"}
+                    </p>
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">
+                      USD
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-blue-700 dark:text-blue-200">
+                    {myBid.revealed ? (
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-green-500">
+                          check_circle
+                        </span>
+                        Your bid has been revealed
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-orange-500">
+                          hourglass_top
+                        </span>
+                        Reveal your bid to participate
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              {myBid && !myBid.revealed && (
+                <button
+                  onClick={handleRevealBid}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin">
+                        refresh
+                      </span>
+                      Revealing...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined">
+                        visibility
+                      </span>
+                      Reveal Bid
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="w-full mt-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  description
+                </span>
+                View Auction Report
+              </button>
             </div>
           ) : (
             <>
@@ -413,36 +694,90 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
               Administrator Notice
             </p>
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {isClosed
+              {isClosedPhase
                 ? "This auction is closed. You can view the final reports or relist the item."
-                : "Bidding is disabled for creators. Use the actions below to manage your listing."}
+                : isRevealPhase
+                  ? "Bidding has ended and reveal phase is active. You can view current reports or close the auction."
+                  : isScheduledPhase
+                    ? "This auction is scheduled and has not started yet. Users cannot bid until the auction begins."
+                    : "Bidding is disabled for creators. Use the actions below to manage your listing."}
             </p>
           </div>
           <div className="space-y-3">
-            {!isClosed ? (
-              <>
-                <button className="w-full py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-xl font-bold text-sm shadow-lg shadow-slate-900/10 hover:opacity-90 transition-all flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-lg">
-                    edit
+            {isScheduledPhase ? (
+              <div className="text-center py-4">
+                <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="material-symbols-outlined text-blue-500 text-3xl">
+                    schedule
                   </span>
-                  Modify Auction
+                </div>
+                <h3 className="text-lg font-bold mb-2">Auction Scheduled</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                  This auction is scheduled to start at:
+                </p>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-300 mb-4">
+                  {new Date(data.startAt).toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  No actions available until the auction starts.
+                </p>
+              </div>
+            ) : !isClosedPhase && !isRevealPhase ? (
+              <button
+                onClick={() => setShowCloseModal(true)}
+                className="w-full py-4 border-2 border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-lg">block</span>
+                Close Early
+              </button>
+            ) : isRevealPhase ? (
+              <>
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    visibility
+                  </span>
+                  View Current Report
                 </button>
-                <button className="w-full py-4 border-2 border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowCloseModal(true)}
+                  className="w-full py-4 border-2 border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                >
                   <span className="material-symbols-outlined text-lg">
                     block
                   </span>
-                  Close Early
+                  Close Auction Now
                 </button>
               </>
             ) : (
               <>
-                <button className="w-full py-4 bg-primary hover:opacity-90 text-white rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="w-full py-4 bg-primary hover:opacity-90 text-white rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2"
+                >
                   <span className="material-symbols-outlined text-lg">
                     description
                   </span>
                   View Final Report
                 </button>
-                <button className="w-full py-4 border-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                <button
+                  onClick={() => {
+                    const params = new URLSearchParams({
+                      title: data.title,
+                      category: data.auctionCategory,
+                      description: data.itemDescription,
+                      minBid: data.minBid,
+                      type: data.auctionType,
+                      visibility: data.visibility,
+                    });
+                    router.push(
+                      `/auction/new?relist=true&${params.toString()}`,
+                    );
+                  }}
+                  className="w-full py-4 border-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                >
                   <span className="material-symbols-outlined text-lg">
                     refresh
                   </span>
@@ -451,6 +786,23 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
               </>
             )}
           </div>
+
+          {/* Modals */}
+          <CloseEarlyModal
+            auctionId={data.id}
+            auctionTitle={data.title}
+            isOpen={showCloseModal}
+            onClose={() => setShowCloseModal(false)}
+            onClosed={() => {
+              setShowCloseModal(false);
+              if (onAuctionUpdate) onAuctionUpdate();
+            }}
+          />
+          <FinalReportModal
+            auction={data}
+            isOpen={showReportModal}
+            onClose={() => setShowReportModal(false)}
+          />
         </div>
       )}
     </div>
