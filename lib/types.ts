@@ -111,11 +111,13 @@ export interface RatingSummaryResponse {
 
 export interface Notification {
   id: string;
-  userId: string;
+  user_id: string;
+  auction_id?: string;
   type: string;
+  title: string;
   message: string;
-  read: boolean;
-  createdAt: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export interface ApiResponse<T> {
