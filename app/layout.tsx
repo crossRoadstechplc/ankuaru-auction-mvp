@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Toaster } from "sonner";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ThemeContextProvider } from "../contexts/ThemeContext";
 import "./globals.css";
@@ -29,7 +30,18 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-display antialiased`}>
         <ThemeContextProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <Toaster
+              richColors
+              position="top-center"
+              toastOptions={{
+                style: {
+                  fontFamily: "var(--font-inter)",
+                },
+              }}
+            />
+          </AuthProvider>
         </ThemeContextProvider>
       </body>
     </html>

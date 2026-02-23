@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "../../../../contexts/AuthContext";
 import apiClient from "../../../../lib/api";
 import { UserRating } from "../../../../lib/types";
 
@@ -23,14 +24,34 @@ interface AuctionDetailsCardProps {
     currentBid?: string;
   };
   creatorRating?: UserRating | null;
+  isCreator: boolean;
 }
 
 export function AuctionDetailsCard({
   data,
   creatorRating,
+  isCreator,
 }: AuctionDetailsCardProps) {
+  const { user } = useAuth();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [myBid, setMyBid] = useState<any>(null);
+
+  // Fetch my bid status if not creator
+  useEffect(() => {
+    const fetchMyBid = async () => {
+      try {
+        const bid = await apiClient.getMyBid(data.id);
+        setMyBid(bid);
+      } catch (error) {
+        // Silently fail as it's common to not have a bid
+      }
+    };
+
+    if (!isCreator && user) {
+      fetchMyBid();
+    }
+  }, [data.id, isCreator, user]);
 
   const handleFollowToggle = async () => {
     if (!data.createdBy || isFollowLoading) return;
@@ -82,10 +103,14 @@ export function AuctionDetailsCard({
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  Current Bid
+                  {myBid ? "My Bid" : "Current Bid"}
                 </span>
                 <span className="text-xl font-black text-primary">
-                  {data.currentBid || data.minBid}
+                  {myBid?.revealed
+                    ? `$${myBid.amount}`
+                    : myBid?.amount
+                      ? `$${myBid.amount}`
+                      : data.currentBid || data.minBid}
                 </span>
               </div>
               <div className="flex flex-col">
@@ -214,21 +239,22 @@ export function AuctionDetailsCard({
               </p>
             </div>
           </div>
-          <button
-            onClick={handleFollowToggle}
-            disabled={isFollowLoading}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              isFollowing
+          {!isCreator && (
+            <button
+              onClick={handleFollowToggle}
+              disabled={isFollowLoading}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isFollowing
                 ? "border border-slate-300 text-slate-600 hover:bg-slate-100"
                 : "border border-primary text-primary hover:bg-primary hover:text-white"
-            } ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            {isFollowLoading
-              ? "Loading..."
-              : isFollowing
-                ? "Following"
-                : "Follow"}
-          </button>
+                } ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              {isFollowLoading
+                ? "Loading..."
+                : isFollowing
+                  ? "Following"
+                  : "Follow"}
+            </button>
+          )}
         </div>
       </div>
     </section>

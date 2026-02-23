@@ -145,8 +145,8 @@ function AuctionDetailContent() {
           )}
           <div
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${isSell
-                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
               }`}
           >
             <span className="material-symbols-outlined text-sm">
@@ -178,7 +178,11 @@ function AuctionDetailContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main Content Column */}
           <div className="lg:col-span-8 flex flex-col gap-8">
-            <AuctionDetailsCard data={auction} creatorRating={creatorRating} />
+            <AuctionDetailsCard
+              data={auction}
+              creatorRating={creatorRating}
+              isCreator={isCreator}
+            />
             <BidActivity data={auction} isCreator={isCreator} />
           </div>
 
