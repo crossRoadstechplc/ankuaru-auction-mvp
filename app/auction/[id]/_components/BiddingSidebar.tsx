@@ -8,6 +8,7 @@ import apiClient from "../../../../lib/api";
 import { Bid } from "../../../../lib/types";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
+import router from "next/router";
 
 interface BiddingSidebarProps {
   data: {
