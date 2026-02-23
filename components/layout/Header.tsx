@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import ThemeToggle from "../ui/ThemeToggle";
 
 export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -74,6 +76,18 @@ export default function Header() {
                 </span>
                 <span className="text-sm font-semibold hidden sm:block">
                   {pathname === "/feed" ? "Dashboard" : "Feed"}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200"
+                title="Notifications"
+              >
+                <span className="material-symbols-outlined">notifications</span>
+                <span className="absolute right-2.5 top-2.5 flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
                 </span>
               </button>
 
@@ -163,9 +177,6 @@ export default function Header() {
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
-            <div className="flex justify-between items-center p-4">
-              <ThemeToggle />
-            </div>
             <div className="max-h-96 overflow-y-auto">
               {notifications.map((n) => (
                 <div
@@ -174,12 +185,13 @@ export default function Header() {
                 >
                   <div className="flex gap-3">
                     <span
-                      className={`material-symbols-outlined text-xl ${n.type === "success"
-                        ? "text-primary"
-                        : n.type === "fail"
-                          ? "text-red-500"
-                          : "text-amber-500"
-                        }`}
+                      className={`material-symbols-outlined text-xl ${
+                        n.type === "success"
+                          ? "text-primary"
+                          : n.type === "fail"
+                            ? "text-red-500"
+                            : "text-amber-500"
+                      }`}
                     >
                       {n.type === "success"
                         ? "check_circle"

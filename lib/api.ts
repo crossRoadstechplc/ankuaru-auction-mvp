@@ -159,8 +159,10 @@ class ApiClient {
   // Auction methods
   async getAuctions(): Promise<Auction[]> {
     try {
-      const response = await this.request<Auction[]>("/api/auctions");
-      return response;
+      const response = await this.request<{ auctions: Auction[] }>(
+        "/api/auctions",
+      );
+      return Array.isArray(response.auctions) ? response.auctions : [];
     } catch (error) {
       console.error("Failed to fetch auctions:", error);
       // Return empty array as fallback

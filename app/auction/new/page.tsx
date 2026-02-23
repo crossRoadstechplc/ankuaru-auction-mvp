@@ -4,16 +4,20 @@ import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import apiClient from "../../../lib/api";
-import { CreateAuctionData } from "../../../lib/types";
+import { CreateAuctionData, User } from "../../../lib/types";
 
 export default function PostAuctionPage() {
   const [activeTab, setActiveTab] = useState("sell");
   const [selectedVisibility, setSelectedVisibility] = useState<
-    "PUBLIC" | "FOLLOWERS" | "CUSTOM"
+    "PUBLIC" | "FOLLOWERS" | "SELECTED"
   >("PUBLIC");
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isFollowersLoading, setIsFollowersLoading] = useState(false);
+  const [followersError, setFollowersError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateAuctionData>({
     title: "",
     auctionCategory: "Coffee",
@@ -31,6 +35,48 @@ export default function PostAuctionPage() {
 
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+
+  const selectedFollowersCount = useMemo(() => {
+    return selectedUserIds.length;
+  }, [selectedUserIds]);
+
+  useEffect(() => {
+    const needsFollowers =
+      selectedVisibility === "FOLLOWERS" || selectedVisibility === "SELECTED";
+
+    if (!needsFollowers) {
+      setFollowersError(null);
+      return;
+    }
+
+    if (followers.length > 0) return;
+
+    let cancelled = false;
+    const fetchFollowers = async () => {
+      try {
+        setIsFollowersLoading(true);
+        setFollowersError(null);
+        const data = await apiClient.getMyFollowers();
+        if (!cancelled) {
+          setFollowers(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setFollowersError(
+            err instanceof Error ? err.message : "Failed to load followers",
+          );
+        }
+      } finally {
+        if (!cancelled) setIsFollowersLoading(false);
+      }
+    };
+
+    fetchFollowers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [followers.length, selectedVisibility]);
 
   const fields = [
     {
@@ -114,7 +160,7 @@ export default function PostAuctionPage() {
       };
 
       // Prepare auction data based on active tab
-      const auctionData = {
+      const baseAuctionData: CreateAuctionData = {
         title: formData.title,
         auctionCategory: formData.auctionCategory,
         itemDescription: formData.itemDescription,
@@ -125,6 +171,27 @@ export default function PostAuctionPage() {
         startAt: formatDate(formData.startAt),
         endAt: formatDate(formData.endAt),
       };
+
+      let auctionData: CreateAuctionData = baseAuctionData;
+
+      if (selectedVisibility === "FOLLOWERS") {
+        const allFollowerIds = followers.map((f) => f.id);
+        auctionData = {
+          ...baseAuctionData,
+          selectedUserIds: allFollowerIds,
+        };
+      }
+
+      if (selectedVisibility === "SELECTED") {
+        if (selectedUserIds.length === 0) {
+          setError("Please select at least one follower for Custom audience");
+          return;
+        }
+        auctionData = {
+          ...baseAuctionData,
+          selectedUserIds,
+        };
+      }
 
       console.log("Submitting auction data:", auctionData);
       await apiClient.createAuction(auctionData);
@@ -361,7 +428,7 @@ export default function PostAuctionPage() {
                     description: "Only your followers can bid.",
                   },
                   {
-                    value: "CUSTOM",
+                    value: "SELECTED",
                     label: "Custom",
                     icon: "person_add",
                     description: "Selected partners only.",
@@ -382,7 +449,7 @@ export default function PostAuctionPage() {
                       checked={selectedVisibility === type.value}
                       onChange={(e) =>
                         setSelectedVisibility(
-                          e.target.value as "PUBLIC" | "FOLLOWERS" | "CUSTOM",
+                          e.target.value as "PUBLIC" | "FOLLOWERS" | "SELECTED",
                         )
                       }
                       className="sr-only"
@@ -401,6 +468,92 @@ export default function PostAuctionPage() {
                   </label>
                 ))}
               </div>
+
+              {(selectedVisibility === "FOLLOWERS" ||
+                selectedVisibility === "SELECTED") && (
+                <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        Audience
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {selectedVisibility === "FOLLOWERS"
+                          ? "This auction will be visible to all your followers."
+                          : "Select which followers can see this auction."}
+                      </p>
+                    </div>
+                    {isFollowersLoading && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        Loading followers...
+                      </div>
+                    )}
+                  </div>
+
+                  {followersError && (
+                    <div className="mt-3 text-xs text-red-600 dark:text-red-400">
+                      {followersError}
+                    </div>
+                  )}
+
+                  {selectedVisibility === "FOLLOWERS" && (
+                    <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
+                      Followers found:{" "}
+                      <span className="font-semibold">{followers.length}</span>
+                    </div>
+                  )}
+
+                  {selectedVisibility === "SELECTED" && (
+                    <div className="mt-4">
+                      <div className="mb-3 text-xs text-slate-600 dark:text-slate-300">
+                        Selected:{" "}
+                        <span className="font-semibold">
+                          {selectedFollowersCount}
+                        </span>
+                      </div>
+                      <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-slate-100 p-2 dark:border-slate-800">
+                        {followers.length === 0 && !isFollowersLoading ? (
+                          <div className="p-3 text-xs text-slate-500 dark:text-slate-400">
+                            No followers found.
+                          </div>
+                        ) : (
+                          followers.map((f) => {
+                            const checked = selectedUserIds.includes(f.id);
+                            return (
+                              <label
+                                key={f.id}
+                                className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                              >
+                                <div className="flex min-w-0 flex-col">
+                                  <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                    {f.username}
+                                  </span>
+                                  <span className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                    {f.email}
+                                  </span>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setSelectedUserIds((prev) => {
+                                      if (prev.includes(f.id)) {
+                                        return prev.filter((id) => id !== f.id);
+                                      }
+                                      return [...prev, f.id];
+                                    });
+                                  }}
+                                  className="h-4 w-4"
+                                />
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer Action */}

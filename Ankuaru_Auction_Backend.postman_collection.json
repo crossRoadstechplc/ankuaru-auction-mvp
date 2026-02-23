@@ -23,6 +23,14 @@
       "value": ""
     },
     {
+      "key": "selectedUserId",
+      "value": "11111111-1111-4111-8111-111111111111"
+    },
+    {
+      "key": "selectedUserId2",
+      "value": "22222222-2222-4222-9222-222222222222"
+    },
+    {
       "key": "notificationId",
       "value": ""
     },
@@ -41,6 +49,14 @@
     {
       "key": "commitHash",
       "value": ""
+    },
+    {
+      "key": "ratingScore",
+      "value": "5"
+    },
+    {
+      "key": "reviewText",
+      "value": "Great user, smooth transaction."
     }
   ],
   "item": [
@@ -275,6 +291,85 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "GET /api/auth/ratings/me/summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/ratings/me/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "ratings",
+                "me",
+                "summary"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/ratings/:userId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": {{ratingScore}},\n  \"reviewText\": \"{{reviewText}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/ratings/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "ratings",
+                "{{targetUserId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/auth/ratings/:userId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/ratings/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "ratings",
+                "{{targetUserId}}"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -327,6 +422,94 @@
                 "auctions"
               ]
             }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auctions (FOLLOWERS + selectedUserIds)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Followers Only Camera Auction\",\n  \"auctionCategory\": \"Electronics\",\n  \"itemDescription\": \"Canon EOS R6\",\n  \"reservePrice\": \"900\",\n  \"minBid\": \"100\",\n  \"auctionType\": \"SELL\",\n  \"visibility\": \"FOLLOWERS\",\n  \"selectedUserIds\": [\n    \"11111111-1111-4111-8111-111111111111\",\n    \"22222222-2222-4222-9222-222222222222\"\n  ],\n  \"startAt\": \"2026-02-19T09:00:00Z\",\n  \"endAt\": \"2026-02-19T10:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auctions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auctions"
+              ]
+            },
+            "description": "Create an auction with FOLLOWERS visibility and include selectedUserIds in payload using sample UUIDs. Replace with real existing user IDs from your DB."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/auctions (SELECTED + selectedUserIds)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Selected Users Phone Auction\",\n  \"auctionCategory\": \"Electronics\",\n  \"itemDescription\": \"iPhone 15 Pro\",\n  \"reservePrice\": \"700\",\n  \"minBid\": \"50\",\n  \"auctionType\": \"SELL\",\n  \"visibility\": \"SELECTED\",\n  \"selectedUserIds\": [\n    \"11111111-1111-4111-8111-111111111111\",\n    \"22222222-2222-4222-9222-222222222222\"\n  ],\n  \"startAt\": \"2026-02-19T09:00:00Z\",\n  \"endAt\": \"2026-02-19T10:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auctions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auctions"
+              ]
+            },
+            "description": "Create an auction with SELECTED visibility and pass selectedUserIds (required for selected audience) using sample UUIDs. Replace with real existing user IDs from your DB."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/auctions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auctions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auctions"
+              ]
+            },
+            "description": "Fetch all auctions visible to the current user. Send Authorization header to include FOLLOWERS/SELECTED auctions you can access; without token, only PUBLIC auctions are returned."
           },
           "response": []
         },
