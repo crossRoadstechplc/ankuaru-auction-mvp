@@ -4,6 +4,10 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  fullName?: string;
+  avatar?: string;
+  rating?: number;
+  isFollowing?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,16 +70,16 @@ export interface Bid {
   id: string;
   auctionId: string;
   bidderId: string;
-  amount: string;
   commitHash: string;
-  revealed: boolean;
+  amount?: string;
+  revealed?: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface BidResponse {
   bid: Bid;
-  message: string;
+  message?: string;
 }
 
 export interface CommitBidData {
@@ -85,16 +89,6 @@ export interface CommitBidData {
 export interface RevealBidData {
   amount: string;
   nonce: string;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  fullName?: string;
-  avatar?: string;
-  rating?: number;
-  isFollowing?: boolean;
 }
 
 export interface UserRating {
@@ -115,20 +109,6 @@ export interface Notification {
   createdAt: string;
 }
 
-export interface Bid {
-  id: string;
-  auctionId: string;
-  bidderId: string;
-  commitHash: string;
-  amount?: string;
-  revealed?: boolean;
-  createdAt: string;
-}
-
-export interface BidResponse {
-  bid: Bid;
-}
-
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -141,3 +121,4 @@ export interface ApiError {
   status?: number;
   code?: string;
 }
+
