@@ -87,6 +87,15 @@ export interface RevealBidData {
   nonce: string;
 }
 
+export interface RatingSummaryResponse {
+  user: {
+    id: string;
+    username: string;
+    averageRating: string;
+    ratingsCount: number;
+  };
+}
+
 export interface Notification {
   id: string;
   userId: string;

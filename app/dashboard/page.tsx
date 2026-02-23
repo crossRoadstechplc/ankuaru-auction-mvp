@@ -5,6 +5,9 @@ import StatsCard from "@/components/dashboard/StatsCard";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import apiClient from "../../lib/api";
+import { RatingSummaryResponse } from "../../lib/types";
 
 const LIVE_AUCTIONS = [
   {
@@ -57,6 +60,29 @@ const MY_AUCTIONS = [
 ];
 
 export default function DashboardPage() {
+  const [ratingSummary, setRatingSummary] = useState<RatingSummaryResponse | null>(null);
+  const [isLoadingRating, setIsLoadingRating] = useState(true);
+
+  useEffect(() => {
+    const fetchRatingSummary = async () => {
+      try {
+        const summary = await apiClient.getMyRatingSummary();
+        setRatingSummary(summary);
+      } catch (error) {
+        console.error("Failed to fetch rating summary:", error);
+      } finally {
+        setIsLoadingRating(false);
+      }
+    };
+    fetchRatingSummary();
+  }, []);
+
+  const ratingValue = isLoadingRating
+    ? "..."
+    : ratingSummary?.user?.averageRating
+      ? `${parseFloat(ratingSummary.user.averageRating).toFixed(1)} / 5.0`
+      : "N/A";
+
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
       <Header />
@@ -75,7 +101,7 @@ export default function DashboardPage() {
           <StatsCard label="Participating" value="3 Bids" icon="layers" iconBgColor="bg-primary/10" iconTextColor="text-primary" />
           <StatsCard label="Performance" value="W: 2 / L: 1" icon="trending_up" iconBgColor="bg-emerald-500/10" iconTextColor="text-emerald-500" />
           <StatsCard label="My Auctions" value="2 Items" icon="store" iconBgColor="bg-amber-500/10" iconTextColor="text-amber-500" />
-          <StatsCard label="Reputation" value="4.9 / 5.0" icon="military_tech" iconBgColor="bg-blue-500/10" iconTextColor="text-blue-500" />
+          <StatsCard label="Reputation" value={ratingValue} icon="military_tech" iconBgColor="bg-blue-500/10" iconTextColor="text-blue-500" />
         </div>
 
         {/* Main Management Section */}

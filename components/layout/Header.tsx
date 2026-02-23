@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import ThemeToggle from "../ui/ThemeToggle";
 import apiClient from "../../lib/api";
@@ -14,6 +14,22 @@ export default function Header() {
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [followers, setFollowers] = useState<User[]>([]);
   const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
@@ -114,7 +130,7 @@ export default function Header() {
 
               <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700"></div>
 
-              <div className="flex items-center gap-3 relative">
+              <div className="flex items-center gap-3 relative" ref={profileRef}>
                 {user && (
                   <div className="hidden text-right md:block">
                     <p className="text-sm font-bold leading-none">
@@ -136,14 +152,42 @@ export default function Header() {
                   />
                 </button>
                 {isProfileOpen && (
-                  <div className="absolute right-0 top-12 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 z-[100]">
+                  <div className="absolute right-0 top-12 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 z-[100]">
                     <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {/* <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                         {user?.username || "Account"}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Signed in
-                      </p>
+                      </p> */}
+
+                      {/* User ID Section */}
+                      {user?.id && (
+                        <div className="mt-3 flex items-center justify-between rounded-md bg-slate-50 dark:bg-slate-800/80 p-2 border border-slate-200 dark:border-slate-700">
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-0.5">User ID</span>
+                            <p className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate" title={user.id}>
+                              {user.id}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(user.id);
+                              setIsCopied(true);
+                              setTimeout(() => setIsCopied(false), 2000);
+                            }}
+                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${isCopied
+                              ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                              }`}
+                            title="Copy ID"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              {isCopied ? "check" : "content_copy"}
+                            </span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center justify-between px-4 py-3">
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -158,7 +202,7 @@ export default function Header() {
                       <span className="material-symbols-outlined text-base">
                         group
                       </span>
-                      My Followers
+                      Followers
                     </button>
                     <button
                       onClick={handleLogout}

@@ -32,7 +32,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!formData.username || !formData.email || !formData.password) {
       setError("All fields are required");
@@ -52,15 +52,15 @@ export default function RegisterPage() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       await register(formData);
       setSuccess(true);
-      
+
       // Redirect to feed after successful registration
       setTimeout(() => {
         router.push("/feed");
       }, 2000);
-      
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -199,7 +199,7 @@ export default function RegisterPage() {
                 </button>
               </div>
             </div>
-            
+
 
             {/* Terms and Conditions */}
             <div className="flex items-start gap-2 px-1">
@@ -256,7 +256,7 @@ export default function RegisterPage() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
-            Ankuaru B2B Coffee Platform © 2024
+            Ankuaru B2B Coffee Platform © 2026
             <span className="mx-1">•</span>
             <Link className="hover:text-primary underline decoration-primary/30" href="#">
               Terms

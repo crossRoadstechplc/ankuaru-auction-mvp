@@ -133,11 +133,10 @@ function AuctionDetailContent() {
             </div>
           )}
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${
-              isSell
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${isSell
                 ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                 : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-            }`}
+              }`}
           >
             <span className="material-symbols-outlined text-sm">
               {isSell ? "sell" : "shopping_cart"}
@@ -179,7 +178,7 @@ function AuctionDetailContent() {
 
       <footer className="mt-auto py-10 px-8 border-t border-slate-100 dark:border-slate-800 text-center">
         <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">
-          © 2024 Ankuaru Specialty Coffee Marketplace
+          © 2026 Ankuaru Specialty Coffee Marketplace
         </p>
       </footer>
     </div>

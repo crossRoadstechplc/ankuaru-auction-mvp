@@ -12,9 +12,9 @@ export default function ThemeToggle() {
   const getThemeIcon = (currentTheme: string) => {
     switch (currentTheme) {
       case "light":
-        return "light_mode";
-      case "dark":
         return "dark_mode";
+      case "dark":
+        return "light_mode";
       default:
         return "light_mode";
     }

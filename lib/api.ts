@@ -8,6 +8,7 @@ import {
   CreateAuctionData,
   LoginData,
   Notification,
+  RatingSummaryResponse,
   RegisterData,
   User,
 } from "./types";
@@ -161,6 +162,10 @@ class ApiClient {
 
   async getMyNotifications(): Promise<Notification[]> {
     return this.request<Notification[]>("/api/auth/notifications/me");
+  }
+
+  async getMyRatingSummary(): Promise<RatingSummaryResponse> {
+    return this.request<RatingSummaryResponse>("/api/auth/ratings/me/summary");
   }
 
   async markNotificationRead(notificationId: string): Promise<void> {
