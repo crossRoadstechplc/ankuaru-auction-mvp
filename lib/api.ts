@@ -61,12 +61,6 @@ class ApiClient {
 
       console.log(`API Response: ${response.status} ${response.statusText}`);
 
-      // Handle 401 Unauthorized - token expired
-      if (response.status === 401) {
-        this.logout();
-        throw new Error("Session expired. Please login again.");
-      }
-
       // Handle non-2xx responses
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

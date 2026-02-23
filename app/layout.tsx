@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ThemeContextProvider } from "../contexts/ThemeContext";
+import ProtectedRoute from "../components/ProtectedRoute";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,7 +32,9 @@ export default function RootLayout({
       <body className={`${inter.variable} font-display antialiased`}>
         <ThemeContextProvider>
           <AuthProvider>
-            {children}
+            <ProtectedRoute>
+              {children}
+            </ProtectedRoute>
             <Toaster
               richColors
               position="top-center"
