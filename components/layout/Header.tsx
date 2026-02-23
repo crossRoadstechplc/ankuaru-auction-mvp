@@ -3,11 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const changePage = () => {
+    if (pathname === "/feed") {
+      router.push("/dashboard");
+    } else {
+      router.push("/feed");
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -55,13 +66,15 @@ export default function Header() {
           {isAuthenticated ? (
             <>
               <button
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200"
+                onClick={changePage}
+                className="relative flex h-10 px-4 items-center justify-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200"
+                title={pathname === "/feed" ? "Go to Dashboard" : "Go toFeed"}
               >
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="absolute right-2.5 top-2.5 flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
+                <span className="material-symbols-outlined">
+                  {pathname === "/feed" ? "space_dashboard" : "dynamic_feed"}
+                </span>
+                <span className="text-sm font-semibold hidden sm:block">
+                  {pathname === "/feed" ? "Dashboard" : "Feed"}
                 </span>
               </button>
 
@@ -153,13 +166,12 @@ export default function Header() {
                 >
                   <div className="flex gap-3">
                     <span
-                      className={`material-symbols-outlined text-xl ${
-                        n.type === "success"
-                          ? "text-primary"
-                          : n.type === "fail"
-                            ? "text-red-500"
-                            : "text-amber-500"
-                      }`}
+                      className={`material-symbols-outlined text-xl ${n.type === "success"
+                        ? "text-primary"
+                        : n.type === "fail"
+                          ? "text-red-500"
+                          : "text-amber-500"
+                        }`}
                     >
                       {n.type === "success"
                         ? "check_circle"
