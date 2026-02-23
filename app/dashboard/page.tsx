@@ -7,7 +7,7 @@ import Header from "@/components/layout/Header";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import apiClient from "../../lib/api";
-import { RatingSummaryResponse } from "../../lib/types";
+import { RatingSummaryResponse, Auction } from "../../lib/types";
 
 const LIVE_AUCTIONS = [
   {
@@ -40,31 +40,18 @@ const LIVE_AUCTIONS = [
   },
 ];
 
-const MY_AUCTIONS = [
-  {
-    id: "101",
-    title: "Jimma Djimmah G5 Natural",
-    price: "$28.50",
-    bids: "6 Bids",
-    views: "210 Views",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAs-nRt3Tl5Nll04BELyXURnTk1xHTwKKakxpyslDWPMs4wdqrYha-AqX-qYDEcg58IeY2lKtsULECm2mHz0AYv2_ZTuP9PoCQgHW3Uip5U1tDv_CIahywguMNO4SMPxfwdhQkIvSZrPqY9HnhvXD2sMCeNYr4ymQvobU47mW8bt-rStcAWPINnTT5-WArFIrKXPxq2E0HyV6rcylszg6FX9CortDisUAd5a-jeGqCQV5S8j6zZoeAt3xNTBx6HZ67J98oPZ9E9BCw",
-  },
-  {
-    id: "102",
-    title: "Bebeka Geisha G3 Green",
-    price: "$34.00",
-    bids: "2 Bids",
-    views: "85 Views",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBCeeIR2t3UCjZvsBYbS2bw5OBYMNth821FiJZcdYMYrdPYn1R4JCQhh3w39_0xBQEOQqGrXIa_m66bh99AdNuFBWBpbmwHU88uB1GG6P6YUP8FcTagRQ37HY5VuDen4FiwDuR-eRXEXo_NTBxsT0E3aNqbxndp73pjdfcClaJTGbkewErq-9AmflJVNoZwrsd9NfyOxIcMmeMdHpC7RMV88B3aWEQH5KSv0wvvyTjRn8IC4n65PChc1qiw_DwW-hh9xGQ7JlB9cJc",
-  },
-];
+
 
 export default function DashboardPage() {
   const [ratingSummary, setRatingSummary] = useState<RatingSummaryResponse | null>(null);
   const [isLoadingRating, setIsLoadingRating] = useState(true);
 
+  const [myAuctions, setMyAuctions] = useState<Auction[]>([]);
+  const [isLoadingAuctions, setIsLoadingAuctions] = useState(true);
+
   useEffect(() => {
-    const fetchRatingSummary = async () => {
+    const fetchDashboardData = async () => {
+      // Rating Summary
       try {
         const summary = await apiClient.getMyRatingSummary();
         setRatingSummary(summary);
@@ -73,8 +60,24 @@ export default function DashboardPage() {
       } finally {
         setIsLoadingRating(false);
       }
+
+      // My Auctions
+      try {
+        const user = localStorage.getItem("auth_user") || "";
+        const userId = JSON.parse(user).id;
+        if (userId) {
+          const auctions = await apiClient.getUserAuctions(userId);
+          setMyAuctions(auctions);
+        } else {
+          console.log("No user ID found in local storage");
+        }
+      } catch (error) {
+        console.error("Failed to fetch my auctions:", error);
+      } finally {
+        setIsLoadingAuctions(false);
+      }
     };
-    fetchRatingSummary();
+    fetchDashboardData();
   }, []);
 
   const ratingValue = isLoadingRating
@@ -92,15 +95,24 @@ export default function DashboardPage() {
         <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
           <div className="space-y-1">
             <h2 className="text-3xl md:text-4xl font-black text-coffee-bean dark:text-slate-100">Dashboard</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium italic">Welcome back! Manage your trades and sourcing requests.</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium italic">Welcome back! Manage your auction here.</p>
           </div>
+          <Link
+            href="/auction/new"
+            className="group flex h-11 items-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 text-sm"
+          >
+            <span className="material-symbols-outlined text-lg">
+              add_circle
+            </span>
+            <span>Create Auction</span>
+          </Link>
         </div>
 
         {/* Stats Overview */}
         <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-4">
           <StatsCard label="Participating" value="3 Bids" icon="layers" iconBgColor="bg-primary/10" iconTextColor="text-primary" />
           <StatsCard label="Performance" value="W: 2 / L: 1" icon="trending_up" iconBgColor="bg-emerald-500/10" iconTextColor="text-emerald-500" />
-          <StatsCard label="My Auctions" value="2 Items" icon="store" iconBgColor="bg-amber-500/10" iconTextColor="text-amber-500" />
+          <StatsCard label="My Auctions" value={`${isLoadingAuctions ? "..." : myAuctions.length} Items`} icon="store" iconBgColor="bg-amber-500/10" iconTextColor="text-amber-500" />
           <StatsCard label="Reputation" value={ratingValue} icon="military_tech" iconBgColor="bg-blue-500/10" iconTextColor="text-blue-500" />
         </div>
 
@@ -110,29 +122,45 @@ export default function DashboardPage() {
           <section>
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-xl font-bold text-coffee-bean dark:text-slate-100">My Auctions</h3>
-              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-400">2 Items</span>
+              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-400">{myAuctions.length} Items</span>
             </div>
             <div className="space-y-4">
-              {MY_AUCTIONS.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/auction/${item.id}?view=creator`}
-                  className="flex items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                >
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-coffee-cream">
-                    <img alt="Item" className="h-full w-full object-cover" src={item.image} />
-                  </div>
-                  <div className="flex-grow">
-                    <h5 className="text-sm font-bold">{item.title}</h5>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs font-bold text-primary">{item.price}</span>
-                      <span className="text-[10px] text-slate-400">• {item.bids}</span>
-                      <span className="text-[10px] text-slate-400">• {item.views}</span>
+              {isLoadingAuctions ? (
+                <div className="p-4 text-center text-sm text-slate-500">Loading your auctions...</div>
+              ) : myAuctions.length === 0 ? (
+                <div className="p-4 text-center flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                  <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">storefront</span>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">You haven't created any auctions yet.</p>
+                  <Link href="/auction/create" className="mt-4 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors">
+                    Create New Auction
+                  </Link>
+                </div>
+              ) : (
+                myAuctions.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/auction/${item.id}?view=creator`}
+                    className="flex items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  >
+                    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-coffee-cream flex items-center justify-center text-slate-300">
+                      {item.image ? (
+                        <img alt={item.title} className="h-full w-full object-cover" src={item.image} />
+                      ) : (
+                        <span className="material-symbols-outlined text-3xl">image</span>
+                      )}
                     </div>
-                  </div>
-                  <span className="material-symbols-outlined text-slate-300">chevron_right</span>
-                </Link>
-              ))}
+                    <div className="flex-grow">
+                      <h5 className="text-sm font-bold truncate max-w-[200px]" title={item.title}>{item.title}</h5>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs font-bold text-primary">${item.reservePrice}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">• {item.bidCount ?? 0} Bids</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.status === 'OPEN' ? 'bg-primary/10 text-primary' : item.status === 'CLOSED' ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' : 'bg-amber-500/10 text-amber-500'}`}>{item.status}</span>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-300">chevron_right</span>
+                  </Link>
+                ))
+              )}
             </div>
           </section>
 

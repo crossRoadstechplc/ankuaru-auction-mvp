@@ -196,6 +196,18 @@ class ApiClient {
     }
   }
 
+  async getUserAuctions(userId: string): Promise<Auction[]> {
+    try {
+      const response = await this.request<{ auctions: Auction[] }>(
+        `/api/auctions/user/${userId}`,
+      );
+      return Array.isArray(response.auctions) ? response.auctions : [];
+    } catch (error) {
+      console.error(`Failed to fetch auctions for user ${userId}:`, error);
+      return [];
+    }
+  }
+
   async getAuction(id: string): Promise<Auction> {
     const response = await this.request<{ auction: Auction }>(
       `/api/auctions/${id}`,

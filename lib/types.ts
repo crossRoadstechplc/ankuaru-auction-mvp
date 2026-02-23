@@ -100,6 +100,15 @@ export interface UserRating {
   };
 }
 
+export interface RatingSummaryResponse {
+  user: {
+    id?: string;
+    username?: string;
+    averageRating: string;
+    ratingsCount?: number;
+  };
+}
+
 export interface Notification {
   id: string;
   userId: string;
