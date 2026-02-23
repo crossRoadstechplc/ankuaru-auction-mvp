@@ -140,10 +140,31 @@ export function BiddingSidebar({
   onAuctionUpdate,
 }: BiddingSidebarProps) {
   const isSell = data.auctionType === "SELL";
-  const { days, hours, minutes, seconds, isClosed } = getTimeRemaining(
-    data.endAt,
-  );
   const { user } = useAuth();
+
+  // --- Live countdown timer ---
+  const [timeLeft, setTimeLeft] = useState(() =>
+    getTimeRemaining(data.startAt, data.endAt, data.status),
+  );
+
+  useEffect(() => {
+    // Only tick for OPEN (countdown to end) or SCHEDULED (countdown to start)
+    if (data.status !== "OPEN" && data.status !== "SCHEDULED") return;
+    // Also stop if already resolved
+    if (timeLeft.isClosed) return;
+
+    const timer = setInterval(() => {
+      const remaining = getTimeRemaining(data.startAt, data.endAt, data.status);
+      setTimeLeft(remaining);
+      if (remaining.isClosed) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data.startAt, data.endAt, data.status]);
+
+  const { days, hours, minutes, seconds, isClosed, shouldReveal, timeUntilStart } = timeLeft;
 
   const [bidAmount, setBidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,6 +173,8 @@ export function BiddingSidebar({
     amount: string;
     nonce: string;
   } | null>(null);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Helper to save bid details
   const saveBidLocally = (amount: string, nonce: string) => {
@@ -314,12 +337,12 @@ export function BiddingSidebar({
       {/* Countdown Card */}
       <div
         className={`${isClosedPhase
-            ? "bg-slate-700"
-            : isRevealPhase
-              ? "bg-orange-600 dark:bg-orange-600/90"
-              : isScheduledPhase
-                ? "bg-blue-600 dark:bg-blue-600/90"
-                : "bg-primary dark:bg-primary/90"
+          ? "bg-slate-700"
+          : isRevealPhase
+            ? "bg-orange-600 dark:bg-orange-600/90"
+            : isScheduledPhase
+              ? "bg-blue-600 dark:bg-blue-600/90"
+              : "bg-primary dark:bg-primary/90"
           } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80">
