@@ -70,8 +70,11 @@ class ApiClient {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage =
           errorData.message ||
+          errorData.error ||
+          errorData.detail ||
           response.statusText ||
           `Request failed with status ${response.status}`;
+        console.error("API Error Details:", errorData);
         throw new Error(errorMessage);
       }
 
@@ -229,7 +232,11 @@ class ApiClient {
     });
   }
 
-  async revealBid(auctionId: string, amount: string, nonce: string): Promise<void> {
+  async revealBid(
+    auctionId: string,
+    amount: string,
+    nonce: string,
+  ): Promise<void> {
     return this.request<void>(`/api/auctions/${auctionId}/reveal`, {
       method: "POST",
       body: JSON.stringify({ amount, nonce }),

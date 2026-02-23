@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "../../../../contexts/AuthContext";
 import apiClient from "../../../../lib/api";
+import { Bid } from "../../../../lib/types";
 
 interface BiddingSidebarProps {
   data: {
@@ -22,6 +24,16 @@ interface BiddingSidebarProps {
     currentBid?: string;
   };
   isCreator: boolean;
+}
+
+// Helper function to generate SHA256 hash
+async function generateSHA256Hash(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 // Helper to calculate time remaining
@@ -53,11 +65,11 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
   const { days, hours, minutes, seconds, isClosed } = getTimeRemaining(
     data.endAt,
   );
+  const { user } = useAuth();
 
   const [bidAmount, setBidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [myBid, setMyBid] = useState<Bid | null>(null);
-  const [showBidForm, setShowBidForm] = useState(false);
 
   // Fetch user's current bid
   useEffect(() => {
@@ -86,8 +98,10 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
     try {
       setIsSubmitting(true);
 
-      // Generate commit hash (in real app, this would be done client-side)
-      const commitHash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Generate proper commit hash using SHA256
+      const nonce = Math.random().toString(36).substr(2, 9);
+      const raw = `${data.id}:${user?.id}:${bidAmount}:${nonce}`;
+      const commitHash = await generateSHA256Hash(raw);
 
       await apiClient.placeBid(data.id, commitHash);
 
@@ -95,7 +109,6 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
         "Bid submitted successfully! Your bid is now hidden until the reveal phase.",
       );
       setBidAmount("");
-      setShowBidForm(false);
 
       // Refresh my bid
       const updatedBid = await apiClient.getMyBid(data.id);
@@ -198,9 +211,43 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
             </div>
           ) : (
             <>
+              {/* My Bid Status */}
+              {myBid && (
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-300 font-bold uppercase mb-1">
+                    My Bid
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-black text-blue-900 dark:text-white">
+                      {myBid.amount || "Pending"}
+                    </p>
+                    <span className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">
+                      USD
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-blue-700 dark:text-blue-200">
+                    {myBid.revealed ? (
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-green-500">
+                          check_circle
+                        </span>
+                        Your bid has been revealed
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-orange-500">
+                          hourglass_top
+                        </span>
+                        Waiting for reveal phase
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="mb-8">
                 <p className="text-sm text-slate-400 font-bold uppercase mb-1">
-                  Current Bid
+                  {myBid ? "Current Bid" : "Current Bid"}
                 </p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
@@ -213,24 +260,75 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
-                    {isSell ? "Your New Bid" : "Your Lower Offer"}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                      $
-                    </span>
-                    <input
-                      className="w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
-                      type="number"
-                      placeholder="Enter amount"
-                    />
+                {!myBid ? (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
+                      {isSell ? "Your New Bid" : "Your Lower Offer"}
+                    </label>
+                    <form onSubmit={handleBidSubmit}>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                          $
+                        </span>
+                        <input
+                          className="w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
+                          type="number"
+                          placeholder="Enter amount"
+                          value={bidAmount}
+                          onChange={(e) => setBidAmount(e.target.value)}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="w-full bg-primary hover:bg-primary-dark text-white py-5 rounded-xl font-black text-lg shadow-xl shadow-primary/30 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <span className="material-symbols-outlined animate-spin">
+                              refresh
+                            </span>
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            {isSell
+                              ? "Submit Higher Bid"
+                              : "Submit Better Offer"}
+                          </>
+                        )}
+                      </button>
+                    </form>
                   </div>
-                </div>
-                <button className="w-full bg-primary hover:bg-primary-dark text-white py-5 rounded-xl font-black text-lg shadow-xl shadow-primary/30 transition-all uppercase tracking-widest active:scale-[0.98]">
-                  {isSell ? "Submit Higher Bid" : "Submit Better Offer"}
-                </button>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
+                      Reveal Your Bid
+                    </label>
+                    <button
+                      onClick={handleRevealBid}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isSubmitting || !myBid}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <span className="material-symbols-outlined animate-spin">
+                            refresh
+                          </span>
+                          Revealing...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined">
+                            visibility
+                          </span>
+                          Reveal Bid
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
