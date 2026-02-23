@@ -1,17 +1,17 @@
 // API Client for Ankuaru Auction Backend
 
 import {
-  Auction,
-  AuthResponse,
-  Bid,
-  BidResponse,
-  CreateAuctionData,
-  LoginData,
-  Notification,
-  RatingSummaryResponse,
-  RegisterData,
-  User,
-  UserRating,
+    Auction,
+    AuthResponse,
+    Bid,
+    BidResponse,
+    CreateAuctionData,
+    LoginData,
+    Notification,
+    RatingSummaryResponse,
+    RegisterData,
+    User,
+    UserRating,
 } from "./types";
 
 class ApiClient {
@@ -32,6 +32,7 @@ class ApiClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
+    silent: boolean = false,
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
@@ -74,7 +75,11 @@ class ApiClient {
           errorData.detail ||
           response.statusText ||
           `Request failed with status ${response.status}`;
-        console.error("API Error Details:", errorData);
+
+        if (!silent) {
+          console.error("API Error Details:", errorData);
+        }
+
         throw new Error(errorMessage);
       }
 
@@ -245,7 +250,12 @@ class ApiClient {
 
   async getMyBid(auctionId: string): Promise<Bid | null> {
     try {
-      return await this.request<Bid>(`/api/auctions/${auctionId}/my-bid`);
+      // Use silent=true because "no bid found" (404) is an expected state
+      return await this.request<Bid>(
+        `/api/auctions/${auctionId}/my-bid`,
+        {},
+        true,
+      );
     } catch {
       // Return null if no bid exists
       return null;

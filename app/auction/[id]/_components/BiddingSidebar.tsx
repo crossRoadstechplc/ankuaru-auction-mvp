@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
 import apiClient from "../../../../lib/api";
 import { Bid } from "../../../../lib/types";
@@ -34,6 +35,7 @@ async function generateSHA256Hash(message: string): Promise<string> {
   const hashHex = hashArray
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+  return hashHex;
 }
 
 // Helper to calculate time remaining
@@ -70,6 +72,43 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
   const [bidAmount, setBidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [myBid, setMyBid] = useState<Bid | null>(null);
+  const [localBid, setLocalBid] = useState<{
+    amount: string;
+    nonce: string;
+  } | null>(null);
+
+  // Helper to save bid details
+  const saveBidLocally = (amount: string, nonce: string) => {
+    if (typeof window !== "undefined" && user?.id) {
+      const storageKey = `bid_${data.id}_${user.id}`;
+      localStorage.setItem(storageKey, JSON.stringify({ amount, nonce }));
+    }
+  };
+
+  // Helper to load bid details
+  const loadBidLocally = () => {
+    if (typeof window !== "undefined" && user?.id) {
+      const storageKey = `bid_${data.id}_${user.id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error("Failed to parse saved bid:", e);
+          return null;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Check for local bid on mount or when user changes
+  useEffect(() => {
+    if (user?.id) {
+      const saved = loadBidLocally();
+      setLocalBid(saved);
+    }
+  }, [user?.id, data.id]);
 
   // Fetch user's current bid
   useEffect(() => {
@@ -91,7 +130,12 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
     e.preventDefault();
 
     if (!bidAmount || parseFloat(bidAmount) <= 0) {
-      alert("Please enter a valid bid amount");
+      toast.warning("Please enter a valid bid amount");
+      return;
+    }
+
+    if (!user?.id) {
+      toast.error("Please login to place a bid");
       return;
     }
 
@@ -99,23 +143,27 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
       setIsSubmitting(true);
 
       // Generate proper commit hash using SHA256
-      const nonce = Math.random().toString(36).substr(2, 9);
-      const raw = `${data.id}:${user?.id}:${bidAmount}:${nonce}`;
+      const nonce = Math.random().toString(36).substring(2, 11);
+      const raw = `${data.id}:${user.id}:${bidAmount}:${nonce}`;
       const commitHash = await generateSHA256Hash(raw);
+
+      // Save bid details locally BEFORE submitting
+      saveBidLocally(bidAmount, nonce);
+      setLocalBid({ amount: bidAmount, nonce });
 
       await apiClient.placeBid(data.id, commitHash);
 
-      alert(
-        "Bid submitted successfully! Your bid is now hidden until the reveal phase.",
+      toast.success(
+        "Bid submitted! Your bid is hidden until the reveal phase.",
       );
       setBidAmount("");
 
-      // Refresh my bid
+      // Refresh my bid status from API
       const updatedBid = await apiClient.getMyBid(data.id);
       setMyBid(updatedBid);
     } catch (error) {
       console.error("Bid submission failed:", error);
-      alert(error instanceof Error ? error.message : "Failed to submit bid");
+      toast.error(error instanceof Error ? error.message : "Failed to submit bid");
     } finally {
       setIsSubmitting(false);
     }
@@ -124,22 +172,47 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
   const handleRevealBid = async () => {
     if (!myBid) return;
 
+    // Retrieve saved amount and nonce
+    const saved = localBid || loadBidLocally();
+
+    if (!saved) {
+      toast.warning(
+        "Could not find matching bid data in this browser. Please enter your original amount and nonce manually.",
+      );
+      // Fallback for manual entry if needed, but for now just prompt for amount
+      const manualAmount = prompt("Enter your original bid amount:") || "";
+      const manualNonce = prompt("Enter your secret nonce:") || "";
+      if (!manualAmount || !manualNonce) return;
+
+      try {
+        setIsSubmitting(true);
+        await apiClient.revealBid(data.id, manualAmount, manualNonce);
+        toast.success("Bid revealed successfully!");
+        const updatedBid = await apiClient.getMyBid(data.id);
+        setMyBid(updatedBid);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Reveal failed");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     try {
       setIsSubmitting(true);
+      await apiClient.revealBid(data.id, saved.amount, saved.nonce);
 
-      // In real app, user would enter their original amount and nonce
-      const revealAmount =
-        bidAmount ||
-        prompt("Enter your bid amount for reveal:") ||
-        myBid.amount;
-      const nonce = `reveal_${Date.now()}`;
+      toast.success("Bid revealed successfully!");
 
-      await apiClient.revealBid(data.id, revealAmount, nonce);
+      // Refresh status
+      const updatedBid = await apiClient.getMyBid(data.id);
+      setMyBid(updatedBid);
 
-      alert("Bid revealed successfully!");
+      // Optionally clear local storage after successful reveal
+      // localStorage.removeItem(`bid_${data.id}_${user?.id}`);
     } catch (error) {
       console.error("Bid reveal failed:", error);
-      alert(error instanceof Error ? error.message : "Failed to reveal bid");
+      toast.error(error instanceof Error ? error.message : "Failed to reveal bid");
     } finally {
       setIsSubmitting(false);
     }
@@ -219,7 +292,7 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
                   </p>
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-black text-blue-900 dark:text-white">
-                      {myBid.amount || "Pending"}
+                      {myBid.amount || localBid?.amount || "Pending"}
                     </p>
                     <span className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">
                       USD
