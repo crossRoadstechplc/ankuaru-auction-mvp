@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import apiClient from "../../../../lib/api";
+
 interface BiddingSidebarProps {
   data: {
     id: string;
@@ -50,6 +53,84 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
   const { days, hours, minutes, seconds, isClosed } = getTimeRemaining(
     data.endAt,
   );
+
+  const [bidAmount, setBidAmount] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [myBid, setMyBid] = useState<Bid | null>(null);
+  const [showBidForm, setShowBidForm] = useState(false);
+
+  // Fetch user's current bid
+  useEffect(() => {
+    const fetchMyBid = async () => {
+      try {
+        const bid = await apiClient.getMyBid(data.id);
+        setMyBid(bid);
+      } catch (error) {
+        console.error("Failed to fetch my bid:", error);
+      }
+    };
+
+    if (!isCreator && !isClosed) {
+      fetchMyBid();
+    }
+  }, [data.id, isCreator, isClosed]);
+
+  const handleBidSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!bidAmount || parseFloat(bidAmount) <= 0) {
+      alert("Please enter a valid bid amount");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Generate commit hash (in real app, this would be done client-side)
+      const commitHash = `hash_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      await apiClient.placeBid(data.id, commitHash);
+
+      alert(
+        "Bid submitted successfully! Your bid is now hidden until the reveal phase.",
+      );
+      setBidAmount("");
+      setShowBidForm(false);
+
+      // Refresh my bid
+      const updatedBid = await apiClient.getMyBid(data.id);
+      setMyBid(updatedBid);
+    } catch (error) {
+      console.error("Bid submission failed:", error);
+      alert(error instanceof Error ? error.message : "Failed to submit bid");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRevealBid = async () => {
+    if (!myBid) return;
+
+    try {
+      setIsSubmitting(true);
+
+      // In real app, user would enter their original amount and nonce
+      const revealAmount =
+        bidAmount ||
+        prompt("Enter your bid amount for reveal:") ||
+        myBid.amount;
+      const nonce = `reveal_${Date.now()}`;
+
+      await apiClient.revealBid(data.id, revealAmount, nonce);
+
+      alert("Bid revealed successfully!");
+    } catch (error) {
+      console.error("Bid reveal failed:", error);
+      alert(error instanceof Error ? error.message : "Failed to reveal bid");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="lg:col-span-4 flex flex-col gap-6">

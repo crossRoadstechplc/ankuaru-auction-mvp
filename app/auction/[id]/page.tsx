@@ -6,7 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import apiClient from "../../../lib/api";
-import { Auction } from "../../../lib/types";
+import { Auction, User, UserRating } from "../../../lib/types";
 import { AuctionDetailsCard } from "./_components/AuctionDetailsCard";
 import { BidActivity } from "./_components/BidActivity";
 import { BiddingSidebar } from "./_components/BiddingSidebar";
@@ -19,11 +19,14 @@ function AuctionDetailContent() {
   const { isAuthenticated } = useAuth();
 
   const [auction, setAuction] = useState<Auction | null>(null);
+  const [creator, setCreator] = useState<User | null>(null);
+  const [creatorRating, setCreatorRating] = useState<UserRating | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchAuction = async () => {
+    const fetchAuctionDetails = async () => {
       if (!id) return;
 
       try {
@@ -31,6 +34,18 @@ function AuctionDetailContent() {
         setError(null);
         const data = await apiClient.getAuction(id);
         setAuction(data);
+
+        // Fetch creator info and rating
+        if (data.createdBy) {
+          try {
+            const [ratingData] = await Promise.all([
+              apiClient.getUserRating(data.createdBy),
+            ]);
+            setCreatorRating(ratingData);
+          } catch (err) {
+            console.warn("Failed to fetch creator info:", err);
+          }
+        }
       } catch (err) {
         setError(
           err instanceof Error
@@ -42,12 +57,8 @@ function AuctionDetailContent() {
       }
     };
 
-    if (isAuthenticated) {
-      fetchAuction();
-    } else {
-      setIsLoading(false);
-    }
-  }, [id, isAuthenticated]);
+    fetchAuctionDetails();
+  }, [id]);
 
   if (!isAuthenticated) {
     return (
@@ -167,7 +178,7 @@ function AuctionDetailContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main Content Column */}
           <div className="lg:col-span-8 flex flex-col gap-8">
-            <AuctionDetailsCard data={auction} />
+            <AuctionDetailsCard data={auction} creatorRating={creatorRating} />
             <BidActivity data={auction} isCreator={isCreator} />
           </div>
 

@@ -87,7 +87,17 @@ export interface RevealBidData {
   nonce: string;
 }
 
-export interface RatingSummaryResponse {
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  fullName?: string;
+  avatar?: string;
+  rating?: number;
+  isFollowing?: boolean;
+}
+
+export interface UserRating {
   user: {
     id: string;
     username: string;
@@ -103,6 +113,20 @@ export interface Notification {
   message: string;
   read: boolean;
   createdAt: string;
+}
+
+export interface Bid {
+  id: string;
+  auctionId: string;
+  bidderId: string;
+  commitHash: string;
+  amount?: string;
+  revealed?: boolean;
+  createdAt: string;
+}
+
+export interface BidResponse {
+  bid: Bid;
 }
 
 export interface ApiResponse<T> {
