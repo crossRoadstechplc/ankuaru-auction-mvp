@@ -35,13 +35,11 @@ export interface Auction {
   visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
   startAt: string;
   endAt: string;
-  status: "LIVE" | "CLOSED" | "UPCOMING";
-  creatorId: string;
+  status: "OPEN" | "REVEAL" | "CLOSED";
+  createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  bidCount?: number;
   currentBid?: string;
-  totalBids?: number;
-  timeLeft?: string;
   // UI-specific fields for feed display
   tag?: string;
   tagColor?: string;

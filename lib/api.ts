@@ -140,7 +140,23 @@ class ApiClient {
   }
 
   async getMyFollowers(): Promise<User[]> {
-    return this.request<User[]>("/api/auth/followers/me");
+    try {
+      const response = await this.request<User[] | { followers: User[] }>(
+        "/api/auth/followers/me",
+      );
+      // Handle both direct array and wrapped response
+      if (Array.isArray(response)) {
+        return response;
+      }
+      if (response && Array.isArray(response.followers)) {
+        return response.followers;
+      }
+      console.warn("Unexpected followers response format:", response);
+      return [];
+    } catch (error) {
+      console.error("Failed to fetch followers:", error);
+      return [];
+    }
   }
 
   async getMyNotifications(): Promise<Notification[]> {

@@ -1,13 +1,55 @@
 "use client";
 
 interface BiddingSidebarProps {
-  data: any;
+  data: {
+    id: string;
+    title: string;
+    auctionCategory: string;
+    itemDescription: string;
+    reservePrice: string;
+    minBid: string;
+    auctionType: "SELL" | "BUY";
+    visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
+    startAt: string;
+    endAt: string;
+    status: "OPEN" | "REVEAL" | "CLOSED";
+    createdBy: string;
+    createdAt: string;
+    bidCount?: number;
+    currentBid?: string;
+  };
   isCreator: boolean;
+}
+
+// Helper to calculate time remaining
+function getTimeRemaining(endAt: string): {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  isClosed: boolean;
+} {
+  const now = new Date().getTime();
+  const end = new Date(endAt).getTime();
+  const diff = end - now;
+
+  if (diff <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, isClosed: true };
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  return { days, hours, minutes, seconds, isClosed: false };
 }
 
 export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
   const isSell = data.auctionType === "SELL";
-  const isClosed = data.status === "CLOSED";
+  const { days, hours, minutes, seconds, isClosed } = getTimeRemaining(
+    data.endAt,
+  );
 
   return (
     <div className="lg:col-span-4 flex flex-col gap-6">
@@ -20,24 +62,31 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
         </p>
         <div className="flex justify-between items-center text-center">
           <div>
-            <p className="text-2xl font-black">00</p>
+            <p className="text-2xl font-black">
+              {String(days).padStart(2, "0")}
+            </p>
             <p className="text-[10px] font-bold uppercase">Days</p>
           </div>
           <div className="text-2xl opacity-50 font-light">:</div>
           <div>
             <p className="text-2xl font-black">
-              {isClosed ? "00" : (data.timeLeft?.split("h")[0] ?? "00")}
+              {String(hours).padStart(2, "0")}
             </p>
             <p className="text-[10px] font-bold uppercase">Hours</p>
           </div>
           <div className="text-2xl opacity-50 font-light">:</div>
           <div>
             <p className="text-2xl font-black">
-              {isClosed
-                ? "00"
-                : (data.timeLeft?.split("h")[1]?.trim().split("m")[0] ?? "45")}
+              {String(minutes).padStart(2, "0")}
             </p>
             <p className="text-[10px] font-bold uppercase">Mins</p>
+          </div>
+          <div className="text-2xl opacity-50 font-light">:</div>
+          <div>
+            <p className="text-2xl font-black">
+              {String(seconds).padStart(2, "0")}
+            </p>
+            <p className="text-[10px] font-bold uppercase">Secs</p>
           </div>
         </div>
       </div>
@@ -77,7 +126,7 @@ export function BiddingSidebar({ data, isCreator }: BiddingSidebarProps) {
                     {data.currentBid}
                   </p>
                   <span className="text-xs font-bold text-slate-400 uppercase">
-                    {data.measurement}
+                    USD
                   </span>
                 </div>
               </div>

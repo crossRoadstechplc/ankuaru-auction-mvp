@@ -217,7 +217,7 @@ export default function FeedPage() {
                             <span className="material-symbols-outlined text-sm">
                               schedule
                             </span>
-                            {auction.timeLeft}
+                            {new Date(auction.endAt).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="hidden md:block">

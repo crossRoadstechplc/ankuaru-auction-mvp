@@ -56,11 +56,16 @@ export default function PostAuctionPage() {
       try {
         setIsFollowersLoading(true);
         setFollowersError(null);
+        console.log("Fetching followers...");
         const data = await apiClient.getMyFollowers();
+        console.log("Followers response:", data);
         if (!cancelled) {
-          setFollowers(Array.isArray(data) ? data : []);
+          const followersArray = Array.isArray(data) ? data : [];
+          console.log("Setting followers:", followersArray);
+          setFollowers(followersArray);
         }
       } catch (err) {
+        console.error("Followers fetch error:", err);
         if (!cancelled) {
           setFollowersError(
             err instanceof Error ? err.message : "Failed to load followers",
