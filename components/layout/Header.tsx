@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import ThemeToggle from "../ui/ThemeToggle";
 
 export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -98,6 +99,12 @@ export default function Header() {
                         Signed in
                       </p>
                     </div>
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Theme
+                      </p>
+                      <ThemeToggle />
+                    </div>
                     <button
                       onClick={handleLogout}
                       className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
@@ -144,6 +151,9 @@ export default function Header() {
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
+            </div>
+            <div className="flex justify-between items-center p-4">
+              <ThemeToggle />
             </div>
             <div className="max-h-96 overflow-y-auto">
               {notifications.map((n) => (

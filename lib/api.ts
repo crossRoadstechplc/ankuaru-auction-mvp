@@ -19,7 +19,7 @@ class ApiClient {
   constructor() {
     // Use environment variable or fallback to production URL
     this.baseURL =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      process.env.NEXT_PUBLIC_API_BASE_URL || "https://testauction.ankuaru.com";
 
     // Load token from localStorage on client side
     if (typeof window !== "undefined") {

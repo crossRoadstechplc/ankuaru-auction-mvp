@@ -1,16 +1,18 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #17cf36;
   --color-primary-dark: #0e7d21;
   --color-background-light: #f6f8f6;
   --color-background-dark: #112114;
-  --color-coffee-bean: #2D241E;
-  --color-coffee-cream: #F3EFE0;
-  --color-latte: #D4A373;
-  
+  --color-coffee-bean: #2d241e;
+  --color-coffee-cream: #f3efe0;
+  --color-latte: #d4a373;
+
   --font-display: "Inter", sans-serif;
-  
+
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
 }

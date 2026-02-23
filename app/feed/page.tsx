@@ -21,7 +21,7 @@ export default function FeedPage() {
         setIsLoading(true);
         setError(null);
         const data = await apiClient.getAuctions();
-        setAuctions(data);
+        setAuctions(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to fetch auctions",
@@ -41,37 +41,45 @@ export default function FeedPage() {
   }, [isAuthenticated]);
 
   // Filter auctions based on active tab
-  const filteredAuctions = auctions.filter((auction) => {
-    if (activeTab === "all") return true;
+  const filteredAuctions = Array.isArray(auctions)
+    ? auctions.filter((auction) => {
+        if (activeTab === "all") return true;
 
-    // Map tab names to visibility levels
-    const visibilityMap = {
-      public: "PUBLIC",
-      private: "FOLLOWERS",
-      custom: "CUSTOM",
-    };
+        // Map tab names to visibility levels
+        const visibilityMap = {
+          public: "PUBLIC",
+          private: "FOLLOWERS",
+          custom: "CUSTOM",
+        };
 
-    // Check if auction matches the selected category
-    const targetVisibility =
-      visibilityMap[activeTab as keyof typeof visibilityMap];
-    return targetVisibility ? auction.visibility === targetVisibility : true;
-  });
+        // Check if auction matches the selected category
+        const targetVisibility =
+          visibilityMap[activeTab as keyof typeof visibilityMap];
+        return targetVisibility
+          ? auction.visibility === targetVisibility
+          : true;
+      })
+    : [];
 
-  const currentAuctions = auctions.filter((auction) => {
-    if (activeTab === "all") return true;
+  const currentAuctions = Array.isArray(auctions)
+    ? auctions.filter((auction) => {
+        if (activeTab === "all") return true;
 
-    // Map tab names to visibility levels
-    const visibilityMap = {
-      public: "PUBLIC",
-      private: "FOLLOWERS",
-      custom: "CUSTOM",
-    };
+        // Map tab names to visibility levels
+        const visibilityMap = {
+          public: "PUBLIC",
+          private: "FOLLOWERS",
+          custom: "CUSTOM",
+        };
 
-    // Check if auction matches the selected category
-    const targetVisibility =
-      visibilityMap[activeTab as keyof typeof visibilityMap];
-    return targetVisibility ? auction.visibility === targetVisibility : true;
-  });
+        // Check if auction matches the selected category
+        const targetVisibility =
+          visibilityMap[activeTab as keyof typeof visibilityMap];
+        return targetVisibility
+          ? auction.visibility === targetVisibility
+          : true;
+      })
+    : [];
 
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
