@@ -82,6 +82,28 @@ export interface BidResponse {
   message?: string;
 }
 
+export interface BidWithAuction {
+  id: string;
+  auctionId: string;
+  bidderId: string;
+  commitHash: string;
+  revealedAmount: string | null;
+  revealedAt: string | null;
+  isValid: boolean;
+  invalidReason: string | null;
+  createdAt: string;
+  auction: {
+    id: string;
+    title: string;
+    status: "OPEN" | "REVEAL" | "CLOSED";
+    visibility: string;
+    startAt: string;
+    endAt: string;
+    createdBy: string;
+  };
+}
+
+
 export interface CommitBidData {
   commitHash: string;
 }

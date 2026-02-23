@@ -7,7 +7,7 @@ import Header from "@/components/layout/Header";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import apiClient from "../../lib/api";
-import { RatingSummaryResponse, Auction } from "../../lib/types";
+import { RatingSummaryResponse, Auction, BidWithAuction } from "../../lib/types";
 
 const LIVE_AUCTIONS = [
   {
@@ -49,6 +49,9 @@ export default function DashboardPage() {
   const [myAuctions, setMyAuctions] = useState<Auction[]>([]);
   const [isLoadingAuctions, setIsLoadingAuctions] = useState(true);
 
+  const [myBids, setMyBids] = useState<BidWithAuction[]>([]);
+  const [isLoadingBids, setIsLoadingBids] = useState(true);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       // Rating Summary
@@ -75,6 +78,16 @@ export default function DashboardPage() {
         console.error("Failed to fetch my auctions:", error);
       } finally {
         setIsLoadingAuctions(false);
+      }
+
+      // My Bids (Participating)
+      try {
+        const bids = await apiClient.getMyBids();
+        setMyBids(bids);
+      } catch (error) {
+        console.error("Failed to fetch my bids:", error);
+      } finally {
+        setIsLoadingBids(false);
       }
     };
     fetchDashboardData();
@@ -110,7 +123,7 @@ export default function DashboardPage() {
 
         {/* Stats Overview */}
         <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <StatsCard label="Participating" value="3 Bids" icon="layers" iconBgColor="bg-primary/10" iconTextColor="text-primary" />
+          <StatsCard label="Participating" value={`${isLoadingBids ? "..." : myBids.length} Bids`} icon="layers" iconBgColor="bg-primary/10" iconTextColor="text-primary" />
           <StatsCard label="Performance" value="W: 2 / L: 1" icon="trending_up" iconBgColor="bg-emerald-500/10" iconTextColor="text-emerald-500" />
           <StatsCard label="My Auctions" value={`${isLoadingAuctions ? "..." : myAuctions.length} Items`} icon="store" iconBgColor="bg-amber-500/10" iconTextColor="text-amber-500" />
           <StatsCard label="Reputation" value={ratingValue} icon="military_tech" iconBgColor="bg-blue-500/10" iconTextColor="text-blue-500" />
@@ -168,54 +181,71 @@ export default function DashboardPage() {
           <section>
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-xl font-bold text-coffee-bean dark:text-slate-100">Participating</h3>
-              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-400">3 Bids</span>
+              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-400">
+                {isLoadingBids ? "..." : `${myBids.length} Bids`}
+              </span>
             </div>
             <div className="space-y-4">
-              {/* Highest Bidder State */}
-              <Link
-                href="/auction/3"
-                className="relative flex items-center gap-4 rounded-xl border-l-4 border-primary border-y border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:bg-slate-50 transition-colors"
-              >
-                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-coffee-cream">
-                  <img
-                    alt="Item"
-                    className="h-full w-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrfEtnkghl_ZpYp2it0uW-zhZidd7HnCqnUq08q028_vBOnzuHyVjZ3O3zBgrAkKODovSbW7D_Buumf7jkPqAfQVTAd9ddhfqCsHs9eJyxOfZPvDApk9DVXICQoVbH29OLFafn0CIFJ2x8w4UYvFNALdFZgc9aAPtmf82YgFu351ZfF5vMiuuCLPR06cP5gVbbqG5U55UvpBS4X2BC672NYmtHmcqHg9Kj5eLaskg-yusd6a2ucCoT9-viSM4V0OXnLgPHUMeoNRw"
-                  />
+              {isLoadingBids ? (
+                <div className="p-4 text-center text-sm text-slate-500">Loading your bids...</div>
+              ) : myBids.length === 0 ? (
+                <div className="p-4 text-center flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                  <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">gavel</span>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">You haven't placed any bids yet.</p>
+                  <Link href="/feed" className="mt-4 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors">
+                    Browse Auctions
+                  </Link>
                 </div>
-                <div className="flex-grow">
-                  <h5 className="text-sm font-bold">Hario V60 Copper Edition</h5>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Highest Bidder</p>
-                  <p className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-300">Your Bid: $75.00</p>
-                </div>
-                <div className="text-right">
-                  <span className="material-symbols-outlined text-primary">check_circle</span>
-                </div>
-              </Link>
+              ) : (
+                myBids.map((bid) => {
+                  const auc = bid.auction;
+                  const isRevealed = bid.revealedAmount !== null;
+                  const isOpen = auc.status === "OPEN";
+                  const isRevealPhase = auc.status === "REVEAL";
+                  const isClosed = auc.status === "CLOSED";
 
-              {/* Outbid State */}
-              <Link
-                href="/auction/1"
-                className="relative flex items-center gap-4 rounded-xl border-l-4 border-orange-500 border-y border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:bg-slate-50 transition-colors"
-              >
-                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-coffee-cream">
-                  <img
-                    alt="Item"
-                    className="h-full w-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDviE3qzMTzW28KPD6JRYMlRPG5pIWYelVzVj7i7bz3hYN6-iu8JaZdqT81vfMMkfzU8tkpeWbHpVZYRKmttxrnqkAQ499GvETpuKTFij9CdOktswGltvjOeQYEUD400iYdQTz-ilB8_lYXM2Jz4iI1QJzLbeWnBvxTNIZ6bRYmXv4CYo-vs2mpr2_xvM7RLmat7PjgXIRdlOW5w6xrHfaVLZhNfdYwa1UCCBIIcL4GZpSJ2ltfptPGNqitsBWl5lFDBweHYFbTVs"
-                  />
-                </div>
-                <div className="flex-grow">
-                  <h5 className="text-sm font-bold">Gesha Village Selection</h5>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-orange-500">Outbid</p>
-                  <p className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-300">High: $110.00</p>
-                </div>
-                <div className="text-right">
-                  <button className="rounded-lg bg-orange-500 px-3 py-1.5 text-[10px] font-bold text-white transition-colors hover:bg-orange-600">
-                    Increase Bid
-                  </button>
-                </div>
-              </Link>
+                  let statusColor = "border-primary";
+                  let statusLabel = "Bid Placed";
+                  let statusTextColor = "text-primary";
+                  if (isRevealPhase) {
+                    statusColor = "border-amber-500";
+                    statusLabel = "Reveal Phase";
+                    statusTextColor = "text-amber-500";
+                  } else if (isClosed) {
+                    statusColor = "border-slate-400";
+                    statusLabel = "Closed";
+                    statusTextColor = "text-slate-500";
+                  }
+
+                  return (
+                    <Link
+                      key={bid.id}
+                      href={`/auction/${auc.id}`}
+                      className={`relative flex items-center gap-4 rounded-xl border-l-4 ${statusColor} border-y border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors`}
+                    >
+                      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-coffee-cream flex items-center justify-center text-slate-300">
+                        <span className="material-symbols-outlined text-3xl">gavel</span>
+                      </div>
+                      <div className="flex-grow min-w-0">
+                        <h5 className="text-sm font-bold truncate max-w-[180px]" title={auc.title}>{auc.title}</h5>
+                        <p className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${statusTextColor}`}>{statusLabel}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {isRevealed && (
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Revealed: {bid.revealedAmount}</span>
+                          )}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isOpen ? 'bg-primary/10 text-primary' :
+                              isRevealPhase ? 'bg-amber-500/10 text-amber-500' :
+                                'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            }`}>{auc.status}</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <span className="material-symbols-outlined text-slate-300">chevron_right</span>
+                      </div>
+                    </Link>
+                  );
+                })
+              )}
             </div>
           </section>
         </div>
