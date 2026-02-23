@@ -3,10 +3,18 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePathname, useRouter } from "next/navigation";
+import ThemeToggle from "../ui/ThemeToggle";
+import apiClient from "../../lib/api";
+import { User } from "../../lib/types";
 
 export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isFollowersOpen, setIsFollowersOpen] = useState(false);
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
+
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -19,11 +27,26 @@ export default function Header() {
     }
   };
 
+  const handleFollowersClick = async () => {
+    setIsProfileOpen(false);
+    setIsFollowersOpen(true);
+    setIsLoadingFollowers(true);
+    try {
+      const data = await apiClient.getMyFollowers();
+      setFollowers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to fetch followers", error);
+    } finally {
+      setIsLoadingFollowers(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     // Close any open dropdowns
     setIsNotificationsOpen(false);
     setIsProfileOpen(false);
+    setIsFollowersOpen(false);
     window.location.href = "/login";
   };
 
@@ -117,6 +140,15 @@ export default function Header() {
                       <ThemeToggle />
                     </div>
                     <button
+                      onClick={handleFollowersClick}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 border-b border-slate-100 dark:border-slate-800"
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        group
+                      </span>
+                      My Followers
+                    </button>
+                    <button
                       onClick={handleLogout}
                       className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
                     >
@@ -204,6 +236,47 @@ export default function Header() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Followers Modal */}
+        {isFollowersOpen && (
+          <div className="absolute top-16 right-0 w-[90vw] md:w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 z-[100]">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+              <h3 className="font-bold text-slate-900 dark:text-white">
+                My Followers
+              </h3>
+              <button
+                onClick={() => setIsFollowersOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+            <div className="max-h-96 overflow-y-auto p-4">
+              {isLoadingFollowers ? (
+                <div className="flex justify-center p-4">
+                  <span className="material-symbols-outlined animate-spin text-primary">autorenew</span>
+                </div>
+              ) : followers && followers.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {followers.map((f) => (
+                    <div key={f.id} className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm font-bold uppercase">
+                        {f.username?.[0] || "?"}
+                      </div>
+                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                        {f.username}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
+                  No followers yet.
+                </p>
+              )}
             </div>
           </div>
         )}
