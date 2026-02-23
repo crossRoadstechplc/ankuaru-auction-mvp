@@ -200,35 +200,64 @@ export default function FeedPage() {
                           {isSell ? "SELL" : "BUY"}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
-                            Current Bid
+                            Min Bid
                           </p>
                           <p className="text-lg font-bold text-primary">
-                            {auction.bid}
+                            ${auction.minBid}
                           </p>
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
-                            Time Left
+                            Start Date
+                          </p>
+                          <p className="text-sm font-semibold">
+                            {new Date(auction.startAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "numeric",
+                              },
+                            )}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
+                            End Date
+                          </p>
+                          <p className="text-sm font-semibold">
+                            {new Date(auction.endAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "numeric",
+                              },
+                            )}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
+                            Status
                           </p>
                           <p className="text-sm font-semibold flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm">
-                              schedule
+                              {auction.status === "OPEN"
+                                ? "play_circle"
+                                : auction.status === "REVEAL"
+                                  ? "visibility"
+                                  : "check_circle"}
                             </span>
-                            {new Date(auction.endAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="hidden md:block">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">
-                            Participation
-                          </p>
-                          <p className="text-sm font-semibold">
-                            {auction.bids}
+                            {auction.status}
                           </p>
                         </div>
                       </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-4">
+                        {auction.itemDescription}
+                      </p>
                     </div>
                     <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-3">
@@ -240,12 +269,6 @@ export default function FeedPage() {
                           </span>
                           {auction.visibility}
                         </div>
-                        <span className="text-slate-300 dark:text-slate-700">
-                          •
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {auction.details}
-                        </span>
                       </div>
                       <Link
                         href={`/auction/${auction.id}`}

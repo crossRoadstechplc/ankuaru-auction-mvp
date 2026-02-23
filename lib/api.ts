@@ -10,6 +10,7 @@ import {
   Notification,
   RegisterData,
   User,
+  UserRating,
 } from "./types";
 
 class ApiClient {
@@ -127,6 +128,10 @@ class ApiClient {
   }
 
   // User management
+  async getUserRating(userId: string): Promise<UserRating> {
+    return this.request<UserRating>(`/api/auth/ratings/${userId}`);
+  }
+
   async followUser(userId: string): Promise<void> {
     return this.request<void>(`/api/auth/follow/${userId}`, {
       method: "POST",
@@ -187,7 +192,10 @@ class ApiClient {
   }
 
   async getAuction(id: string): Promise<Auction> {
-    return this.request<Auction>(`/api/auctions/${id}`);
+    const response = await this.request<{ auction: Auction }>(
+      `/api/auctions/${id}`,
+    );
+    return response.auction;
   }
 
   async createAuction(data: CreateAuctionData): Promise<Auction> {
@@ -204,6 +212,13 @@ class ApiClient {
     });
   }
 
+  async revealBid(auctionId: string, amount: string, nonce: string): Promise<void> {
+    return this.request<void>(`/api/auctions/${auctionId}/reveal`, {
+      method: "POST",
+      body: JSON.stringify({ amount, nonce }),
+    });
+  }
+
   async getMyBid(auctionId: string): Promise<Bid | null> {
     try {
       return await this.request<Bid>(`/api/auctions/${auctionId}/my-bid`);
@@ -211,17 +226,6 @@ class ApiClient {
       // Return null if no bid exists
       return null;
     }
-  }
-
-  async revealBid(
-    auctionId: string,
-    amount: string,
-    nonce: string,
-  ): Promise<void> {
-    return this.request<void>(`/api/auctions/${auctionId}/reveal`, {
-      method: "POST",
-      body: JSON.stringify({ amount, nonce }),
-    });
   }
 
   async closeAuction(auctionId: string): Promise<void> {
