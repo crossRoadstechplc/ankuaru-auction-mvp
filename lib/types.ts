@@ -103,7 +103,6 @@ export interface BidWithAuction {
   };
 }
 
-
 export interface CommitBidData {
   commitHash: string;
 }

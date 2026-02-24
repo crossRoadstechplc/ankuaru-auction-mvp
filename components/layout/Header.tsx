@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import ThemeToggle from "../ui/ThemeToggle";
 import apiClient from "../../lib/api";
-import { User, Notification } from "../../lib/types";
+import { Notification, User } from "../../lib/types";
+import ThemeToggle from "../ui/ThemeToggle";
 
 export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -22,7 +22,10 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     };
@@ -41,10 +44,17 @@ export default function Header() {
     const fetchNotifications = async () => {
       try {
         const data = await apiClient.getMyNotifications();
-        const parsedData = Array.isArray(data) ? data : ((data as any).notifications || []);
-        parsedData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const parsedData = Array.isArray(data)
+          ? data
+          : (data as any).notifications || [];
+        parsedData.sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
         setNotifications(parsedData);
-        setUnreadCount(parsedData.filter((n: Notification) => !n.is_read).length);
+        setUnreadCount(
+          parsedData.filter((n: Notification) => !n.is_read).length,
+        );
       } catch (error) {
         console.error("Failed to fetch notifications", error);
       }
@@ -62,9 +72,11 @@ export default function Header() {
       try {
         await apiClient.markNotificationRead(n.id);
         setNotifications((prev) =>
-          prev.map(notif => notif.id === n.id ? { ...notif, is_read: true } : notif)
+          prev.map((notif) =>
+            notif.id === n.id ? { ...notif, is_read: true } : notif,
+          ),
         );
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
       } catch (error) {
         console.error("Failed to mark notification as read", error);
       }
@@ -101,7 +113,6 @@ export default function Header() {
     setIsFollowersOpen(false);
     window.location.href = "/login";
   };
-
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-coffee-bean/10 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 md:px-10 lg:px-40 py-3">
@@ -151,7 +162,10 @@ export default function Header() {
 
               <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700"></div>
 
-              <div className="flex items-center gap-3 relative" ref={profileRef}>
+              <div
+                className="flex items-center gap-3 relative"
+                ref={profileRef}
+              >
                 {user && (
                   <div className="hidden text-right md:block">
                     <p className="text-sm font-bold leading-none">
@@ -186,8 +200,13 @@ export default function Header() {
                       {user?.id && (
                         <div className="mt-3 flex items-center justify-between rounded-md bg-slate-50 dark:bg-slate-800/80 p-2 border border-slate-200 dark:border-slate-700">
                           <div className="flex flex-col overflow-hidden">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-0.5">User ID</span>
-                            <p className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate" title={user.id}>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-0.5">
+                              User ID
+                            </span>
+                            <p
+                              className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate"
+                              title={user.id}
+                            >
                               {user.id}
                             </p>
                           </div>
@@ -197,10 +216,11 @@ export default function Header() {
                               setIsCopied(true);
                               setTimeout(() => setIsCopied(false), 2000);
                             }}
-                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${isCopied
-                              ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                              }`}
+                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${
+                              isCopied
+                                ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                            }`}
                             title="Copy ID"
                           >
                             <span className="material-symbols-outlined text-[14px]">
@@ -217,8 +237,20 @@ export default function Header() {
                       <ThemeToggle />
                     </div>
                     <button
-                      onClick={handleFollowersClick}
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push("/track");
+                      }}
                       className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 border-b border-slate-100 dark:border-slate-800"
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        visibility
+                      </span>
+                      Track Auction
+                    </button>
+                    <button
+                      onClick={handleFollowersClick}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50"
                     >
                       <span className="material-symbols-outlined text-base">
                         group
@@ -277,17 +309,19 @@ export default function Header() {
                 <div
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${!n.is_read ? "bg-slate-50 dark:bg-slate-800/50" : ""
-                    }`}
+                  className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${
+                    !n.is_read ? "bg-slate-50 dark:bg-slate-800/50" : ""
+                  }`}
                 >
                   <div className="flex gap-3">
                     <span
-                      className={`material-symbols-outlined text-xl ${n.type === "AUCTION_WON" || n.type === "success"
-                        ? "text-primary"
-                        : n.type === "fail"
-                          ? "text-red-500"
-                          : "text-amber-500"
-                        }`}
+                      className={`material-symbols-outlined text-xl ${
+                        n.type === "AUCTION_WON" || n.type === "success"
+                          ? "text-primary"
+                          : n.type === "fail"
+                            ? "text-red-500"
+                            : "text-amber-500"
+                      }`}
                     >
                       {n.type === "AUCTION_WON" || n.type === "success"
                         ? "check_circle"
@@ -296,7 +330,9 @@ export default function Header() {
                           : "notifications"}
                     </span>
                     <div className="flex flex-col gap-1 w-full justify-center">
-                      <p className={`text-xs ${!n.is_read ? 'font-bold' : 'font-medium'} text-slate-800 dark:text-slate-200 leading-normal`}>
+                      <p
+                        className={`text-xs ${!n.is_read ? "font-bold" : "font-medium"} text-slate-800 dark:text-slate-200 leading-normal`}
+                      >
                         {n.title || n.message || (n as any).text}
                       </p>
                     </div>
@@ -313,7 +349,7 @@ export default function Header() {
               <Link
                 href="/notifications"
                 onClick={() => {
-                  sessionStorage.setItem('returnUrl', window.location.pathname);
+                  sessionStorage.setItem("returnUrl", window.location.pathname);
                   setIsNotificationsOpen(false);
                 }}
                 className="block w-full text-center text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
@@ -321,7 +357,6 @@ export default function Header() {
                 View All Notifications
               </Link>
             </div>
-
           </div>
         )}
 
@@ -342,7 +377,9 @@ export default function Header() {
             <div className="max-h-96 overflow-y-auto p-4">
               {isLoadingFollowers ? (
                 <div className="flex justify-center p-4">
-                  <span className="material-symbols-outlined animate-spin text-primary">autorenew</span>
+                  <span className="material-symbols-outlined animate-spin text-primary">
+                    autorenew
+                  </span>
                 </div>
               ) : followers && followers.length > 0 ? (
                 <div className="flex flex-col gap-3">
