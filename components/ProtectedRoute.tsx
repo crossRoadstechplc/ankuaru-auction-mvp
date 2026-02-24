@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
 // Routes that don't require authentication
@@ -20,32 +20,34 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         (route) => pathname === route || pathname.startsWith(route + "/")
     );
 
+    const [minLoadingTimeReached, setMinLoadingTimeReached] = useState(false);
+
     useEffect(() => {
-        if (!isLoading && !isAuthenticated && !isPublicRoute) {
+        const timer = setTimeout(() => {
+            setMinLoadingTimeReached(true);
+        }, 3000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        if (!isLoading && minLoadingTimeReached && !isAuthenticated && !isPublicRoute) {
             router.replace("/login");
         }
-    }, [isLoading, isAuthenticated, isPublicRoute, router]);
+    }, [isLoading, minLoadingTimeReached, isAuthenticated, isPublicRoute, router]);
 
     // While auth state is being loaded, show a loading screen for protected routes
-    if (isLoading && !isPublicRoute) {
+    if ((isLoading || !minLoadingTimeReached) && !isPublicRoute) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="size-12 bg-primary flex items-center justify-center rounded-xl text-white shadow-lg shadow-primary/20 animate-pulse">
-                        <svg
-                            className="w-8 h-8"
-                            fill="none"
-                            viewBox="0 0 48 48"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z"
-                                fill="currentColor"
-                            />
-                        </svg>
+                <div className="flex flex-col items-center gap-6 animate-pulse">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white shadow-xl shadow-primary/30">
+                            <span className="material-symbols-outlined text-4xl">coffee</span>
+                        </div>
+
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium animate-pulse">
-                        Loading...
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em]">
+                        Loading Experience...
                     </p>
                 </div>
             </div>

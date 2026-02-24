@@ -89,7 +89,7 @@ export default function NotificationsPage() {
                         className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
                         title="Go back"
                     >
-                        <span className="material-symbols-outlined">arrow_back</span>
+                        <span className="material-symbols-outlined">close</span>
                     </button>
                     <div>
                         <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">

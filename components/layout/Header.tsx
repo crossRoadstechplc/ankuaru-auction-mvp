@@ -62,7 +62,7 @@ export default function Header() {
 
     if (isAuthenticated) {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 60000);
+      const interval = setInterval(fetchNotifications, 20000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
