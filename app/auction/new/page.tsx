@@ -285,11 +285,8 @@ export default function PostAuctionPage() {
       let auctionData: CreateAuctionData = baseAuctionData;
 
       if (selectedVisibility === "FOLLOWERS") {
-        const allFollowerIds = followers.map((f) => f.id);
-        auctionData = {
-          ...baseAuctionData,
-          selectedUserIds: allFollowerIds,
-        };
+        // For FOLLOWERS visibility, don't send selectedUserIds - backend handles it automatically
+        auctionData = baseAuctionData;
       }
 
       if (selectedVisibility === "SELECTED") {
