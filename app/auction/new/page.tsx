@@ -201,7 +201,8 @@ export default function PostAuctionPage() {
       type: "select",
       options: [
         { value: "Coffee", label: "Coffee" },
-        { value: "Electronics", label: "Electronics" },
+        { value: "Agriculture", label: "Agriculture" },
+        { value: "Spices", label: "Spices" },
         { value: "Equipment", label: "Equipment" },
         { value: "Other", label: "Other" },
       ],

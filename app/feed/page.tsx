@@ -15,6 +15,44 @@ function getTimeRemaining(endAt: string): number {
   return end - now;
 }
 
+// Helper function to sort auctions based on status and dates
+function sortAuctions(auctions: Auction[]): Auction[] {
+  return auctions.sort((a, b) => {
+    // Priority 1: OPEN auctions (most urgent)
+    if (a.status === "OPEN" && b.status !== "OPEN") return -1;
+    if (a.status !== "OPEN" && b.status === "OPEN") return 1;
+
+    // Priority 2: SCHEDULED auctions (by start date, earliest first)
+    if (a.status === "SCHEDULED" && b.status !== "SCHEDULED") {
+      const aStart = new Date(a.startAt).getTime();
+      const bStart = new Date(b.startAt).getTime();
+      return aStart - bStart;
+    }
+    if (a.status !== "SCHEDULED" && b.status === "SCHEDULED") return 1;
+
+    // Priority 3: REVEAL auctions (by end date, earliest first)
+    if (a.status === "REVEAL" && b.status !== "REVEAL") {
+      const aEnd = new Date(a.endAt).getTime();
+      const bEnd = new Date(b.endAt).getTime();
+      return aEnd - bEnd;
+    }
+    if (a.status !== "REVEAL" && b.status === "REVEAL") return 1;
+
+    // Priority 4: CLOSED auctions (by closed date, most recent first)
+    if (a.status === "CLOSED" && b.status !== "CLOSED") {
+      const aClosed = new Date(a.closedAt || a.endAt).getTime();
+      const bClosed = new Date(b.closedAt || b.endAt).getTime();
+      return bClosed - aClosed;
+    }
+    if (a.status !== "CLOSED" && b.status === "CLOSED") return -1;
+
+    // Default: sort by end date (most recent first)
+    const aEnd = new Date(a.endAt).getTime();
+    const bEnd = new Date(b.endAt).getTime();
+    return bEnd - aEnd;
+  });
+}
+
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [auctions, setAuctions] = useState<Auction[]>([]);
@@ -72,10 +110,8 @@ export default function FeedPage() {
             : true;
         })
         .sort((a, b) => {
-          // Sort by remaining time (closest ending first)
-          const timeRemainingA = getTimeRemaining(a.endAt);
-          const timeRemainingB = getTimeRemaining(b.endAt);
-          return timeRemainingA - timeRemainingB;
+          // Sort by status and date using new sorting logic
+          return sortAuctions([a, b]);
         })
     : [];
 
@@ -228,7 +264,7 @@ export default function FeedPage() {
                             Min Bid
                           </p>
                           <p className="text-lg font-bold text-primary">
-                            ${auction.minBid}
+                            ETB {auction.minBid}
                           </p>
                         </div>
                         <div>

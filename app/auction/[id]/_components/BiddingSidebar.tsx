@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -166,7 +165,15 @@ export function BiddingSidebar({
     return () => clearInterval(timer);
   }, [data.startAt, data.endAt, data.status]);
 
-  const { days, hours, minutes, seconds, isClosed, shouldReveal, timeUntilStart } = timeLeft;
+  const {
+    days,
+    hours,
+    minutes,
+    seconds,
+    isClosed,
+    shouldReveal,
+    timeUntilStart,
+  } = timeLeft;
 
   const [bidAmount, setBidAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -367,14 +374,15 @@ export function BiddingSidebar({
     <div className="flex flex-col gap-6">
       {/* Countdown Card */}
       <div
-        className={`${isClosedPhase
-          ? "bg-slate-700"
-          : isRevealPhase
-            ? "bg-orange-600 dark:bg-orange-600/90"
-            : isScheduledPhase
-              ? "bg-blue-600 dark:bg-blue-600/90"
-              : "bg-primary dark:bg-primary/90"
-          } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
+        className={`${
+          isClosedPhase
+            ? "bg-slate-700"
+            : isRevealPhase
+              ? "bg-orange-600 dark:bg-orange-600/90"
+              : isScheduledPhase
+                ? "bg-blue-600 dark:bg-blue-600/90"
+                : "bg-primary dark:bg-primary/90"
+        } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80 text-center">
           {isClosedPhase
@@ -387,109 +395,120 @@ export function BiddingSidebar({
         </p>
 
         {/* Circular Timer */}
-        {!isClosedPhase && !isRevealPhase ? (
-          (() => {
-            const displayDays = isScheduledPhase && timeUntilStart ? timeUntilStart.days : days;
-            const displayHours = isScheduledPhase && timeUntilStart ? timeUntilStart.hours : hours;
-            const displayMinutes = isScheduledPhase && timeUntilStart ? timeUntilStart.minutes : minutes;
-            const displaySeconds = isScheduledPhase && timeUntilStart ? timeUntilStart.seconds : seconds;
+        {!isClosedPhase && !isRevealPhase
+          ? (() => {
+              const displayDays =
+                isScheduledPhase && timeUntilStart ? timeUntilStart.days : days;
+              const displayHours =
+                isScheduledPhase && timeUntilStart
+                  ? timeUntilStart.hours
+                  : hours;
+              const displayMinutes =
+                isScheduledPhase && timeUntilStart
+                  ? timeUntilStart.minutes
+                  : minutes;
+              const displaySeconds =
+                isScheduledPhase && timeUntilStart
+                  ? timeUntilStart.seconds
+                  : seconds;
 
-            return (
-              <div className="flex flex-col items-center">
-                {/* Circular Progress Ring */}
-                <div className="relative" style={{ width: 200, height: 200 }}>
-                  <svg
-                    width="200"
-                    height="200"
-                    viewBox="0 0 200 200"
-                    className="transform -rotate-90"
-                  >
-                    {/* Background track */}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.15)"
-                      strokeWidth="8"
-                    />
-                    {/* Progress arc */}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.9)"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeDasharray={circleCircumference}
-                      strokeDashoffset={strokeDashoffset}
-                      style={{ transition: "stroke-dashoffset 1s linear" }}
-                    />
-                    {/* Glowing dot at the tip */}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="white"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeDasharray={`2 ${circleCircumference - 2}`}
-                      strokeDashoffset={strokeDashoffset}
-                      style={{
-                        transition: "stroke-dashoffset 1s linear",
-                        filter: "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
-                      }}
-                    />
-                  </svg>
-
-                  {/* Center content */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    {/* Days (if any) */}
-                    {displayDays > 0 && (
-                      <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-0.5">
-                        {displayDays}d remaining
-                      </p>
-                    )}
-
-                    {/* Hours & Minutes — small but visible */}
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-sm font-bold opacity-80">
-                        {String(displayHours).padStart(2, "0")}
-                      </span>
-                      <span className="text-xs opacity-50">h</span>
-                      <span className="text-sm font-bold opacity-80">
-                        {String(displayMinutes).padStart(2, "0")}
-                      </span>
-                      <span className="text-xs opacity-50">m</span>
-                    </div>
-
-                    {/* Seconds — BIG & distinctive */}
-                    <p
-                      className="text-5xl font-black tabular-nums leading-none tracking-tight"
-                      style={{
-                        textShadow: "0 0 20px rgba(255,255,255,0.3)",
-                        animation: "secondsPulse 1s ease-in-out infinite",
-                      }}
+              return (
+                <div className="flex flex-col items-center">
+                  {/* Circular Progress Ring */}
+                  <div className="relative" style={{ width: 200, height: 200 }}>
+                    <svg
+                      width="200"
+                      height="200"
+                      viewBox="0 0 200 200"
+                      className="transform -rotate-90"
                     >
-                      {String(displaySeconds).padStart(2, "0")}
-                    </p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">
-                      Seconds
-                    </p>
+                      {/* Background track */}
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.15)"
+                        strokeWidth="8"
+                      />
+                      {/* Progress arc */}
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.9)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={circleCircumference}
+                        strokeDashoffset={strokeDashoffset}
+                        style={{ transition: "stroke-dashoffset 1s linear" }}
+                      />
+                      {/* Glowing dot at the tip */}
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`2 ${circleCircumference - 2}`}
+                        strokeDashoffset={strokeDashoffset}
+                        style={{
+                          transition: "stroke-dashoffset 1s linear",
+                          filter: "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
+                        }}
+                      />
+                    </svg>
+
+                    {/* Center content */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      {/* Days (if any) */}
+                      {displayDays > 0 && (
+                        <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-0.5">
+                          {displayDays}d remaining
+                        </p>
+                      )}
+
+                      {/* Hours & Minutes — small but visible */}
+                      <div className="flex items-center gap-1 mb-1">
+                        <span className="text-sm font-bold opacity-80">
+                          {String(displayHours).padStart(2, "0")}
+                        </span>
+                        <span className="text-xs opacity-50">h</span>
+                        <span className="text-sm font-bold opacity-80">
+                          {String(displayMinutes).padStart(2, "0")}
+                        </span>
+                        <span className="text-xs opacity-50">m</span>
+                      </div>
+
+                      {/* Seconds — BIG & distinctive */}
+                      <p
+                        className="text-5xl font-black tabular-nums leading-none tracking-tight"
+                        style={{
+                          textShadow: "0 0 20px rgba(255,255,255,0.3)",
+                          animation: "secondsPulse 1s ease-in-out infinite",
+                        }}
+                      >
+                        {String(displaySeconds).padStart(2, "0")}
+                      </p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">
+                        Seconds
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-
-              </div>
-            );
-          })()
-        ) : null}
+              );
+            })()
+          : null}
 
         {isScheduledPhase && (
           <div className="text-center mt-2">
-            <span className="material-symbols-outlined text-2xl mb-1" style={{ opacity: 0.7 }}>
+            <span
+              className="material-symbols-outlined text-2xl mb-1"
+              style={{ opacity: 0.7 }}
+            >
               schedule
             </span>
             <p className="text-xs opacity-70">Auction has not started yet</p>
@@ -500,7 +519,9 @@ export function BiddingSidebar({
             <span className="material-symbols-outlined text-3xl mb-2">
               visibility
             </span>
-            <p className="text-sm">Bids are now closed. Please wait for Creator to reveal bids</p>
+            <p className="text-sm">
+              Bids are now closed. Please wait for Creator to reveal bids
+            </p>
           </div>
         )}
         {isClosedPhase && (
@@ -512,8 +533,6 @@ export function BiddingSidebar({
           </div>
         )}
       </div>
-
-
 
       {!isCreator ? (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
@@ -580,7 +599,8 @@ export function BiddingSidebar({
               </div>
               <h3 className="text-xl font-bold mb-2">Auction In Reveal Mode</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium">
-                Bidding has ended. The auction owner is currently reviewing all bids.
+                Bidding has ended. The auction owner is currently reviewing all
+                bids.
               </p>
               {myBid && (
                 <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 text-left">
@@ -607,7 +627,8 @@ export function BiddingSidebar({
                       Waiting for the auction owner
                     </p>
                     <p className="text-xs text-amber-700 dark:text-amber-300">
-                      Please wait for the auction owner to close the auction. You will be notified once the results are finalized.
+                      Please wait for the auction owner to close the auction.
+                      You will be notified once the results are finalized.
                     </p>
                   </div>
                 </div>
@@ -646,7 +667,8 @@ export function BiddingSidebar({
                           Waiting for other bids
                         </p>
                         <p className="text-xs text-blue-700 dark:text-blue-300">
-                          Your bid has been recorded. We will notify you when the auction status updates.
+                          Your bid has been recorded. We will notify you when
+                          the auction status updates.
                         </p>
                       </div>
                     </div>
