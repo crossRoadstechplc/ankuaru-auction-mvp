@@ -17,6 +17,9 @@ export default function PostAuctionPage() {
   >("PUBLIC");
   const [followers, setFollowers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [manualUserId, setManualUserId] = useState("");
+  const [manualUserError, setManualUserError] = useState("");
+  const [manuallyAddedUsers, setManuallyAddedUsers] = useState<User[]>([]);
   const [isFollowersLoading, setIsFollowersLoading] = useState(false);
   const [followersError, setFollowersError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateAuctionData>({
@@ -50,6 +53,36 @@ export default function PostAuctionPage() {
   const selectedFollowersCount = useMemo(() => {
     return selectedUserIds.length;
   }, [selectedUserIds]);
+
+  // Handler for adding user by ID
+  const handleAddUserById = () => {
+    const userId = manualUserId.trim();
+
+    if (!userId) {
+      setManualUserError("Please enter a user ID");
+      return;
+    }
+
+    if (selectedUserIds.includes(userId)) {
+      setManualUserError("User already selected");
+      return;
+    }
+
+    // Add user to selected list (without fetching details for now)
+    setSelectedUserIds((prev) => [...prev, userId]);
+    setManuallyAddedUsers((prev) => [
+      ...prev,
+      {
+        id: userId,
+        username: `User ${userId.slice(-4)}`, // Show last 4 chars of ID
+        email: `${userId}@example.com`, // Placeholder email
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as User,
+    ]);
+    setManualUserId("");
+    setManualUserError("");
+  };
 
   // Helper functions to handle time changes
   const handleTimeChange = (
@@ -659,6 +692,78 @@ export default function PostAuctionPage() {
                               </label>
                             );
                           })
+                        )}
+                      </div>
+
+                      {/* Manual ID Input */}
+                      <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                        <div className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Add User by ID:
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Enter user ID"
+                            value={manualUserId}
+                            onChange={(e) => setManualUserId(e.target.value)}
+                            className="flex-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                          />
+                          <button
+                            onClick={handleAddUserById}
+                            disabled={!manualUserId.trim()}
+                            className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            Add
+                          </button>
+                        </div>
+                        {manualUserError && (
+                          <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                            {manualUserError}
+                          </div>
+                        )}
+
+                        {/* Manually Added Users */}
+                        {manuallyAddedUsers.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                            <div className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                              Manually Added Users:
+                            </div>
+                            <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-slate-100 p-2 dark:border-slate-800">
+                              {manuallyAddedUsers.map((user) => (
+                                <label
+                                  key={user.id}
+                                  className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                >
+                                  <div className="flex min-w-0 flex-col">
+                                    <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                      {user.username}
+                                    </span>
+                                    <span className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                      {user.email}
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedUserIds.includes(user.id)}
+                                    onChange={() => {
+                                      setSelectedUserIds((prev) => {
+                                        if (prev.includes(user.id)) {
+                                          return prev.filter(
+                                            (id) => id !== user.id,
+                                          );
+                                        }
+                                        return [...prev, user.id];
+                                      });
+                                      setManuallyAddedUsers((prev) =>
+                                        prev.filter((u) => u.id !== user.id),
+                                      );
+                                    }}
+                                    className="h-4 w-4"
+                                  />
+                                </label>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
