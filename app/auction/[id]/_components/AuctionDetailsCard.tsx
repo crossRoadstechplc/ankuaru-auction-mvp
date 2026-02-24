@@ -137,7 +137,11 @@ export function AuctionDetailsCard({
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  {data.status === "CLOSED" ? "My Bid" : "Current Bid"}
+                  {data.status === "CLOSED"
+                    ? "Winning Bid"
+                    : myBid
+                      ? "My Bid"
+                      : "Current Bid"}
                 </span>
                 <span className="text-xl font-black text-primary">
                   {data.status === "CLOSED"

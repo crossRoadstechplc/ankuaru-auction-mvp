@@ -144,10 +144,11 @@ function AuctionDetailContent() {
             </div>
           )}
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${isSell
-              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-              }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${
+              isSell
+                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+            }`}
           >
             <span className="material-symbols-outlined text-sm">
               {isSell ? "sell" : "shopping_cart"}

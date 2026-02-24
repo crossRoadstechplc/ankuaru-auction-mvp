@@ -19,7 +19,7 @@ const LIVE_AUCTIONS = [
     title: "Sidama Bensa G1 Natural",
     region: "Sidama Region",
     type: "Micro-lot",
-    currentBid: "$48.50 / kg",
+    currentBid: "ETB 48.50 / kg",
     timeLeft: "02h 45m 12s",
     image:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuAD5V6sDurw44zKJe-MtKQQpTJ6P-g6verGYFHSD6gv-fcz6JZEO2x4A9nyC1MA249IX8RcdZhJFSfofOfWtmAe4AhLuJC35u_wUNRsr5dYMG3ynRfud19Fpb0SUaz3JZ1hDTSOsFqoEtcywNLXIBJ1jj1h5zyXvNH_pU9ZoHlcN92vocd-mqIpjq2uBTDQUDvW2TIqqlQqMc8f0BEzdgjcDQjQqH-2hodEqYJLAZdZJZJzg0ckh5GOBbkYIKihuYAP8-amLHtOm78",
@@ -29,7 +29,7 @@ const LIVE_AUCTIONS = [
     title: "Guji Hambela G1 Washed",
     region: "Guji Highlands",
     type: "Specialty",
-    currentBid: "$41.20 / kg",
+    currentBid: "ETB 41.20 / kg",
     timeLeft: "05h 45m 02s",
     image:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuBrrPCTAybBTlf8srZZFVU8dpp9eoe6AxvPLJeRd6DUHlUy7CJyU2CcK1Fqw6-k0cuonPbbWbiWWtqfpGiW2RGlrHfFgTAQlBL0Pxvd6lsP6eaKjd0K5zysfj3ajzLaev55i2Y3jyg3MTIB3-uOcAZGYDiiZ4PzC9avly0FXSE-vyYwfrnJC4spwPchgCu1VA5ILUjkQBD0_jpaZ8tW0cxRNjAdcnhOFfTN1hx3AQUc2ap-erwfS--6HXBHMN-1vd3SJafvuwj1S4w",
@@ -40,7 +40,7 @@ const LIVE_AUCTIONS = [
     title: "Yirgacheffe Kochere G1",
     region: "Gedeo Zone",
     type: "Choice Lot",
-    currentBid: "$52.00 / kg",
+    currentBid: "ETB 52.00 / kg",
     timeLeft: "01h 12m 45s",
     image:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuAC4Qd7Ev65ZXqIUWKF6A-hoaoxnNWeIBQf7WEV2qNkX3Zh8_WETsHNI_YiJdQGwt6NzK8MkEewSObvIS9HJxV_FcZ9CRgpPeE0kGIO5VSqQfsIKMiDOYb1JQ2EBV8VPmEtOt3aIQcD5pb8p-U5oMr8YfysTr9rZK-_aJ3qTzynhofM0mBwnKb5ZgV4POMccwvKlMv3D-sSMUzIOb5Z9zTGpTHkSZTnPSw9k0KGnIYCrPx7t51WMxxHM2XPbMKwhKn2BdBvi3m3rv8",

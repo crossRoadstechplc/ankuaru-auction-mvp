@@ -91,7 +91,10 @@ class ApiClient {
         }
 
         if (!silent) {
-          console.error("API Error Details:", JSON.stringify(errorData, null, 2));
+          console.error(
+            "API Error Details:",
+            JSON.stringify(errorData, null, 2),
+          );
         }
 
         throw new Error(errorMessage);
