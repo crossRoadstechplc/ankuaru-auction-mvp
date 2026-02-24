@@ -241,9 +241,16 @@ export function BiddingSidebar({
 
   const handleBidSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Placing bid:", bidAmount);
+
 
     if (!bidAmount || parseFloat(bidAmount) <= 0) {
       toast.warning("Please enter a valid bid amount");
+      return;
+    }
+
+    if (parseFloat(bidAmount) < parseFloat(data.reservePrice)) {
+      toast.warning(`Your bid cannot be less than the starting price of $${data.reservePrice}`);
       return;
     }
 
@@ -255,14 +262,15 @@ export function BiddingSidebar({
     try {
       setIsSubmitting(true);
 
-      // Generate proper commit hash using SHA256
-      const nonce = Math.random().toString(36).substring(2, 11);
-      const raw = `${data.id}:${user.id}:${bidAmount}:${nonce}`;
-      //const commitHash = await generateSHA256Hash(raw);
+
+      // Generate proper commit hash using SHA256 (Temporarily removed)
+      // const nonce = Math.random().toString(36).substring(2, 11);
+      // const raw = `${data.id}:${user.id}:${bidAmount}:${nonce}`;
+      // const commitHash = await generateSHA256Hash(raw);
 
       // Save bid details locally BEFORE submitting
-      saveBidLocally(bidAmount, nonce);
-      setLocalBid({ amount: bidAmount, nonce });
+      // saveBidLocally(bidAmount, nonce);
+      // setLocalBid({ amount: bidAmount, nonce });
 
       await apiClient.placeBid(data.id, bidAmount);
 
@@ -702,8 +710,8 @@ export function BiddingSidebar({
                           ) : (
                             <>
                               {isSell
-                                ? "Submit Higher Bid"
-                                : "Submit Better Offer"}
+                                ? "Submit Your Bid"
+                                : "Submit Your Bid"}
                             </>
                           )}
                         </button>
@@ -752,11 +760,11 @@ export function BiddingSidebar({
               </div>
             ) : !isClosedPhase && !isRevealPhase ? (
               <button
-                onClick={() => setShowCloseModal(true)}
-                className="w-full py-4 border-2 border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                onClick={() => setShowRevealBidsModal(true)}
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
               >
-                <span className="material-symbols-outlined text-lg">block</span>
-                Close Early
+                <span className="material-symbols-outlined text-lg">visibility</span>
+                Close Auction Early
               </button>
             ) : isRevealPhase ? (
               <>

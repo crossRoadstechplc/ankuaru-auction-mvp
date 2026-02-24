@@ -129,7 +129,7 @@ export function AuctionDetailsCard({
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 pb-6 border-b border-slate-100 dark:border-slate-800 mb-6 font-display">
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  Min Bid
+                  Starting price
                 </span>
                 <span className="text-lg font-bold text-slate-700 dark:text-slate-300">
                   ${data.minBid}
@@ -137,7 +137,7 @@ export function AuctionDetailsCard({
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  {data.status === "CLOSED" ? "Winning Bid" : myBid ? "My Bid" : "Current Bid"}
+                  {data.status === "CLOSED" ? "My Bid" : "Current Bid"}
                 </span>
                 <span className="text-xl font-black text-primary">
                   {data.status === "CLOSED"

@@ -95,9 +95,15 @@ export interface Bid {
   id: string;
   auctionId: string;
   bidderId: string;
-  commitHash: string;
+  commitHash?: string;
   amount?: string;
   revealed?: boolean;
+  bidderUsername?: string;
+  bidderEmail?: string;
+  revealedAmount?: string;
+  revealedAt?: string;
+  isValid?: boolean;
+  invalidReason?: string | null;
   createdAt: string;
   updatedAt?: string;
 }

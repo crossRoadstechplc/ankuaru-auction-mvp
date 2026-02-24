@@ -2,6 +2,7 @@
 
 import {
   Auction,
+  AuctionCloseResponse,
   AuthResponse,
   Bid,
   BidResponse,
@@ -255,6 +256,18 @@ class ApiClient {
     return response.auction;
   }
 
+  async getAuctionBids(id: string): Promise<Bid[]> {
+    try {
+      const response = await this.request<{ bids: Bid[] }>(
+        `/api/auctions/${id}/bids`,
+      );
+      return Array.isArray(response.bids) ? response.bids : [];
+    } catch (error) {
+      console.error(`Failed to fetch bids for auction ${id}:`, error);
+      return [];
+    }
+  }
+
   async createAuction(data: CreateAuctionData): Promise<Auction> {
     return this.request<Auction>("/api/auctions", {
       method: "POST",
@@ -263,9 +276,10 @@ class ApiClient {
   }
 
   async placeBid(auctionId: string, amount: string): Promise<BidResponse> {
+    console.log("Placing bid:", amount);
     return this.request<BidResponse>(`/api/auctions/${auctionId}/bids`, {
       method: "POST",
-      body: JSON.stringify({ amount: parseFloat(amount) }),
+      body: JSON.stringify({ amount }),
     });
   }
 
@@ -306,8 +320,8 @@ class ApiClient {
     }
   }
 
-  async closeAuction(auctionId: string): Promise<void> {
-    return this.request<void>(`/api/auctions/${auctionId}/close`, {
+  async closeAuction(auctionId: string): Promise<AuctionCloseResponse> {
+    return this.request<AuctionCloseResponse>(`/api/auctions/${auctionId}/close`, {
       method: "POST",
     });
   }

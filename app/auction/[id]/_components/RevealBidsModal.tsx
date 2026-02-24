@@ -84,8 +84,8 @@ export function RevealBidsModal({
 
     // Sort bids by amount (highest first for SELL, lowest first for BUY)
     const sortedBids = [...bids].sort((a, b) => {
-        const amountA = parseFloat(a.amount || "0");
-        const amountB = parseFloat(b.amount || "0");
+        const amountA = parseFloat(a.revealedAmount || a.amount || "0");
+        const amountB = parseFloat(b.revealedAmount || b.amount || "0");
         return isSell ? amountB - amountA : amountA - amountB;
     });
 
@@ -367,8 +367,8 @@ export function RevealBidsModal({
                                                     <tr
                                                         key={bid.id}
                                                         className={`transition-colors ${index === 0
-                                                                ? "bg-amber-50/50 dark:bg-amber-900/10"
-                                                                : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                                            ? "bg-amber-50/50 dark:bg-amber-900/10"
+                                                            : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                                             }`}
                                                     >
                                                         <td className="px-4 py-3 text-sm">
@@ -384,18 +384,18 @@ export function RevealBidsModal({
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <p className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate max-w-[180px]">
-                                                                {bid.bidderId}
+                                                                {bid.bidderUsername || bid.bidderEmail || bid.bidderId}
                                                             </p>
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <span
                                                                 className={`text-sm font-bold ${index === 0
-                                                                        ? "text-amber-700 dark:text-amber-300"
-                                                                        : "text-slate-900 dark:text-white"
+                                                                    ? "text-amber-700 dark:text-amber-300"
+                                                                    : "text-slate-900 dark:text-white"
                                                                     }`}
                                                             >
-                                                                {bid.amount
-                                                                    ? `$${bid.amount}`
+                                                                {bid.revealedAmount || bid.amount
+                                                                    ? `$${bid.revealedAmount || bid.amount}`
                                                                     : "Hidden"}
                                                             </span>
                                                         </td>
