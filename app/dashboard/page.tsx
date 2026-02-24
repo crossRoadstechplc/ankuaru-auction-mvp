@@ -7,10 +7,12 @@ import Header from "@/components/layout/Header";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import apiClient from "../../lib/api";
+import { Users } from "lucide-react";
+
 import {
-    Auction,
-    BidWithAuction,
-    RatingSummaryResponse,
+  Auction,
+  BidWithAuction,
+  RatingSummaryResponse,
 } from "../../lib/types";
 
 const LIVE_AUCTIONS = [
@@ -57,6 +59,9 @@ export default function DashboardPage() {
 
   const [myBids, setMyBids] = useState<BidWithAuction[]>([]);
   const [isLoadingBids, setIsLoadingBids] = useState(true);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingsCount, setFollowingsCount] = useState(0);
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -94,6 +99,18 @@ export default function DashboardPage() {
         console.error("Failed to fetch my bids:", error);
       } finally {
         setIsLoadingBids(false);
+      }
+
+      //My Followers and followisngs
+      try {
+        const followers = await apiClient.getMyFollowers();
+        const f = await apiClient.getMyFollowing();
+        setFollowersCount(followers.length);
+        setFollowingsCount(f.length);
+      } catch (error) {
+        console.error("Failed to fetch my followers:", error);
+      } finally {
+        setIsLoadingFollowers(false);
       }
     };
     fetchDashboardData();
@@ -141,13 +158,6 @@ export default function DashboardPage() {
             iconTextColor="text-primary"
           />
           <StatsCard
-            label="Performance"
-            value="W: 2 / L: 1"
-            icon="trending_up"
-            iconBgColor="bg-emerald-500/10"
-            iconTextColor="text-emerald-500"
-          />
-          <StatsCard
             label="My Auctions"
             value={`${isLoadingAuctions ? "..." : myAuctions.length} Items`}
             icon="store"
@@ -160,6 +170,13 @@ export default function DashboardPage() {
             icon="military_tech"
             iconBgColor="bg-blue-500/10"
             iconTextColor="text-blue-500"
+          />
+          <StatsCard
+            label="Followers / Following"
+            value={followersCount.toString() + " / " + followingsCount.toString()}
+            icon={<Users className="w-5 h-5" />}
+            iconBgColor="bg-emerald-500/10"
+            iconTextColor="text-emerald-600"
           />
         </div>
 
@@ -326,13 +343,12 @@ export default function DashboardPage() {
                             </span>
                           )}
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                              isOpen
-                                ? "bg-primary/10 text-primary"
-                                : isRevealPhase
-                                  ? "bg-amber-500/10 text-amber-500"
-                                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                            }`}
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isOpen
+                              ? "bg-primary/10 text-primary"
+                              : isRevealPhase
+                                ? "bg-amber-500/10 text-amber-500"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                              }`}
                           >
                             {auc.status}
                           </span>

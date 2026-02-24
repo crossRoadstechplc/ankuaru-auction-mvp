@@ -216,11 +216,10 @@ export default function Header() {
                               setIsCopied(true);
                               setTimeout(() => setIsCopied(false), 2000);
                             }}
-                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${
-                              isCopied
+                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${isCopied
                                 ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
                                 : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                            }`}
+                              }`}
                             title="Copy ID"
                           >
                             <span className="material-symbols-outlined text-[14px]">
@@ -309,19 +308,17 @@ export default function Header() {
                 <div
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${
-                    !n.is_read ? "bg-slate-50 dark:bg-slate-800/50" : ""
-                  }`}
+                  className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${!n.is_read ? "bg-slate-50 dark:bg-slate-800/50" : ""
+                    }`}
                 >
                   <div className="flex gap-3">
                     <span
-                      className={`material-symbols-outlined text-xl ${
-                        n.type === "AUCTION_WON" || n.type === "success"
+                      className={`material-symbols-outlined text-xl ${n.type === "AUCTION_WON" || n.type === "success"
                           ? "text-primary"
                           : n.type === "fail"
                             ? "text-red-500"
                             : "text-amber-500"
-                      }`}
+                        }`}
                     >
                       {n.type === "AUCTION_WON" || n.type === "success"
                         ? "check_circle"
@@ -335,6 +332,23 @@ export default function Header() {
                       >
                         {n.title || n.message || (n as any).text}
                       </p>
+                      {n.winner_agreement_file_url && (
+                        <div className="mt-1">
+                          <a
+                            href={n.winner_agreement_file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNotificationClick(n);
+                            }}
+                          >
+                            <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
+                            View PDF
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

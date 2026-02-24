@@ -143,6 +143,23 @@ export default function NotificationsPage() {
                                             <p className={`text-base flex-1 ${!n.is_read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'} leading-relaxed`}>
                                                 {n.title || n.message || (n as any).text}
                                             </p>
+                                            {n.winner_agreement_file_url && (
+                                                <div className="mt-2">
+                                                    <a
+                                                        href={n.winner_agreement_file_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleNotificationClick(n);
+                                                        }}
+                                                    >
+                                                        <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                                                        View Agreement PDF
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
                                         {!n.is_read && (
                                             <span className="mt-1 flex h-2.5 w-2.5 flex-shrink-0 rounded-full bg-primary" />

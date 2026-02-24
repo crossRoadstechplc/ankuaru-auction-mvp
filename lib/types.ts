@@ -168,6 +168,7 @@ export interface Notification {
   type: string;
   title: string;
   message: string;
+  winner_agreement_file_url?: string;
   is_read: boolean;
   created_at: string;
 }
