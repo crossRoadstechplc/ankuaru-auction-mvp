@@ -8,7 +8,7 @@ import apiClient from "../../../../lib/api";
 import { Bid } from "../../../../lib/types";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
-import router from "next/router";
+import { RevealBidsModal } from "./RevealBidsModal";
 
 interface BiddingSidebarProps {
   data: {
@@ -27,6 +27,7 @@ interface BiddingSidebarProps {
     createdAt: string;
     bidCount?: number;
     currentBid?: string;
+    winningBid?: string;
   };
   isCreator: boolean;
   onAuctionUpdate?: () => void;
@@ -176,6 +177,7 @@ export function BiddingSidebar({
   } | null>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showRevealBidsModal, setShowRevealBidsModal] = useState(false);
 
   // Helper to save bid details
   const saveBidLocally = (amount: string, nonce: string) => {
@@ -256,13 +258,13 @@ export function BiddingSidebar({
       // Generate proper commit hash using SHA256
       const nonce = Math.random().toString(36).substring(2, 11);
       const raw = `${data.id}:${user.id}:${bidAmount}:${nonce}`;
-      const commitHash = await generateSHA256Hash(raw);
+      //const commitHash = await generateSHA256Hash(raw);
 
       // Save bid details locally BEFORE submitting
       saveBidLocally(bidAmount, nonce);
       setLocalBid({ amount: bidAmount, nonce });
 
-      await apiClient.placeBid(data.id, commitHash);
+      await apiClient.placeBid(data.id, bidAmount);
 
       toast.success(
         "Bid submitted! Your bid is hidden until the reveal phase.",
@@ -333,8 +335,36 @@ export function BiddingSidebar({
     }
   };
 
+  // Calculate progress percentage for the circular timer
+  const getProgressPercentage = () => {
+    const now = new Date().getTime();
+    const start = new Date(data.startAt).getTime();
+    const end = new Date(data.endAt).getTime();
+
+    if (data.status === "SCHEDULED") {
+      // For scheduled: progress until start
+      const totalDuration = start - new Date(data.createdAt).getTime();
+      const elapsed = now - new Date(data.createdAt).getTime();
+      if (totalDuration <= 0) return 0;
+      return Math.max(0, Math.min(100, (1 - elapsed / totalDuration) * 100));
+    }
+
+    // For active auctions: remaining time percentage
+    const totalDuration = end - start;
+    const remaining = end - now;
+    if (totalDuration <= 0) return 0;
+    return Math.max(0, Math.min(100, (remaining / totalDuration) * 100));
+  };
+
+  const progressPercent = getProgressPercentage();
+
+  // SVG circle calculations
+  const circleRadius = 80;
+  const circleCircumference = 2 * Math.PI * circleRadius;
+  const strokeDashoffset = circleCircumference * (1 - progressPercent / 100);
+
   return (
-    <div className="lg:col-span-4 flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {/* Countdown Card */}
       <div
         className={`${isClosedPhase
@@ -346,7 +376,7 @@ export function BiddingSidebar({
               : "bg-primary dark:bg-primary/90"
           } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
       >
-        <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80 text-center">
           {isClosedPhase
             ? "Auction Closed"
             : isRevealPhase
@@ -355,73 +385,114 @@ export function BiddingSidebar({
                 ? "Auction Starts In"
                 : "Auction Ends In"}
         </p>
-        {!isClosedPhase && !isScheduledPhase ? (
-          <div className="flex justify-between items-center text-center">
-            <div>
-              <p className="text-2xl font-black">
-                {String(days).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Days</p>
-            </div>
-            <div className="text-2xl opacity-50 font-light">:</div>
-            <div>
-              <p className="text-2xl font-black">
-                {String(hours).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Hours</p>
-            </div>
-            <div className="text-2xl opacity-50 font-light">:</div>
-            <div>
-              <p className="text-2xl font-black">
-                {String(minutes).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Mins</p>
-            </div>
-            <div className="text-2xl opacity-50 font-light">:</div>
-            <div>
-              <p className="text-2xl font-black">
-                {String(seconds).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Secs</p>
-            </div>
-          </div>
-        ) : isScheduledPhase && timeUntilStart ? (
-          <div className="flex justify-between items-center text-center">
-            <div>
-              <p className="text-2xl font-black">
-                {String(timeUntilStart.days).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Days</p>
-            </div>
-            <div className="text-2xl opacity-50 font-light">:</div>
-            <div>
-              <p className="text-2xl font-black">
-                {String(timeUntilStart.hours).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Hours</p>
-            </div>
-            <div className="text-2xl opacity-50 font-light">:</div>
-            <div>
-              <p className="text-2xl font-black">
-                {String(timeUntilStart.minutes).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Mins</p>
-            </div>
-            <div className="text-2xl opacity-50 font-light">:</div>
-            <div>
-              <p className="text-2xl font-black">
-                {String(timeUntilStart.seconds).padStart(2, "0")}
-              </p>
-              <p className="text-[10px] font-bold uppercase">Secs</p>
-            </div>
-          </div>
+
+        {/* Circular Timer */}
+        {!isClosedPhase && !isRevealPhase ? (
+          (() => {
+            const displayDays = isScheduledPhase && timeUntilStart ? timeUntilStart.days : days;
+            const displayHours = isScheduledPhase && timeUntilStart ? timeUntilStart.hours : hours;
+            const displayMinutes = isScheduledPhase && timeUntilStart ? timeUntilStart.minutes : minutes;
+            const displaySeconds = isScheduledPhase && timeUntilStart ? timeUntilStart.seconds : seconds;
+
+            return (
+              <div className="flex flex-col items-center">
+                {/* Circular Progress Ring */}
+                <div className="relative" style={{ width: 200, height: 200 }}>
+                  <svg
+                    width="200"
+                    height="200"
+                    viewBox="0 0 200 200"
+                    className="transform -rotate-90"
+                  >
+                    {/* Background track */}
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.15)"
+                      strokeWidth="8"
+                    />
+                    {/* Progress arc */}
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.9)"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={circleCircumference}
+                      strokeDashoffset={strokeDashoffset}
+                      style={{ transition: "stroke-dashoffset 1s linear" }}
+                    />
+                    {/* Glowing dot at the tip */}
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeDasharray={`2 ${circleCircumference - 2}`}
+                      strokeDashoffset={strokeDashoffset}
+                      style={{
+                        transition: "stroke-dashoffset 1s linear",
+                        filter: "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
+                      }}
+                    />
+                  </svg>
+
+                  {/* Center content */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    {/* Days (if any) */}
+                    {displayDays > 0 && (
+                      <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-0.5">
+                        {displayDays}d remaining
+                      </p>
+                    )}
+
+                    {/* Hours & Minutes — small but visible */}
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-sm font-bold opacity-80">
+                        {String(displayHours).padStart(2, "0")}
+                      </span>
+                      <span className="text-xs opacity-50">h</span>
+                      <span className="text-sm font-bold opacity-80">
+                        {String(displayMinutes).padStart(2, "0")}
+                      </span>
+                      <span className="text-xs opacity-50">m</span>
+                    </div>
+
+                    {/* Seconds — BIG & distinctive */}
+                    <p
+                      className="text-5xl font-black tabular-nums leading-none tracking-tight"
+                      style={{
+                        textShadow: "0 0 20px rgba(255,255,255,0.3)",
+                        animation: "secondsPulse 1s ease-in-out infinite",
+                      }}
+                    >
+                      {String(displaySeconds).padStart(2, "0")}
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">
+                      Seconds
+                    </p>
+                  </div>
+                </div>
+
+
+              </div>
+            );
+          })()
         ) : null}
+
         {isScheduledPhase && (
-          <div className="text-center">
-            <span className="material-symbols-outlined text-3xl mb-2">
+          <div className="text-center mt-2">
+            <span className="material-symbols-outlined text-2xl mb-1" style={{ opacity: 0.7 }}>
               schedule
             </span>
-            <p className="text-sm">Auction has not started yet</p>
+            <p className="text-xs opacity-70">Auction has not started yet</p>
           </div>
         )}
         {isRevealPhase && (
@@ -429,7 +500,7 @@ export function BiddingSidebar({
             <span className="material-symbols-outlined text-3xl mb-2">
               visibility
             </span>
-            <p className="text-sm">Bidders can now reveal their bids</p>
+            <p className="text-sm">Bids are now closed. Please wait for Creator to reveal bids</p>
           </div>
         )}
         {isClosedPhase && (
@@ -441,6 +512,8 @@ export function BiddingSidebar({
           </div>
         )}
       </div>
+
+
 
       {!isCreator ? (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
@@ -485,7 +558,7 @@ export function BiddingSidebar({
                   Winning Bid
                 </p>
                 <p className="text-2xl font-black text-primary">
-                  {data.currentBid}
+                  {data.winningBid || data.currentBid}
                 </p>
               </div>
               <button
@@ -502,200 +575,143 @@ export function BiddingSidebar({
             <div className="text-center py-4">
               <div className="h-16 w-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="material-symbols-outlined text-orange-500 text-3xl">
-                  visibility
+                  hourglass_top
                 </span>
               </div>
-              <h3 className="text-xl font-bold mb-2">Reveal Phase</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
-                Bidding has ended. You can now reveal your bid to participate in
-                the final selection.
+              <h3 className="text-xl font-bold mb-2">Auction In Reveal Mode</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium">
+                Bidding has ended. The auction owner is currently reviewing all bids.
               </p>
               {myBid && (
-                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 text-left">
                   <p className="text-[10px] text-blue-600 dark:text-blue-300 font-bold uppercase mb-1">
-                    My Bid
+                    Your Submitted Bid
                   </p>
                   <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-black text-blue-900 dark:text-white">
-                      {myBid.amount || localBid?.amount || "Pending"}
+                    <p className="text-2xl font-black text-blue-900 dark:text-white">
+                      {myBid.amount || localBid?.amount || "Submitted"}
                     </p>
                     <span className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">
                       USD
                     </span>
                   </div>
-                  <div className="mt-2 text-sm text-blue-700 dark:text-blue-200">
-                    {myBid.revealed ? (
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-green-500">
-                          check_circle
-                        </span>
-                        Your bid has been revealed
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-orange-500">
-                          hourglass_top
-                        </span>
-                        Reveal your bid to participate
-                      </span>
-                    )}
-                  </div>
                 </div>
               )}
-              {myBid && !myBid.revealed && (
-                <button
-                  onClick={handleRevealBid}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="material-symbols-outlined animate-spin">
-                        refresh
-                      </span>
-                      Revealing...
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined">
-                        visibility
-                      </span>
-                      Reveal Bid
-                    </>
-                  )}
-                </button>
-              )}
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="w-full mt-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  description
-                </span>
-                View Auction Report
-              </button>
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-3 text-left">
+                  <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl mt-0.5">
+                    info
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-amber-900 dark:text-amber-100 mb-1">
+                      Waiting for the auction owner
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Please wait for the auction owner to close the auction. You will be notified once the results are finalized.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <>
               {/* My Bid Status */}
-              {myBid && (
-                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
-                  <p className="text-[10px] text-blue-600 dark:text-blue-300 font-bold uppercase mb-1">
-                    My Bid
-                  </p>
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-black text-blue-900 dark:text-white">
-                      {myBid.amount || localBid?.amount || "Pending"}
-                    </p>
-                    <span className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">
-                      USD
-                    </span>
-                  </div>
-                  <div className="mt-2 text-sm text-blue-700 dark:text-blue-200">
-                    {myBid.revealed ? (
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-green-500">
-                          check_circle
-                        </span>
-                        Your bid has been revealed
+              {myBid ? (
+                <div className="text-center py-4">
+                  <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-emerald-500 text-lg">
+                        check_circle
                       </span>
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-orange-500">
-                          hourglass_top
-                        </span>
-                        Waiting for reveal phase
+                      <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
+                        Bid Submitted Successfully
+                      </p>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-3">
+                      <p className="text-3xl font-black text-emerald-900 dark:text-white">
+                        {myBid.amount || localBid?.amount || "Pending"}
+                      </p>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-300 uppercase">
+                        USD
                       </span>
-                    )}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              <div className="mb-8">
-                <p className="text-sm text-slate-400 font-bold uppercase mb-1">
-                  {myBid ? "Current Bid" : "Current Bid"}
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
-                    {data.currentBid}
-                  </p>
-                  <span className="text-xs font-bold text-slate-400 uppercase">
-                    USD
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {!myBid ? (
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
-                      {isSell ? "Your New Bid" : "Your Lower Offer"}
-                    </label>
-                    <form onSubmit={handleBidSubmit}>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                          $
-                        </span>
-                        <input
-                          className="w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
-                          type="number"
-                          placeholder="Enter amount"
-                          value={bidAmount}
-                          onChange={(e) => setBidAmount(e.target.value)}
-                          disabled={isSubmitting}
-                        />
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-start gap-3 text-left">
+                      <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl mt-0.5">
+                        schedule
+                      </span>
+                      <div>
+                        <p className="text-sm font-bold text-blue-900 dark:text-blue-100 mb-1">
+                          Waiting for other bids
+                        </p>
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          Your bid has been recorded. We will notify you when the auction status updates.
+                        </p>
                       </div>
-                      <button
-                        type="submit"
-                        className="w-full bg-primary hover:bg-primary-dark text-white py-5 rounded-xl font-black text-lg shadow-xl shadow-primary/30 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <span className="material-symbols-outlined animate-spin">
-                              refresh
-                            </span>
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            {isSell
-                              ? "Submit Higher Bid"
-                              : "Submit Better Offer"}
-                          </>
-                        )}
-                      </button>
-                    </form>
+                    </div>
                   </div>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
-                      Reveal Your Bid
-                    </label>
-                    <button
-                      onClick={handleRevealBid}
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={isSubmitting || !myBid}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <span className="material-symbols-outlined animate-spin">
-                            refresh
-                          </span>
-                          Revealing...
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined">
-                            visibility
-                          </span>
-                          Reveal Bid
-                        </>
-                      )}
-                    </button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-8">
+                    <p className="text-sm text-slate-400 font-bold uppercase mb-1">
+                      Current Bid
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
+                        {data.currentBid}
+                      </p>
+                      <span className="text-xs font-bold text-slate-400 uppercase">
+                        USD
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
+                        {isSell ? "Your New Bid" : "Your Lower Offer"}
+                      </label>
+                      <form onSubmit={handleBidSubmit}>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                            $
+                          </span>
+                          <input
+                            className="w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
+                            type="number"
+                            placeholder="Enter amount"
+                            value={bidAmount}
+                            onChange={(e) => setBidAmount(e.target.value)}
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="w-full bg-primary hover:bg-primary-dark text-white py-5 rounded-xl font-black text-lg shadow-xl shadow-primary/30 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <span className="material-symbols-outlined animate-spin">
+                                refresh
+                              </span>
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              {isSell
+                                ? "Submit Higher Bid"
+                                : "Submit Better Offer"}
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -745,22 +761,13 @@ export function BiddingSidebar({
             ) : isRevealPhase ? (
               <>
                 <button
-                  onClick={() => setShowReportModal(true)}
-                  className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2"
+                  onClick={() => setShowRevealBidsModal(true)}
+                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
                 >
                   <span className="material-symbols-outlined text-lg">
                     visibility
                   </span>
-                  View Current Report
-                </button>
-                <button
-                  onClick={() => setShowCloseModal(true)}
-                  className="w-full py-4 border-2 border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    block
-                  </span>
-                  Close Auction Now
+                  Reveal Bids
                 </button>
               </>
             ) : (
@@ -784,9 +791,7 @@ export function BiddingSidebar({
                       type: data.auctionType,
                       visibility: data.visibility,
                     });
-                    router.push(
-                      `/auction/new?relist=true&${params.toString()}`,
-                    );
+                    window.location.href = `/auction/new?relist=true&${params.toString()}`;
                   }}
                   className="w-full py-4 border-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
                 >
@@ -814,6 +819,14 @@ export function BiddingSidebar({
             auction={data}
             isOpen={showReportModal}
             onClose={() => setShowReportModal(false)}
+          />
+          <RevealBidsModal
+            auction={data}
+            isOpen={showRevealBidsModal}
+            onClose={() => {
+              setShowRevealBidsModal(false);
+              if (onAuctionUpdate) onAuctionUpdate();
+            }}
           />
         </div>
       )}

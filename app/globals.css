@@ -30,3 +30,9 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Circular timer seconds pulse animation */
+@keyframes secondsPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.85; }
+}

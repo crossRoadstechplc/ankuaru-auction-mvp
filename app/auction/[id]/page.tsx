@@ -175,9 +175,25 @@ function AuctionDetailContent() {
           </span>
         </nav>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Content Column */}
-          <div className="lg:col-span-8 flex flex-col gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+          {/* Sidebar Column — appears first on mobile, right column on desktop */}
+          <div className="order-1 lg:order-2 lg:col-span-4">
+            <BiddingSidebar
+              data={auction}
+              isCreator={isCreator}
+              onAuctionUpdate={async () => {
+                try {
+                  const refreshedData = await apiClient.getAuction(id);
+                  setAuction(refreshedData);
+                } catch (err) {
+                  console.warn("Failed to refresh auction:", err);
+                }
+              }}
+            />
+          </div>
+
+          {/* Main Content Column — appears second on mobile, left column on desktop */}
+          <div className="order-2 lg:order-1 lg:col-span-8 flex flex-col gap-6 lg:gap-8">
             <AuctionDetailsCard
               data={auction}
               creatorRating={creatorRating}
@@ -185,9 +201,6 @@ function AuctionDetailContent() {
             />
             <BidActivity data={auction} isCreator={isCreator} />
           </div>
-
-          {/* Sidebar Column */}
-          <BiddingSidebar data={auction} isCreator={isCreator} />
         </div>
       </main>
 

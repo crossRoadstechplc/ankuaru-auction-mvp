@@ -63,24 +63,42 @@ class ApiClient {
 
       // Handle non-2xx responses
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
+        let errorData: any = {};
+        const text = await response.text();
+
+        try {
+          if (text) errorData = JSON.parse(text);
+        } catch (e) {
+          errorData = { text };
+        }
+
+        let errorMessage =
           errorData.message ||
           errorData.error ||
           errorData.detail ||
           response.statusText ||
           `Request failed with status ${response.status}`;
 
+        // Append validation details if present so it doesn't just say "Validation error"
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const detailMsgs = errorData.details
+            .map((d: any) => `${d.path?.join(".")}: ${d.message}`)
+            .join(", ");
+          if (detailMsgs) {
+            errorMessage += ` | Details: ${detailMsgs}`;
+          }
+        }
+
         if (!silent) {
-          console.error("API Error Details:", errorData);
+          console.error("API Error Details:", JSON.stringify(errorData, null, 2));
         }
 
         throw new Error(errorMessage);
       }
 
-      // Parse JSON response
-      const data = await response.json();
-      return data;
+      // Parse JSON response (since we already checked response.ok, if it's 204 No Content, text is empty)
+      const text = await response.text();
+      return (text ? JSON.parse(text) : {}) as T;
     } catch (error) {
       console.error("API Error:", error);
       // Re-throw with more context
@@ -241,10 +259,10 @@ class ApiClient {
     });
   }
 
-  async placeBid(auctionId: string, commitHash: string): Promise<BidResponse> {
+  async placeBid(auctionId: string, amount: string): Promise<BidResponse> {
     return this.request<BidResponse>(`/api/auctions/${auctionId}/bids`, {
       method: "POST",
-      body: JSON.stringify({ commitHash }),
+      body: JSON.stringify({ amount: parseFloat(amount) }),
     });
   }
 

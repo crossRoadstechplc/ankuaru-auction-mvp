@@ -17,11 +17,12 @@ interface AuctionDetailsCardProps {
     visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
     startAt: string;
     endAt: string;
-    status: "OPEN" | "REVEAL" | "CLOSED";
+    status: "SCHEDULED" | "OPEN" | "REVEAL" | "CLOSED";
     createdBy: string;
     createdAt: string;
     bidCount?: number;
     currentBid?: string;
+    winningBid?: string;
   };
   creatorRating?: UserRating | null;
   isCreator: boolean;
@@ -138,14 +139,16 @@ export function AuctionDetailsCard({
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  {myBid ? "My Bid" : "Current Bid"}
+                  {data.status === "CLOSED" ? "Winning Bid" : myBid ? "My Bid" : "Current Bid"}
                 </span>
                 <span className="text-xl font-black text-primary">
-                  {myBid?.revealed
-                    ? `$${myBid.amount}`
-                    : myBid?.amount
+                  {data.status === "CLOSED"
+                    ? `$${data.winningBid || data.currentBid || data.minBid}`
+                    : myBid?.revealed
                       ? `$${myBid.amount}`
-                      : data.currentBid || data.minBid}
+                      : myBid?.amount
+                        ? `$${myBid.amount}`
+                        : data.currentBid || data.minBid}
                 </span>
               </div>
               <div className="flex flex-col">

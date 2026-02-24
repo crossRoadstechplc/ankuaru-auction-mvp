@@ -44,6 +44,9 @@ export interface Auction {
   createdAt: string;
   bidCount?: number;
   currentBid?: string;
+  winnerId?: string;
+  winningBid?: string;
+  closedAt?: string;
   // UI-specific fields for feed display
   tag?: string;
   tagColor?: string;
@@ -51,6 +54,28 @@ export interface Auction {
   bids?: string;
   image?: string;
   details?: string;
+}
+
+export interface AuctionCloseResponse {
+  auction: {
+    id: string;
+    title: string;
+    auctionCategory: string;
+    itemDescription: string;
+    reservePrice: string;
+    minBid: string;
+    auctionType: "SELL" | "BUY";
+    bidCount: number;
+    visibility: string;
+    startAt: string;
+    endAt: string;
+    status: "CLOSED";
+    createdBy: string;
+    createdAt: string;
+    winnerId: string;
+    winningBid: string;
+    closedAt: string;
+  };
 }
 
 export interface CreateAuctionData {
