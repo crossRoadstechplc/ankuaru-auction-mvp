@@ -31,6 +31,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Clear previous errors when attempting new login
+    setError(null);
+
     // Basic validation
     if (!formData.email || !formData.password) {
       setError("Email and password are required");
@@ -44,7 +47,6 @@ export default function LoginPage() {
 
     try {
       setIsLoading(true);
-      setError(null);
 
       await login(formData);
 

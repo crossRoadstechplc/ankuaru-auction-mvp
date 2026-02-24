@@ -192,7 +192,10 @@ class ApiClient {
         "/api/auth/following/me",
       );
       if (Array.isArray(response)) return response;
-      if (response && Array.isArray((response as { following: User[] }).following)) {
+      if (
+        response &&
+        Array.isArray((response as { following: User[] }).following)
+      ) {
         return (response as { following: User[] }).following;
       }
       return [];
@@ -293,14 +296,15 @@ class ApiClient {
 
   async getMyBids(): Promise<BidWithAuction[]> {
     try {
-      const response = await this.request<{ bids: BidWithAuction[] }>('/api/auctions/my-bids');
+      const response = await this.request<{ bids: BidWithAuction[] }>(
+        "/api/auctions/my-bids",
+      );
       return Array.isArray(response.bids) ? response.bids : [];
     } catch (error) {
-      console.error('Failed to fetch my bids:', error);
+      console.error("Failed to fetch my bids:", error);
       return [];
     }
   }
-
 
   async closeAuction(auctionId: string): Promise<void> {
     return this.request<void>(`/api/auctions/${auctionId}/close`, {

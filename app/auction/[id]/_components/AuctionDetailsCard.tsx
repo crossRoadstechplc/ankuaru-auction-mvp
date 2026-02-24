@@ -60,9 +60,7 @@ export function AuctionDetailsCard({
     const checkFollowStatus = async () => {
       try {
         const following = await apiClient.getMyFollowing();
-        const alreadyFollowing = following.some(
-          (u) => u.id === data.createdBy,
-        );
+        const alreadyFollowing = following.some((u) => u.id === data.createdBy);
         setIsFollowing(alreadyFollowing);
       } catch (error) {
         console.warn("Could not check follow status:", error);
@@ -197,7 +195,10 @@ export function AuctionDetailsCard({
               Auction ID
             </p>
             <div className="flex items-center justify-end gap-2">
-              <p className="text-slate-900 dark:text-white font-mono font-bold text-sm" title={data.id}>
+              <p
+                className="text-slate-900 dark:text-white font-mono font-bold text-sm"
+                title={data.id}
+              >
                 ANK-{data.id ? `${data.id.slice(0, 8)}…` : "000"}
               </p>
               <button
@@ -295,7 +296,9 @@ export function AuctionDetailsCard({
                 <>
                   {/* Following badge */}
                   <span className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
-                    <span className="material-symbols-outlined text-sm">check</span>
+                    <span className="material-symbols-outlined text-sm">
+                      check
+                    </span>
                     Following
                   </span>
                   {/* Unfollow button */}
@@ -304,7 +307,9 @@ export function AuctionDetailsCard({
                     disabled={isFollowLoading}
                     className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold transition-all border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    <span className="material-symbols-outlined text-sm">person_remove</span>
+                    <span className="material-symbols-outlined text-sm">
+                      person_remove
+                    </span>
                     {isFollowLoading ? "..." : "Unfollow"}
                   </button>
                 </>
@@ -314,7 +319,9 @@ export function AuctionDetailsCard({
                   disabled={isFollowLoading}
                   className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all border border-primary text-primary hover:bg-primary hover:text-white ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  <span className="material-symbols-outlined text-sm">person_add</span>
+                  <span className="material-symbols-outlined text-sm">
+                    person_add
+                  </span>
                   {isFollowLoading ? "Loading..." : "Follow"}
                 </button>
               )}
