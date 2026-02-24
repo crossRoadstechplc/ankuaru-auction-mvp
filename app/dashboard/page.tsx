@@ -4,15 +4,15 @@ import AuctionCard from "@/components/auction/AuctionCard";
 import StatsCard from "@/components/dashboard/StatsCard";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import { getImageWithFallback } from "@/lib/imageUtils";
+import { Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import apiClient from "../../lib/api";
-import { Users } from "lucide-react";
-
 import {
-  Auction,
-  BidWithAuction,
-  RatingSummaryResponse,
+    Auction,
+    BidWithAuction,
+    RatingSummaryResponse,
 } from "../../lib/types";
 
 const LIVE_AUCTIONS = [
@@ -173,7 +173,9 @@ export default function DashboardPage() {
           />
           <StatsCard
             label="Followers / Following"
-            value={followersCount.toString() + " / " + followingsCount.toString()}
+            value={
+              followersCount.toString() + " / " + followingsCount.toString()
+            }
             icon={<Users className="w-5 h-5" />}
             iconBgColor="bg-emerald-500/10"
             iconTextColor="text-emerald-600"
@@ -224,7 +226,7 @@ export default function DashboardPage() {
                         <img
                           alt={item.title}
                           className="h-full w-full object-cover"
-                          src={item.image}
+                          src={getImageWithFallback(item.image)}
                         />
                       ) : (
                         <span className="material-symbols-outlined text-3xl">
@@ -343,12 +345,13 @@ export default function DashboardPage() {
                             </span>
                           )}
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isOpen
-                              ? "bg-primary/10 text-primary"
-                              : isRevealPhase
-                                ? "bg-amber-500/10 text-amber-500"
-                                : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                              }`}
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                              isOpen
+                                ? "bg-primary/10 text-primary"
+                                : isRevealPhase
+                                  ? "bg-amber-500/10 text-amber-500"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                            }`}
                           >
                             {auc.status}
                           </span>

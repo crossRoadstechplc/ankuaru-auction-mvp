@@ -132,7 +132,7 @@ export function AuctionDetailsCard({
                   Starting price
                 </span>
                 <span className="text-lg font-bold text-slate-700 dark:text-slate-300">
-                  ${data.minBid}
+                  ETB {data.minBid}
                 </span>
               </div>
               <div className="flex flex-col">
@@ -145,11 +145,11 @@ export function AuctionDetailsCard({
                 </span>
                 <span className="text-xl font-black text-primary">
                   {data.status === "CLOSED"
-                    ? `$${data.winningBid || data.currentBid || data.minBid}`
+                    ? `ETB {data.winningBid || data.currentBid || data.minBid}`
                     : myBid?.revealed
-                      ? `$${myBid.amount}`
+                      ? `ETB {myBid.amount}`
                       : myBid?.amount
-                        ? `$${myBid.amount}`
+                        ? `ETB {myBid.amount}`
                         : data.currentBid || data.minBid}
                 </span>
               </div>

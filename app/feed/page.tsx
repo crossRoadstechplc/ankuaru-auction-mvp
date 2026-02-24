@@ -2,6 +2,7 @@
 
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import { getImageWithFallback } from "@/lib/imageUtils";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
@@ -18,43 +19,20 @@ function getTimeRemaining(endAt: string): number {
 // Helper function to sort auctions based on status and dates
 function sortAuctions(auctions: Auction[]): Auction[] {
   return auctions.sort((a, b) => {
-    // Priority 1: OPEN auctions (most urgent)
+    // Priority 1: OPEN auctions come first
     if (a.status === "OPEN" && b.status !== "OPEN") return -1;
     if (a.status !== "OPEN" && b.status === "OPEN") return 1;
 
-    // Priority 2: SCHEDULED auctions (by start date, earliest first)
-    if (a.status === "SCHEDULED" && b.status !== "SCHEDULED") {
-      const aStart = new Date(a.startAt).getTime();
-      const bStart = new Date(b.startAt).getTime();
-      return aStart - bStart;
-    }
-    if (a.status !== "SCHEDULED" && b.status === "SCHEDULED") return 1;
-
-    // Priority 3: REVEAL auctions (by end date, earliest first)
-    if (a.status === "REVEAL" && b.status !== "REVEAL") {
-      const aEnd = new Date(a.endAt).getTime();
-      const bEnd = new Date(b.endAt).getTime();
-      return aEnd - bEnd;
-    }
-    if (a.status !== "REVEAL" && b.status === "REVEAL") return 1;
-
-    // Priority 4: CLOSED auctions (by closed date, most recent first)
-    if (a.status === "CLOSED" && b.status !== "CLOSED") {
-      const aClosed = new Date(a.closedAt || a.endAt).getTime();
-      const bClosed = new Date(b.closedAt || b.endAt).getTime();
-      return bClosed - aClosed;
-    }
-    if (a.status !== "CLOSED" && b.status === "CLOSED") return -1;
-
-    // Default: sort by end date (most recent first)
+    // For same status, sort by end time (most urgent first)
     const aEnd = new Date(a.endAt).getTime();
     const bEnd = new Date(b.endAt).getTime();
-    return bEnd - aEnd;
+    return aEnd - bEnd;
   });
 }
 
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState("all");
+  const [activeStatus, setActiveStatus] = useState("all");
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +59,7 @@ export default function FeedPage() {
     fetchAuctions();
   }, [user]); // Re-fetch when user changes
 
-  // Filter auctions based on active tab, user ownership, and status
+  // Filter auctions based on active tab, status, user ownership, and status
   const filteredAuctions = Array.isArray(auctions)
     ? auctions
         .filter((auction) => {
@@ -90,8 +68,8 @@ export default function FeedPage() {
             return false;
           }
 
-          // Filter out closed auctions
-          if (auction.status === "CLOSED") {
+          // Status filtering
+          if (activeStatus !== "all" && auction.status !== activeStatus) {
             return false;
           }
 
@@ -142,25 +120,46 @@ export default function FeedPage() {
         </div>
 
         {/* Filters/Tabs */}
-        <div className="flex gap-4 mb-8 overflow-x-auto pb-2 hide-scrollbar">
-          {[
-            { id: "all", label: "All Auctions" },
-            { id: "public", label: "Public" },
-            { id: "followers", label: "Following" },
-            { id: "custom", label: "Private" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 font-semibold rounded-lg text-sm whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? "bg-primary text-white"
-                  : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50"
-              }`}
+        <div className="space-y-4 mb-8">
+          {/* Category Filters */}
+          <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">
+            {[
+              { id: "all", label: "All Auctions" },
+              { id: "public", label: "Public" },
+              { id: "followers", label: "Following" },
+              { id: "custom", label: "Private" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 font-semibold rounded-lg text-sm whitespace-nowrap transition-all ${
+                  activeTab === tab.id
+                    ? "bg-primary text-white"
+                    : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Status Filter Dropdown */}
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Status:
+            </label>
+            <select
+              value={activeStatus}
+              onChange={(e) => setActiveStatus(e.target.value)}
+              className="px-4 py-2 font-semibold rounded-lg text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
             >
-              {tab.label}
-            </button>
-          ))}
+              <option value="all">All Status</option>
+              <option value="OPEN">Open</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="REVEAL">Reveal</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </div>
         </div>
 
         {/* Action List */}
@@ -227,7 +226,9 @@ export default function FeedPage() {
                   <div className="md:w-64 h-48 md:h-auto relative overflow-hidden">
                     <div
                       className="absolute inset-0 bg-cover bg-center transition-transform duration-500 hover:scale-105"
-                      style={{ backgroundImage: `url("${auction.image}")` }}
+                      style={{
+                        backgroundImage: `url("${getImageWithFallback(auction.image)}")`,
+                      }}
                     ></div>
                     {auction.tag && (
                       <div className="absolute top-3 left-3">

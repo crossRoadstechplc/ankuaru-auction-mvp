@@ -48,10 +48,10 @@ export function FinalReportModal({
   const winningBid =
     revealedBids.length > 0
       ? revealedBids.reduce((prev, current) =>
-        parseFloat(current.amount || "0") > parseFloat(prev.amount || "0")
-          ? current
-          : prev,
-      )
+          parseFloat(current.amount || "0") > parseFloat(prev.amount || "0")
+            ? current
+            : prev,
+        )
       : null;
 
   return (
@@ -102,7 +102,11 @@ export function FinalReportModal({
                     Winning Bid
                   </p>
                   <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                    {auction.winningBid ? `$${auction.winningBid}` : winningBid ? `$${winningBid.amount || "0"}` : "None"}
+                    {auction.winningBid
+                      ? `ETB {auction.winningBid}`
+                      : winningBid
+                        ? `ETB {winningBid.amount || "0"}`
+                        : "None"}
                   </p>
                 </div>
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -110,7 +114,7 @@ export function FinalReportModal({
                     Reserve Price
                   </p>
                   <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                    ${auction.reservePrice}
+                    ETB {auction.reservePrice}
                   </p>
                 </div>
               </div>
@@ -170,7 +174,7 @@ export function FinalReportModal({
                                 {bid.bidderId || "Anonymous"}
                               </td>
                               <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white">
-                                ${bid.amount || "0"}
+                                ETB {bid.amount || "0"}
                               </td>
                               <td className="px-4 py-3 text-sm">
                                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">

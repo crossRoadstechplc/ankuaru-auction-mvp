@@ -250,14 +250,15 @@ export function BiddingSidebar({
     e.preventDefault();
     console.log("Placing bid:", bidAmount);
 
-
     if (!bidAmount || parseFloat(bidAmount) <= 0) {
       toast.warning("Please enter a valid bid amount");
       return;
     }
 
     if (parseFloat(bidAmount) < parseFloat(data.reservePrice)) {
-      toast.warning(`Your bid cannot be less than the starting price of $${data.reservePrice}`);
+      toast.warning(
+        `Your bid cannot be less than the starting price of ETB {data.reservePrice}`,
+      );
       return;
     }
 
@@ -268,7 +269,6 @@ export function BiddingSidebar({
 
     try {
       setIsSubmitting(true);
-
 
       // Generate proper commit hash using SHA256 (Temporarily removed)
       // const nonce = Math.random().toString(36).substring(2, 11);
@@ -706,7 +706,7 @@ export function BiddingSidebar({
                       <form onSubmit={handleBidSubmit}>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                            $
+                            ETB
                           </span>
                           <input
                             className="w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
@@ -731,9 +731,7 @@ export function BiddingSidebar({
                             </>
                           ) : (
                             <>
-                              {isSell
-                                ? "Submit Your Bid"
-                                : "Submit Your Bid"}
+                              {isSell ? "Submit Your Bid" : "Submit Your Bid"}
                             </>
                           )}
                         </button>
@@ -785,7 +783,9 @@ export function BiddingSidebar({
                 onClick={() => setShowRevealBidsModal(true)}
                 className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
               >
-                <span className="material-symbols-outlined text-lg">visibility</span>
+                <span className="material-symbols-outlined text-lg">
+                  visibility
+                </span>
                 Close Auction Early
               </button>
             ) : isRevealPhase ? (
