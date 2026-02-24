@@ -88,8 +88,14 @@ export default function FeedPage() {
             : true;
         })
         .sort((a, b) => {
-          // Sort by status and date using new sorting logic
-          return sortAuctions([a, b]);
+          // Priority 1: OPEN auctions come first
+          if (a.status === "OPEN" && b.status !== "OPEN") return -1;
+          if (a.status !== "OPEN" && b.status === "OPEN") return 1;
+
+          // For same status, sort by end time (most urgent first)
+          const aEnd = new Date(a.endAt).getTime();
+          const bEnd = new Date(b.endAt).getTime();
+          return aEnd - bEnd;
         })
     : [];
 
