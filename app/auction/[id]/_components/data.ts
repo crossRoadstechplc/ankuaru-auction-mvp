@@ -15,12 +15,28 @@ export const AUCTION_DETAILS: Record<string, any> = {
     totalBids: 15,
     timeLeft: "03h 15m",
     status: "LIVE",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCQKmgkx0SFK6tKM8vtpCys-ZM4Qt3xCdbC0WmsJMNauDFINGlNGtscIHz9HeEbDmxayTen-d2MOPUgYYSuLyydvt-8c1YzK0Jk_1zzBU9swz_9kSF2oXyiVrq_Lc7DEUZIoJICP5tiB1BIF7NatksENCsyOHx4lhaVGBWaejO1qV6nUNFSsl5i58dXFr_IbrUGW4tWhxnPy0UR1_mrFMO7QVOXmzDtyjnG2MriVeJIISNt96dGz86R2NM_UWBftRHMTVw5WXdXQtw",
+    image:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuCQKmgkx0SFK6tKM8vtpCys-ZM4Qt3xCdbC0WmsJMNauDFINGlNGtscIHz9HeEbDmxayTen-d2MOPUgYYSuLyydvt-8c1YzK0Jk_1zzBU9swz_9kSF2oXyiVrq_Lc7DEUZIoJICP5tiB1BIF7NatksENCsyOHx4lhaVGBWaejO1qV6nUNFSsl5i58dXFr_IbrUGW4tWhxnPy0UR1_mrFMO7QVOXmzDtyjnG2MriVeJIISNt96dGz86R2NM_UWBftRHMTVw5WXdXQtw",
     mockBids: [
-      { name: "Participant #15", amount: "$48.50", amountNum: 48.5, time: "1m ago" },
-      { name: "Participant #4", amount: "$46.00", amountNum: 46, time: "12m ago" },
-      { name: "Participant #9", amount: "$44.50", amountNum: 44.5, time: "45m ago" },
-    ]
+      {
+        name: "Participant #15",
+        amount: "$48.50",
+        amountNum: 48.5,
+        time: "1m ago",
+      },
+      {
+        name: "Participant #4",
+        amount: "$46.00",
+        amountNum: 46,
+        time: "12m ago",
+      },
+      {
+        name: "Participant #9",
+        amount: "$44.50",
+        amountNum: 44.5,
+        time: "45m ago",
+      },
+    ],
   },
   "2": {
     id: "2",
@@ -38,11 +54,22 @@ export const AUCTION_DETAILS: Record<string, any> = {
     totalBids: 8,
     timeLeft: "05h 45m",
     status: "LIVE",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAD5V6sDurw44zKJe-MtKQQpTJ6P-g6verGYFHSD6gv-fcz6JZEO2x4A9nyC1MA249IX8RcdZhJFSfofOfWtmAe4AhLuJC35u_wUNRsr5dYMG3ynRfud19Fpb0SUaz3JZ1hDTSOsFqoEtcywNLXIBJ1jj1h5zyXvNH_pU9ZoHlcN92vocd-mqIpjq2uBTDQUDvW2TIqqlQqMc8f0BEzdgjcDQjQqH-2hodEqYJLAZdZJZJzg0ckh5GOBbkYIKihuYAP8-amLHtOm78",
+    image:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuAD5V6sDurw44zKJe-MtKQQpTJ6P-g6verGYFHSD6gv-fcz6JZEO2x4A9nyC1MA249IX8RcdZhJFSfofOfWtmAe4AhLuJC35u_wUNRsr5dYMG3ynRfud19Fpb0SUaz3JZ1hDTSOsFqoEtcywNLXIBJ1jj1h5zyXvNH_pU9ZoHlcN92vocd-mqIpjq2uBTDQUDvW2TIqqlQqMc8f0BEzdgjcDQjQqH-2hodEqYJLAZdZJZJzg0ckh5GOBbkYIKihuYAP8-amLHtOm78",
     mockBids: [
-      { name: "Participant #8", amount: "$41.20", amountNum: 41.2, time: "3m ago" },
-      { name: "Participant #2", amount: "$40.50", amountNum: 40.5, time: "20m ago" },
-    ]
+      {
+        name: "Participant #8",
+        amount: "$41.20",
+        amountNum: 41.2,
+        time: "3m ago",
+      },
+      {
+        name: "Participant #2",
+        amount: "$40.50",
+        amountNum: 40.5,
+        time: "20m ago",
+      },
+    ],
   },
   "3": {
     id: "3",
@@ -60,11 +87,22 @@ export const AUCTION_DETAILS: Record<string, any> = {
     totalBids: 22,
     timeLeft: "01h 10m",
     status: "LIVE",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAC4Qd7Ev65ZXqIUWKF6A-hoaoxnNWeIBQf7WEV2qNkX3Zh8_WETsHNI_YiJdQGwt6NzK8MkEewSObvIS9HJxV_FcZ9CRgpPeE0kGIO5VSqQfsIKMiDOYb1JQ2EBV8VPmEtOt3aIQcD5pb8p-U5oMr8YfysTr9rZK-_aJ3qTzynhofM0mBwnKb5ZgV4POMccwvKlMv3D-sSMUzIOb5Z9zTGpTHkSZTnPSw9k0KGnIYCrPx7t51WMxxHM2XPbMKwhKn2BdBvi3m3rv8",
+    image:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuAC4Qd7Ev65ZXqIUWKF6A-hoaoxnNWeIBQf7WEV2qNkX3Zh8_WETsHNI_YiJdQGwt6NzK8MkEewSObvIS9HJxV_FcZ9CRgpPeE0kGIO5VSqQfsIKMiDOYb1JQ2EBV8VPmEtOt3aIQcD5pb8p-U5oMr8YfysTr9rZK-_aJ3qTzynhofM0mBwnKb5ZgV4POMccwvKlMv3D-sSMUzIOb5Z9zTGpTHkSZTnPSw9k0KGnIYCrPx7t51WMxxHM2XPbMKwhKn2BdBvi3m3rv8",
     mockBids: [
-      { name: "Participant #22", amount: "$52.00", amountNum: 52, time: "1m ago" },
-      { name: "Participant #15", amount: "$50.50", amountNum: 50.5, time: "10m ago" },
-    ]
+      {
+        name: "Participant #22",
+        amount: "$52.00",
+        amountNum: 52,
+        time: "1m ago",
+      },
+      {
+        name: "Participant #15",
+        amount: "$50.50",
+        amountNum: 50.5,
+        time: "10m ago",
+      },
+    ],
   },
   "4": {
     id: "4",
@@ -82,11 +120,12 @@ export const AUCTION_DETAILS: Record<string, any> = {
     totalBids: 12,
     timeLeft: "2d 04h",
     status: "LIVE",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuBCeeIR2t3UCjZvsBYbS2bw5OBYMNth821FiJZcdYMYrdPYn1R4JCQhh3w39_0xBQEOQqGrXIa_m66bh99AdNuFBWBpbmwHU88uB1GG6P6YUP8FcTagRQ37HY5VuDen4FiwDuR-eRXEXo_NTBxsT0E3aNqbxndp73pjdfcClaJTGbkewErq-9AmflJVNoZwrsd9NfyOxIcMmeMdHpC7RMV88B3aWEQH5KSv0wvvyTjRn8IC4n65PChc1qiw_DwW-hh9xGQ7JlB9cJc",
+    image:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuBCeeIR2t3UCjZvsBYbS2bw5OBYMNth821FiJZcdYMYrdPYn1R4JCQhh3w39_0xBQEOQqGrXIa_m66bh99AdNuFBWBpbmwHU88uB1GG6P6YUP8FcTagRQ37HY5VuDen4FiwDuR-eRXEXo_NTBxsT0E3aNqbxndp73pjdfcClaJTGbkewErq-9AmflJVNoZwrsd9NfyOxIcMmeMdHpC7RMV88B3aWEQH5KSv0wvvyTjRn8IC4n65PChc1qiw_DwW-hh9xGQ7JlB9cJc",
     mockBids: [
       { name: "Exporter X", amount: "$295.00", amountNum: 295, time: "5m ago" },
       { name: "Exporter Y", amount: "$305.00", amountNum: 305, time: "1h ago" },
-    ]
+    ],
   },
   "5": {
     id: "5",
@@ -104,10 +143,21 @@ export const AUCTION_DETAILS: Record<string, any> = {
     totalBids: 18,
     timeLeft: "Ended",
     status: "CLOSED",
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCQKmgkx0SFK6tKM8vtpCys-ZM4Qt3xCdbC0WmsJMNauDFINGlNGtscIHz9HeEbDmxayTen-d2MOPUgYYSuLyydvt-8c1YzK0Jk_1zzBU9swz_9kSF2oXyiVrq_Lc7DEUZIoJICP5tiB1BIF7NatksENCsyOHx4lhaVGBWaejO1qV6nUNFSsl5i58dXFr_IbrUGW4tWhxnPy0UR1_mrFMO7QVOXmzDtyjnG2MriVeJIISNt96dGz86R2NM_UWBftRHMTVw5WXdXQtw",
+    image:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuCQKmgkx0SFK6tKM8vtpCys-ZM4Qt3xCdbC0WmsJMNauDFINGlNGtscIHz9HeEbDmxayTen-d2MOPUgYYSuLyydvt-8c1YzK0Jk_1zzBU9swz_9kSF2oXyiVrq_Lc7DEUZIoJICP5tiB1BIF7NatksENCsyOHx4lhaVGBWaejO1qV6nUNFSsl5i58dXFr_IbrUGW4tWhxnPy0UR1_mrFMO7QVOXmzDtyjnG2MriVeJIISNt96dGz86R2NM_UWBftRHMTVw5WXdXQtw",
     mockBids: [
-      { name: "Participant #18", amount: "$40.25", amountNum: 40.25, time: "2h ago" },
-      { name: "Participant #5", amount: "$39.00", amountNum: 39, time: "3h ago" },
-    ]
-  }
+      {
+        name: "Participant #18",
+        amount: "$40.25",
+        amountNum: 40.25,
+        time: "2h ago",
+      },
+      {
+        name: "Participant #5",
+        amount: "$39.00",
+        amountNum: 39,
+        time: "3h ago",
+      },
+    ],
+  },
 };

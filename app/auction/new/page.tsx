@@ -30,6 +30,16 @@ export default function PostAuctionPage() {
     startAt: new Date().toISOString(),
     endAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
   });
+  const [startTime, setStartTime] = useState({
+    hours: "12",
+    minutes: "00",
+    period: "PM",
+  });
+  const [endTime, setEndTime] = useState({
+    hours: "12",
+    minutes: "00",
+    period: "PM",
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -40,6 +50,99 @@ export default function PostAuctionPage() {
   const selectedFollowersCount = useMemo(() => {
     return selectedUserIds.length;
   }, [selectedUserIds]);
+
+  // Helper functions to handle time changes
+  const handleTimeChange = (
+    type: "start" | "end",
+    field: "hours" | "minutes" | "period",
+    value: string,
+  ) => {
+    const timeObj = type === "start" ? startTime : endTime;
+    const newTime = { ...timeObj, [field]: value };
+
+    if (type === "start") {
+      setStartTime(newTime);
+      // Update startAt with new time
+      const currentDate = formData.startAt
+        ? new Date(formData.startAt)
+        : new Date();
+      const [hours, minutes] = currentDate
+        .toISOString()
+        .split("T")[1]
+        .split(":");
+      const period = newTime.period;
+
+      let updatedHours = parseInt(newTime.hours);
+      if (period === "PM" && updatedHours !== 12) {
+        updatedHours += 12;
+      } else if (period === "AM" && updatedHours === 12) {
+        updatedHours = 0;
+      }
+
+      const updatedDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        currentDate.getDate(),
+        updatedHours,
+        parseInt(newTime.minutes),
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        startAt: updatedDate.toISOString(),
+      }));
+    } else {
+      setEndTime(newTime);
+      // Update endAt with new time
+      const currentDate = formData.endAt
+        ? new Date(formData.endAt)
+        : new Date();
+      const [hours, minutes] = currentDate
+        .toISOString()
+        .split("T")[1]
+        .split(":");
+      const period = newTime.period;
+
+      let updatedHours = parseInt(newTime.hours);
+      if (period === "PM" && updatedHours !== 12) {
+        updatedHours += 12;
+      } else if (period === "AM" && updatedHours === 12) {
+        updatedHours = 0;
+      }
+
+      const updatedDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        currentDate.getDate(),
+        updatedHours,
+        parseInt(newTime.minutes),
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        endAt: updatedDate.toISOString(),
+      }));
+    }
+  };
+
+  const generateTimeOptions = (type: "hours" | "minutes") => {
+    if (type === "hours") {
+      return Array.from({ length: 12 }, (_, i) => {
+        const hour = i === 0 ? 12 : i;
+        return (
+          <option key={hour} value={hour.toString()}>
+            {hour === 0 ? "12" : hour.toString()}
+          </option>
+        );
+      });
+    } else {
+      return Array.from({ length: 60 }, (_, i) => (
+        <option key={i} value={i.toString().padStart(2, "0")}>
+          {i.toString().padStart(2, "0")}
+        </option>
+      ));
+    }
+  };
 
   useEffect(() => {
     const needsFollowers =
@@ -121,13 +224,13 @@ export default function PostAuctionPage() {
     {
       id: "startAt",
       label: "Start Date",
-      type: "date",
+      type: "datetime-local",
       required: true,
     },
     {
       id: "endAt",
       label: "End Date",
-      type: "date",
+      type: "datetime-local",
       required: true,
     },
   ];
@@ -210,7 +313,8 @@ export default function PostAuctionPage() {
       }, 2000);
     } catch (err) {
       console.error("Auction creation error:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to create auction";
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to create auction";
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -308,20 +412,22 @@ export default function PostAuctionPage() {
         <div className="mb-8 flex w-full border-b border-slate-200 dark:border-slate-800">
           <button
             onClick={() => setActiveTab("sell")}
-            className={`group relative flex items-center gap-2 px-6 pb-4 text-sm font-bold tracking-wide transition-all ${activeTab === "sell"
+            className={`group relative flex items-center gap-2 px-6 pb-4 text-sm font-bold tracking-wide transition-all ${
+              activeTab === "sell"
                 ? "text-primary border-b-2 border-primary"
                 : "text-slate-400 hover:text-slate-600"
-              }`}
+            }`}
           >
             <span className="material-symbols-outlined">sell</span>
             Sell Auction
           </button>
           <button
             onClick={() => setActiveTab("buy")}
-            className={`group relative flex items-center gap-2 px-6 pb-4 text-sm font-bold tracking-wide transition-all ${activeTab === "buy"
+            className={`group relative flex items-center gap-2 px-6 pb-4 text-sm font-bold tracking-wide transition-all ${
+              activeTab === "buy"
                 ? "text-primary border-b-2 border-primary"
                 : "text-slate-400 hover:text-slate-600"
-              }`}
+            }`}
           >
             <span className="material-symbols-outlined text-lg">
               shopping_cart
@@ -443,10 +549,11 @@ export default function PostAuctionPage() {
                 ].map((type) => (
                   <label
                     key={type.value}
-                    className={`group relative flex cursor-pointer flex-col gap-3 rounded-xl border p-4 transition-all hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50 ${selectedVisibility === type.value
+                    className={`group relative flex cursor-pointer flex-col gap-3 rounded-xl border p-4 transition-all hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50 ${
+                      selectedVisibility === type.value
                         ? "border-primary bg-primary/5"
                         : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-                      }`}
+                    }`}
                   >
                     <input
                       type="radio"
@@ -477,89 +584,89 @@ export default function PostAuctionPage() {
 
               {(selectedVisibility === "FOLLOWERS" ||
                 selectedVisibility === "SELECTED") && (
-                  <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          Audience
-                        </h3>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {selectedVisibility === "FOLLOWERS"
-                            ? "This auction will be visible to all your followers."
-                            : "Select which followers can see this auction."}
-                        </p>
-                      </div>
-                      {isFollowersLoading && (
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          Loading followers...
-                        </div>
-                      )}
+                <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        Audience
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {selectedVisibility === "FOLLOWERS"
+                          ? "This auction will be visible to all your followers."
+                          : "Select which followers can see this auction."}
+                      </p>
                     </div>
-
-                    {followersError && (
-                      <div className="mt-3 text-xs text-red-600 dark:text-red-400">
-                        {followersError}
-                      </div>
-                    )}
-
-                    {selectedVisibility === "FOLLOWERS" && (
-                      <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
-                        Followers found:{" "}
-                        <span className="font-semibold">{followers.length}</span>
-                      </div>
-                    )}
-
-                    {selectedVisibility === "SELECTED" && (
-                      <div className="mt-4">
-                        <div className="mb-3 text-xs text-slate-600 dark:text-slate-300">
-                          Selected:{" "}
-                          <span className="font-semibold">
-                            {selectedFollowersCount}
-                          </span>
-                        </div>
-                        <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-slate-100 p-2 dark:border-slate-800">
-                          {followers.length === 0 && !isFollowersLoading ? (
-                            <div className="p-3 text-xs text-slate-500 dark:text-slate-400">
-                              No followers found.
-                            </div>
-                          ) : (
-                            followers.map((f) => {
-                              const checked = selectedUserIds.includes(f.id);
-                              return (
-                                <label
-                                  key={f.id}
-                                  className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                >
-                                  <div className="flex min-w-0 flex-col">
-                                    <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                      {f.username}
-                                    </span>
-                                    <span className="truncate text-xs text-slate-500 dark:text-slate-400">
-                                      {f.email}
-                                    </span>
-                                  </div>
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                      setSelectedUserIds((prev) => {
-                                        if (prev.includes(f.id)) {
-                                          return prev.filter((id) => id !== f.id);
-                                        }
-                                        return [...prev, f.id];
-                                      });
-                                    }}
-                                    className="h-4 w-4"
-                                  />
-                                </label>
-                              );
-                            })
-                          )}
-                        </div>
+                    {isFollowersLoading && (
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        Loading followers...
                       </div>
                     )}
                   </div>
-                )}
+
+                  {followersError && (
+                    <div className="mt-3 text-xs text-red-600 dark:text-red-400">
+                      {followersError}
+                    </div>
+                  )}
+
+                  {selectedVisibility === "FOLLOWERS" && (
+                    <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
+                      Followers found:{" "}
+                      <span className="font-semibold">{followers.length}</span>
+                    </div>
+                  )}
+
+                  {selectedVisibility === "SELECTED" && (
+                    <div className="mt-4">
+                      <div className="mb-3 text-xs text-slate-600 dark:text-slate-300">
+                        Selected:{" "}
+                        <span className="font-semibold">
+                          {selectedFollowersCount}
+                        </span>
+                      </div>
+                      <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border border-slate-100 p-2 dark:border-slate-800">
+                        {followers.length === 0 && !isFollowersLoading ? (
+                          <div className="p-3 text-xs text-slate-500 dark:text-slate-400">
+                            No followers found.
+                          </div>
+                        ) : (
+                          followers.map((f) => {
+                            const checked = selectedUserIds.includes(f.id);
+                            return (
+                              <label
+                                key={f.id}
+                                className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                              >
+                                <div className="flex min-w-0 flex-col">
+                                  <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                    {f.username}
+                                  </span>
+                                  <span className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                    {f.email}
+                                  </span>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setSelectedUserIds((prev) => {
+                                      if (prev.includes(f.id)) {
+                                        return prev.filter((id) => id !== f.id);
+                                      }
+                                      return [...prev, f.id];
+                                    });
+                                  }}
+                                  className="h-4 w-4"
+                                />
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer Action */}
