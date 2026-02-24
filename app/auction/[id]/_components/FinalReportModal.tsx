@@ -48,10 +48,10 @@ export function FinalReportModal({
   const winningBid =
     revealedBids.length > 0
       ? revealedBids.reduce((prev, current) =>
-          parseFloat(current.amount || "0") > parseFloat(prev.amount || "0")
-            ? current
-            : prev,
-        )
+        parseFloat(current.amount || "0") > parseFloat(prev.amount || "0")
+          ? current
+          : prev,
+      )
       : null;
 
   return (
@@ -103,9 +103,9 @@ export function FinalReportModal({
                   </p>
                   <p className="text-2xl font-bold text-green-900 dark:text-green-100">
                     {auction.winningBid
-                      ? `ETB {auction.winningBid}`
+                      ? `ETB ${auction.winningBid}`
                       : winningBid
-                        ? `ETB {winningBid.amount || "0"}`
+                        ? `ETB ${winningBid.amount || "0"}`
                         : "None"}
                   </p>
                 </div>

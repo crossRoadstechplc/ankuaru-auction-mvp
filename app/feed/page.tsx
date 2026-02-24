@@ -62,41 +62,41 @@ export default function FeedPage() {
   // Filter auctions based on active tab, status, user ownership, and status
   const filteredAuctions = Array.isArray(auctions)
     ? auctions
-        .filter((auction) => {
-          // Filter out user's own auctions
-          if (user?.id && auction.createdBy === user.id) {
-            return false;
-          }
+      .filter((auction) => {
+        // Filter out user's own auctions
+        if (user?.id && auction.createdBy === user.id) {
+          return false;
+        }
 
-          // Status filtering
-          if (activeStatus !== "all" && auction.status !== activeStatus) {
-            return false;
-          }
+        // Status filtering
+        if (activeStatus !== "all" && auction.status !== activeStatus) {
+          return false;
+        }
 
-          // Map tab names to visibility levels
-          const visibilityMap = {
-            public: "PUBLIC",
-            private: "FOLLOWERS",
-            custom: "SELECTED",
-          };
+        // Map tab names to visibility levels
+        const visibilityMap = {
+          public: "PUBLIC",
+          private: "FOLLOWERS",
+          custom: "SELECTED",
+        };
 
-          // Check if auction matches the selected category
-          const targetVisibility =
-            visibilityMap[activeTab as keyof typeof visibilityMap];
-          return targetVisibility
-            ? auction.visibility === targetVisibility
-            : true;
-        })
-        .sort((a, b) => {
-          // Priority 1: OPEN auctions come first
-          if (a.status === "OPEN" && b.status !== "OPEN") return -1;
-          if (a.status !== "OPEN" && b.status === "OPEN") return 1;
+        // Check if auction matches the selected category
+        const targetVisibility =
+          visibilityMap[activeTab as keyof typeof visibilityMap];
+        return targetVisibility
+          ? auction.visibility === targetVisibility
+          : true;
+      })
+      .sort((a, b) => {
+        // Priority 1: OPEN auctions come first
+        if (a.status === "OPEN" && b.status !== "OPEN") return -1;
+        if (a.status !== "OPEN" && b.status === "OPEN") return 1;
 
-          // For same status, sort by end time (most urgent first)
-          const aEnd = new Date(a.endAt).getTime();
-          const bEnd = new Date(b.endAt).getTime();
-          return aEnd - bEnd;
-        })
+        // For same status, sort by end time (most urgent first)
+        const aEnd = new Date(a.endAt).getTime();
+        const bEnd = new Date(b.endAt).getTime();
+        return aEnd - bEnd;
+      })
     : [];
 
   return (
@@ -138,11 +138,10 @@ export default function FeedPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 font-semibold rounded-lg text-sm whitespace-nowrap transition-all ${
-                  activeTab === tab.id
+                className={`px-4 py-2 font-semibold rounded-lg text-sm whitespace-nowrap transition-all ${activeTab === tab.id
                     ? "bg-primary text-white"
                     : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50"
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -256,11 +255,10 @@ export default function FeedPage() {
                           {auction.title}
                         </Link>
                         <span
-                          className={`text-[10px] font-black px-3 py-1.5 rounded-full border tracking-widest uppercase shadow-sm ${
-                            isSell
+                          className={`text-[10px] font-black px-3 py-1.5 rounded-full border tracking-widest uppercase shadow-sm ${isSell
                               ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                               : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                          }`}
+                            }`}
                         >
                           {isSell ? "SELL" : "BUY"}
                         </span>
@@ -271,7 +269,7 @@ export default function FeedPage() {
                             Min Bid
                           </p>
                           <p className="text-lg font-bold text-primary">
-                            ETB {auction.minBid}
+                            ETB ${auction.minBid}
                           </p>
                         </div>
                         <div>
@@ -337,11 +335,10 @@ export default function FeedPage() {
                       </div>
                       <Link
                         href={`/auction/${auction.id}`}
-                        className={`px-6 py-2.5 font-bold text-sm rounded-lg transition-all shadow-sm ${
-                          isSell
+                        className={`px-6 py-2.5 font-bold text-sm rounded-lg transition-all shadow-sm ${isSell
                             ? "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
                             : "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
-                        }`}
+                          }`}
                       >
                         {isSell ? "View Auction" : "View Auction"}
                       </Link>

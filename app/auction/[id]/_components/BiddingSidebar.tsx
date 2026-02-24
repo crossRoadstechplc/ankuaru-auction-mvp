@@ -257,7 +257,7 @@ export function BiddingSidebar({
 
     if (parseFloat(bidAmount) < parseFloat(data.reservePrice)) {
       toast.warning(
-        `Your bid cannot be less than the starting price of ETB {data.reservePrice}`,
+        `Your bid cannot be less than the starting price of ETB ${data.reservePrice}`,
       );
       return;
     }
@@ -382,15 +382,14 @@ export function BiddingSidebar({
     <div className="flex flex-col gap-6">
       {/* Countdown Card */}
       <div
-        className={`${
-          isClosedPhase
-            ? "bg-slate-700"
-            : isRevealPhase
-              ? "bg-orange-600 dark:bg-orange-600/90"
-              : isScheduledPhase
-                ? "bg-blue-600 dark:bg-blue-600/90"
-                : "bg-primary dark:bg-primary/90"
-        } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
+        className={`${isClosedPhase
+          ? "bg-slate-700"
+          : isRevealPhase
+            ? "bg-orange-600 dark:bg-orange-600/90"
+            : isScheduledPhase
+              ? "bg-blue-600 dark:bg-blue-600/90"
+              : "bg-primary dark:bg-primary/90"
+          } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80 text-center">
           {isClosedPhase
@@ -405,110 +404,110 @@ export function BiddingSidebar({
         {/* Circular Timer */}
         {!isClosedPhase && !isRevealPhase
           ? (() => {
-              const displayDays =
-                isScheduledPhase && timeUntilStart ? timeUntilStart.days : days;
-              const displayHours =
-                isScheduledPhase && timeUntilStart
-                  ? timeUntilStart.hours
-                  : hours;
-              const displayMinutes =
-                isScheduledPhase && timeUntilStart
-                  ? timeUntilStart.minutes
-                  : minutes;
-              const displaySeconds =
-                isScheduledPhase && timeUntilStart
-                  ? timeUntilStart.seconds
-                  : seconds;
+            const displayDays =
+              isScheduledPhase && timeUntilStart ? timeUntilStart.days : days;
+            const displayHours =
+              isScheduledPhase && timeUntilStart
+                ? timeUntilStart.hours
+                : hours;
+            const displayMinutes =
+              isScheduledPhase && timeUntilStart
+                ? timeUntilStart.minutes
+                : minutes;
+            const displaySeconds =
+              isScheduledPhase && timeUntilStart
+                ? timeUntilStart.seconds
+                : seconds;
 
-              return (
-                <div className="flex flex-col items-center">
-                  {/* Circular Progress Ring */}
-                  <div className="relative" style={{ width: 200, height: 200 }}>
-                    <svg
-                      width="200"
-                      height="200"
-                      viewBox="0 0 200 200"
-                      className="transform -rotate-90"
-                    >
-                      {/* Background track */}
-                      <circle
-                        cx="100"
-                        cy="100"
-                        r={circleRadius}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.15)"
-                        strokeWidth="8"
-                      />
-                      {/* Progress arc */}
-                      <circle
-                        cx="100"
-                        cy="100"
-                        r={circleRadius}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.9)"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={circleCircumference}
-                        strokeDashoffset={strokeDashoffset}
-                        style={{ transition: "stroke-dashoffset 1s linear" }}
-                      />
-                      {/* Glowing dot at the tip */}
-                      <circle
-                        cx="100"
-                        cy="100"
-                        r={circleRadius}
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={`2 ${circleCircumference - 2}`}
-                        strokeDashoffset={strokeDashoffset}
-                        style={{
-                          transition: "stroke-dashoffset 1s linear",
-                          filter: "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
-                        }}
-                      />
-                    </svg>
+            return (
+              <div className="flex flex-col items-center">
+                {/* Circular Progress Ring */}
+                <div className="relative" style={{ width: 200, height: 200 }}>
+                  <svg
+                    width="200"
+                    height="200"
+                    viewBox="0 0 200 200"
+                    className="transform -rotate-90"
+                  >
+                    {/* Background track */}
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.15)"
+                      strokeWidth="8"
+                    />
+                    {/* Progress arc */}
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.9)"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={circleCircumference}
+                      strokeDashoffset={strokeDashoffset}
+                      style={{ transition: "stroke-dashoffset 1s linear" }}
+                    />
+                    {/* Glowing dot at the tip */}
+                    <circle
+                      cx="100"
+                      cy="100"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeDasharray={`2 ${circleCircumference - 2}`}
+                      strokeDashoffset={strokeDashoffset}
+                      style={{
+                        transition: "stroke-dashoffset 1s linear",
+                        filter: "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
+                      }}
+                    />
+                  </svg>
 
-                    {/* Center content */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      {/* Days (if any) */}
-                      {displayDays > 0 && (
-                        <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-0.5">
-                          {displayDays}d remaining
-                        </p>
-                      )}
-
-                      {/* Hours & Minutes — small but visible */}
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className="text-sm font-bold opacity-80">
-                          {String(displayHours).padStart(2, "0")}
-                        </span>
-                        <span className="text-xs opacity-50">h</span>
-                        <span className="text-sm font-bold opacity-80">
-                          {String(displayMinutes).padStart(2, "0")}
-                        </span>
-                        <span className="text-xs opacity-50">m</span>
-                      </div>
-
-                      {/* Seconds — BIG & distinctive */}
-                      <p
-                        className="text-5xl font-black tabular-nums leading-none tracking-tight"
-                        style={{
-                          textShadow: "0 0 20px rgba(255,255,255,0.3)",
-                          animation: "secondsPulse 1s ease-in-out infinite",
-                        }}
-                      >
-                        {String(displaySeconds).padStart(2, "0")}
+                  {/* Center content */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    {/* Days (if any) */}
+                    {displayDays > 0 && (
+                      <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-0.5">
+                        {displayDays}d remaining
                       </p>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">
-                        Seconds
-                      </p>
+                    )}
+
+                    {/* Hours & Minutes — small but visible */}
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-sm font-bold opacity-80">
+                        {String(displayHours).padStart(2, "0")}
+                      </span>
+                      <span className="text-xs opacity-50">h</span>
+                      <span className="text-sm font-bold opacity-80">
+                        {String(displayMinutes).padStart(2, "0")}
+                      </span>
+                      <span className="text-xs opacity-50">m</span>
                     </div>
+
+                    {/* Seconds — BIG & distinctive */}
+                    <p
+                      className="text-5xl font-black tabular-nums leading-none tracking-tight"
+                      style={{
+                        textShadow: "0 0 20px rgba(255,255,255,0.3)",
+                        animation: "secondsPulse 1s ease-in-out infinite",
+                      }}
+                    >
+                      {String(displaySeconds).padStart(2, "0")}
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">
+                      Seconds
+                    </p>
                   </div>
                 </div>
-              );
-            })()
+              </div>
+            );
+          })()
           : null}
 
         {isScheduledPhase && (
@@ -701,15 +700,15 @@ export function BiddingSidebar({
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
-                        {isSell ? "Your New Bid" : "Your Lower Offer"}
+                        {isSell ? "Your New Bid" : "Your New Bid"}
                       </label>
                       <form onSubmit={handleBidSubmit}>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400 font-bold ">
                             ETB
                           </span>
                           <input
-                            className="w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
+                            className="ml-12 w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
                             type="number"
                             placeholder="Enter amount"
                             value={bidAmount}

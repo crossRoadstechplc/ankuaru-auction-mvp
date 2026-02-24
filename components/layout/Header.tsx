@@ -114,6 +114,18 @@ export default function Header() {
     window.location.href = "/login";
   };
 
+  const handleUnfollow = async (id: string) => {
+    if (!id) return;
+    if (!window.confirm("Are you sure you want to unfollow this user?")) return;
+
+    try {
+      await apiClient.unfollowUser(id);
+      setFollowers((prev) => prev.filter((f) => f.id !== id));
+    } catch (error) {
+      console.error("Failed to unfollow user", error);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-coffee-bean/10 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 md:px-10 lg:px-40 py-3">
       <div className="mx-auto flex max-w-[1200px] items-center justify-between relative">
@@ -217,8 +229,8 @@ export default function Header() {
                               setTimeout(() => setIsCopied(false), 2000);
                             }}
                             className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${isCopied
-                                ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                                : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                              ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
                               }`}
                             title="Copy ID"
                           >
@@ -314,10 +326,10 @@ export default function Header() {
                   <div className="flex gap-3">
                     <span
                       className={`material-symbols-outlined text-xl ${n.type === "AUCTION_WON" || n.type === "success"
-                          ? "text-primary"
-                          : n.type === "fail"
-                            ? "text-red-500"
-                            : "text-amber-500"
+                        ? "text-primary"
+                        : n.type === "fail"
+                          ? "text-red-500"
+                          : "text-amber-500"
                         }`}
                     >
                       {n.type === "AUCTION_WON" || n.type === "success"
@@ -398,13 +410,18 @@ export default function Header() {
               ) : followers && followers.length > 0 ? (
                 <div className="flex flex-col gap-3">
                   {followers.map((f) => (
-                    <div key={f.id} className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm font-bold uppercase">
-                        {f.username?.[0] || "?"}
+                    <div className="flex justify-between">
+                      <div key={f.id} className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm font-bold uppercase">
+                          {f.username?.[0] || "?"}
+                        </div>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                          {f.username}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                        {f.username}
-                      </span>
+                      <button onClick={() => handleUnfollow(f.id)} className="text-sm font-medium text-slate-800 dark:text-slate-200 px-2 py-1 cursor-pointer rounded-md bg-red-200 dark:bg-red-200">
+                        Unfollow
+                      </button>
                     </div>
                   ))}
                 </div>

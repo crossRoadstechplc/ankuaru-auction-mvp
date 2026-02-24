@@ -108,11 +108,11 @@ export function AuctionDetailsCard({
   return (
     <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
       <div className="aspect-video relative overflow-hidden group">
-        <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-          <span className="material-symbols-outlined text-6xl text-slate-400">
-            image
-          </span>
-        </div>
+        <img
+          src="/static.jpg"
+          alt={data.title}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
         <div
           className={`absolute top-4 left-4 ${data.status === "CLOSED" ? "bg-slate-500" : "bg-primary"} text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase`}
         >
@@ -145,12 +145,12 @@ export function AuctionDetailsCard({
                 </span>
                 <span className="text-xl font-black text-primary">
                   {data.status === "CLOSED"
-                    ? `ETB {data.winningBid || data.currentBid || data.minBid}`
+                    ? `ETB ${data.winningBid}`
                     : myBid?.revealed
-                      ? `ETB {myBid.amount}`
+                      ? `ETB ${myBid.amount}`
                       : myBid?.amount
-                        ? `ETB {myBid.amount}`
-                        : data.currentBid || data.minBid}
+                        ? `ETB ${myBid.amount}`
+                        : `ETB ${data.currentBid || data.minBid}`}
                 </span>
               </div>
               <div className="flex flex-col">
