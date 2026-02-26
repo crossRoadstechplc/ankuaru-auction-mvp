@@ -11,6 +11,8 @@ interface AuctionCardProps {
   currentBid: string;
   timeLeft: string;
   image: string;
+  description?: string;
+  priceLabel?: string;
   endingSoon?: boolean;
 }
 
@@ -22,6 +24,8 @@ export default function AuctionCard({
   currentBid,
   timeLeft,
   image,
+  description,
+  priceLabel = "Current Bid",
   endingSoon = false,
 }: AuctionCardProps) {
   return (
@@ -40,18 +44,22 @@ export default function AuctionCard({
       </div>
       <div className="p-5">
         <h4 className="mb-1 text-lg font-bold">{title}</h4>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <span className="text-sm font-medium text-slate-500">
-            Current Bid
+            {priceLabel}
           </span>
           <span className="text-xl font-black text-primary">{currentBid}</span>
         </div>
+        {description && (
+          <p className="mb-4 text-xs text-slate-500 line-clamp-2 italic">
+            {description}
+          </p>
+        )}
         <div
-          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ${
-            endingSoon
+          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ${endingSoon
               ? "bg-orange-500/10 text-orange-600"
               : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-sm">
             {endingSoon ? "bolt" : "schedule"}

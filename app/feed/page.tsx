@@ -36,7 +36,13 @@ export default function FeedPage() {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(3);
   const { isAuthenticated, user } = useAuth();
+
+  // Reset display limit when filters change
+  useEffect(() => {
+    setDisplayLimit(3);
+  }, [activeTab, activeStatus]);
 
   useEffect(() => {
     const fetchAuctions = async () => {
@@ -99,6 +105,9 @@ export default function FeedPage() {
       })
     : [];
 
+  const visibleAuctions = filteredAuctions.slice(0, displayLimit);
+  const hasMore = filteredAuctions.length > displayLimit;
+
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
       <Header />
@@ -139,8 +148,8 @@ export default function FeedPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 font-semibold rounded-lg text-sm whitespace-nowrap transition-all ${activeTab === tab.id
-                    ? "bg-primary text-white"
-                    : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50"
+                  ? "bg-primary text-white"
+                  : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50"
                   }`}
               >
                 {tab.label}
@@ -221,7 +230,7 @@ export default function FeedPage() {
             </div>
           ) : (
             // Auction list
-            filteredAuctions.map((auction) => {
+            visibleAuctions.map((auction) => {
               const isSell = auction.auctionType === "SELL";
               return (
                 <div
@@ -256,8 +265,8 @@ export default function FeedPage() {
                         </Link>
                         <span
                           className={`text-[10px] font-black px-3 py-1.5 rounded-full border tracking-widest uppercase shadow-sm ${isSell
-                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                            : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                             }`}
                         >
                           {isSell ? "SELL" : "BUY"}
@@ -336,8 +345,8 @@ export default function FeedPage() {
                       <Link
                         href={`/auction/${auction.id}`}
                         className={`px-6 py-2.5 font-bold text-sm rounded-lg transition-all shadow-sm ${isSell
-                            ? "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
-                            : "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
+                          ? "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
+                          : "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
                           }`}
                       >
                         {isSell ? "View Auction" : "View Auction"}
@@ -352,12 +361,22 @@ export default function FeedPage() {
 
         {/* Pagination / Load More */}
         <div className="mt-12 flex flex-col items-center">
-          <button className="group flex items-center gap-2 px-8 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full text-slate-600 dark:text-slate-300 font-semibold hover:border-primary/50 hover:text-primary transition-all shadow-sm">
-            <span>Load More Auctions</span>
-            <span className="material-symbols-outlined group-hover:translate-y-1 transition-transform">
-              keyboard_double_arrow_down
-            </span>
-          </button>
+          {hasMore ? (
+            <button
+              onClick={() => setDisplayLimit((prev) => prev + 3)}
+              className="group flex items-center gap-2 px-8 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full text-slate-600 dark:text-slate-300 font-semibold hover:border-primary/50 hover:text-primary transition-all shadow-sm"
+            >
+              <span>Load More Auctions</span>
+              <span className="material-symbols-outlined group-hover:translate-y-1 transition-transform">
+                keyboard_double_arrow_down
+              </span>
+            </button>
+          ) : filteredAuctions.length > 0 ? (
+            <div className="flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500">
+              <span className="material-symbols-outlined">info</span>
+              <p className="font-medium">This is the last of the auctions</p>
+            </div>
+          ) : null}
         </div>
       </main>
 

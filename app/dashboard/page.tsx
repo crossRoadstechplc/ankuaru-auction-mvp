@@ -10,44 +10,25 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import apiClient from "../../lib/api";
 import {
-    Auction,
-    BidWithAuction,
-    RatingSummaryResponse,
+  Auction,
+  BidWithAuction,
+  RatingSummaryResponse,
 } from "../../lib/types";
 
-const LIVE_AUCTIONS = [
-  {
-    id: "1",
-    title: "Sidama Bensa G1 Natural",
-    region: "Sidama Region",
-    type: "Micro-lot",
-    currentBid: "ETB 48.50 / kg",
-    timeLeft: "02h 45m 12s",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAD5V6sDurw44zKJe-MtKQQpTJ6P-g6verGYFHSD6gv-fcz6JZEO2x4A9nyC1MA249IX8RcdZhJFSfofOfWtmAe4AhLuJC35u_wUNRsr5dYMG3ynRfud19Fpb0SUaz3JZ1hDTSOsFqoEtcywNLXIBJ1jj1h5zyXvNH_pU9ZoHlcN92vocd-mqIpjq2uBTDQUDvW2TIqqlQqMc8f0BEzdgjcDQjQqH-2hodEqYJLAZdZJZJzg0ckh5GOBbkYIKihuYAP8-amLHtOm78",
-  },
-  {
-    id: "2",
-    title: "Guji Hambela G1 Washed",
-    region: "Guji Highlands",
-    type: "Specialty",
-    currentBid: "ETB 41.20 / kg",
-    timeLeft: "05h 45m 02s",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBrrPCTAybBTlf8srZZFVU8dpp9eoe6AxvPLJeRd6DUHlUy7CJyU2CcK1Fqw6-k0cuonPbbWbiWWtqfpGiW2RGlrHfFgTAQlBL0Pxvd6lsP6eaKjd0K5zysfj3ajzLaev55i2Y3jyg3MTIB3-uOcAZGYDiiZ4PzC9avly0FXSE-vyYwfrnJC4spwPchgCu1VA5ILUjkQBD0_jpaZ8tW0cxRNjAdcnhOFfTN1hx3AQUc2ap-erwfS--6HXBHMN-1vd3SJafvuwj1S4w",
-    endingSoon: true,
-  },
-  {
-    id: "3",
-    title: "Yirgacheffe Kochere G1",
-    region: "Gedeo Zone",
-    type: "Choice Lot",
-    currentBid: "ETB 52.00 / kg",
-    timeLeft: "01h 12m 45s",
-    image:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAC4Qd7Ev65ZXqIUWKF6A-hoaoxnNWeIBQf7WEV2qNkX3Zh8_WETsHNI_YiJdQGwt6NzK8MkEewSObvIS9HJxV_FcZ9CRgpPeE0kGIO5VSqQfsIKMiDOYb1JQ2EBV8VPmEtOt3aIQcD5pb8p-U5oMr8YfysTr9rZK-_aJ3qTzynhofM0mBwnKb5ZgV4POMccwvKlMv3D-sSMUzIOb5Z9zTGpTHkSZTnPSw9k0KGnIYCrPx7t51WMxxHM2XPbMKwhKn2BdBvi3m3rv8",
-  },
-];
+// Helper to format time left for AuctionCard
+const formatTimeLeft = (endAt: string, now: Date) => {
+  const total = Date.parse(endAt) - now.getTime();
+  if (total <= 0) return "Auction Ended";
+  const seconds = Math.floor((total / 1000) % 60);
+  const minutes = Math.floor((total / 1000 / 60) % 60);
+  const hours = Math.floor((total / (1000 * 60 * 60)) % 24);
+  const days = Math.floor(total / (1000 * 60 * 60 * 24));
+
+  if (days > 0) return `${days}d ${hours}h`;
+  return `${hours}h ${minutes}m ${seconds}s`;
+};
+
+
 
 export default function DashboardPage() {
   const [ratingSummary, setRatingSummary] =
@@ -62,6 +43,17 @@ export default function DashboardPage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingsCount, setFollowingsCount] = useState(0);
   const [isLoadingFollowers, setIsLoadingFollowers] = useState(true);
+  const [liveAuctions, setLiveAuctions] = useState<Auction[]>([]);
+  const [isLoadingLive, setIsLoadingLive] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for live countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -115,6 +107,40 @@ export default function DashboardPage() {
     };
     fetchDashboardData();
   }, []);
+
+  // Separate useEffect for Live Auctions to avoid interfering with dashboard data
+  useEffect(() => {
+    const fetchLiveAuctions = async () => {
+      try {
+        setIsLoadingLive(true);
+        const auctions = await apiClient.getAuctions();
+        const live = auctions.filter((a) => a.status === "OPEN");
+        setLiveAuctions(live);
+      } catch (error) {
+        console.error("Failed to fetch live auctions:", error);
+      } finally {
+        setIsLoadingLive(false);
+      }
+    };
+    fetchLiveAuctions();
+  }, []);
+
+  // Filter live auctions that haven't ended yet and are not created by the current user
+  const activeLiveAuctions = (() => {
+    let currentUserId = "";
+    try {
+      const user = typeof window !== "undefined" ? localStorage.getItem("auth_user") : null;
+      if (user) currentUserId = JSON.parse(user).id;
+    } catch (e) {
+      console.error("Error parsing auth_user", e);
+    }
+
+    return liveAuctions.filter((auction) => {
+      const isPast = new Date(auction.endAt).getTime() <= currentTime.getTime();
+      const isOwner = auction.createdBy === currentUserId;
+      return !isPast && !isOwner;
+    });
+  })();
 
   const ratingValue = isLoadingRating
     ? "..."
@@ -345,13 +371,12 @@ export default function DashboardPage() {
                             </span>
                           )}
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                              isOpen
-                                ? "bg-primary/10 text-primary"
-                                : isRevealPhase
-                                  ? "bg-amber-500/10 text-amber-500"
-                                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                            }`}
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isOpen
+                              ? "bg-primary/10 text-primary"
+                              : isRevealPhase
+                                ? "bg-amber-500/10 text-amber-500"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                              }`}
                           >
                             {auc.status}
                           </span>
@@ -384,11 +409,66 @@ export default function DashboardPage() {
               View All Market
             </Link>
           </div>
-          <div className="hide-scrollbar flex gap-6 overflow-x-auto pb-4">
-            {LIVE_AUCTIONS.map((auction) => (
-              <AuctionCard key={auction.id} {...auction} />
-            ))}
-          </div>
+
+          {isLoadingLive ? (
+            <div className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="min-w-[300px] h-80 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-pulse"
+                ></div>
+              ))}
+            </div>
+          ) : activeLiveAuctions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-12 text-center bg-white dark:bg-slate-900 shadow-sm">
+              <div className="h-16 w-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-4xl text-primary/40">
+                  rocket_launch
+                </span>
+              </div>
+              <h4 className="text-xl font-bold text-coffee-bean dark:text-slate-100 mb-2">
+                No live auctions right now
+              </h4>
+              <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-sm">
+                There are currently no open auctions running on the platform.
+                Check back soon or explore the feed.
+              </p>
+              <Link
+                href="/feed"
+                className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                <span>Browse All Auctions</span>
+                <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
+                  arrow_forward
+                </span>
+              </Link>
+            </div>
+          ) : (
+            <div className="hide-scrollbar flex gap-6 overflow-x-auto pb-4">
+              {activeLiveAuctions.map((auction) => (
+                <AuctionCard
+                  key={auction.id}
+                  id={auction.id}
+                  title={auction.title}
+                  region={auction.auctionCategory || "N/A"}
+                  type={auction.auctionType}
+                  currentBid={`ETB ${auction.minBid}`}
+                  priceLabel="Starting Price"
+                  description={
+                    auction.itemDescription.length > 60
+                      ? `${auction.itemDescription.substring(0, 60)}...`
+                      : auction.itemDescription
+                  }
+                  timeLeft={formatTimeLeft(auction.endAt, currentTime)}
+                  image={auction.image || ""}
+                  endingSoon={
+                    new Date(auction.endAt).getTime() - currentTime.getTime() <
+                    24 * 60 * 60 * 1000
+                  }
+                />
+              ))}
+            </div>
+          )}
         </section>
       </main>
 

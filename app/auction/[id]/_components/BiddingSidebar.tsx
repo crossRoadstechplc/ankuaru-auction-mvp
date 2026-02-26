@@ -137,11 +137,12 @@ function getTimeRemaining(
 
 export function BiddingSidebar({
   data,
-  isCreator,
+  isCreator: isCreatorProp,
   onAuctionUpdate,
 }: BiddingSidebarProps) {
   const isSell = data.auctionType === "SELL";
   const { user } = useAuth();
+  const isCreator = isCreatorProp || user?.id === data.createdBy;
 
   // --- Live countdown timer ---
   const [timeLeft, setTimeLeft] = useState(() =>
@@ -255,11 +256,22 @@ export function BiddingSidebar({
       return;
     }
 
-    if (parseFloat(bidAmount) < parseFloat(data.reservePrice)) {
-      toast.warning(
-        `Your bid cannot be less than the starting price of ETB ${data.reservePrice}`,
-      );
-      return;
+    if (data.auctionType == "SELL") {
+      if (parseFloat(bidAmount) < parseFloat(data.reservePrice)) {
+        toast.warning(
+          `Your bid cannot be less than the starting price of ETB ${data.reservePrice}`,
+        );
+        return;
+      }
+    }
+
+    if (data.auctionType == "BUY") {
+      if (parseFloat(bidAmount) > parseFloat(data.reservePrice)) {
+        toast.warning(
+          `Your bid cannot be more than the starting price of ETB ${data.reservePrice}`,
+        );
+        return;
+      }
     }
 
     if (!user?.id) {

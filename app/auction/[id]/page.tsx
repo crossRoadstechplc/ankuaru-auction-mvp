@@ -6,7 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import apiClient from "../../../lib/api";
-import { Auction, User, UserRating } from "../../../lib/types";
+import { Auction, User, UserRating, Bid } from "../../../lib/types";
 import { AuctionDetailsCard } from "./_components/AuctionDetailsCard";
 import { BidActivity } from "./_components/BidActivity";
 import { BiddingSidebar } from "./_components/BiddingSidebar";
@@ -16,14 +16,17 @@ function AuctionDetailContent() {
   const params = useParams();
   const id = params.id as string;
   const isCreator = searchParams.get("view") === "creator";
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [auction, setAuction] = useState<Auction | null>(null);
+  const [bids, setBids] = useState<Bid[]>([]);
   const [creator, setCreator] = useState<User | null>(null);
   const [creatorRating, setCreatorRating] = useState<UserRating | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const isOwner = isCreator || (!!user?.id && user?.id === auction?.createdBy);
 
   useEffect(() => {
     const fetchAuctionDetails = async () => {
@@ -59,6 +62,40 @@ function AuctionDetailContent() {
 
     fetchAuctionDetails();
   }, [id]);
+
+  // Polling for bids and updates
+  useEffect(() => {
+    if (!id || !isOwner || auction?.status === "CLOSED") return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const [updatedAuction, updatedBids] = await Promise.all([
+          apiClient.getAuction(id),
+          apiClient.getAuctionBids(id)
+        ]);
+        setAuction(updatedAuction);
+        setBids(updatedBids);
+      } catch (err) {
+        console.warn("Polling error:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [id, isOwner, auction?.status]);
+
+  // Initial bids fetch
+  useEffect(() => {
+    if (!id || !isOwner) return;
+    const fetchBids = async () => {
+      try {
+        const data = await apiClient.getAuctionBids(id);
+        setBids(data);
+      } catch (err) {
+        console.error("Failed to fetch initial bids:", err);
+      }
+    };
+    fetchBids();
+  }, [id, isOwner]);
 
   if (!isAuthenticated) {
     return (
@@ -135,7 +172,7 @@ function AuctionDetailContent() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 lg:px-8 py-8">
         {/* Status Layout Badges */}
         <div className="flex flex-wrap items-center gap-4 mb-6">
-          {isCreator && (
+          {isOwner && (
             <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-widest text-xs bg-primary/10 w-fit px-3 py-1.5 rounded-full border border-primary/20">
               <span className="material-symbols-outlined text-sm">
                 admin_panel_settings
@@ -144,11 +181,10 @@ function AuctionDetailContent() {
             </div>
           )}
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${
-              isSell
-                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${isSell
+              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+              }`}
           >
             <span className="material-symbols-outlined text-sm">
               {isSell ? "sell" : "shopping_cart"}
@@ -181,7 +217,7 @@ function AuctionDetailContent() {
           <div className="order-1 lg:order-2 lg:col-span-4">
             <BiddingSidebar
               data={auction}
-              isCreator={isCreator}
+              isCreator={isOwner}
               onAuctionUpdate={async () => {
                 try {
                   const refreshedData = await apiClient.getAuction(id);
@@ -198,9 +234,9 @@ function AuctionDetailContent() {
             <AuctionDetailsCard
               data={auction}
               creatorRating={creatorRating}
-              isCreator={isCreator}
+              isCreator={isOwner}
             />
-            <BidActivity data={auction} isCreator={isCreator} />
+            <BidActivity data={auction} bids={bids} isCreator={isOwner} />
           </div>
         </div>
       </main>
