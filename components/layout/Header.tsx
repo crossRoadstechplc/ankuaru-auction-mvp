@@ -3,20 +3,75 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
+import { useMyFollowers } from "../../hooks/useFollowers";
+import { useNotificationsWithRealTime } from "../../hooks/useNotifications";
 import apiClient from "../../lib/api";
-import { Notification, User } from "../../lib/types";
+import { Notification } from "../../lib/types";
+import { useAuthStore } from "../../stores/auth.store";
 import ThemeToggle from "../ui/ThemeToggle";
 
 export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
-  const [followers, setFollowers] = useState<User[]>([]);
-  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+
+  // React Query hooks
+  const { data: followers = [], isLoading: isLoadingFollowers } =
+    useMyFollowers();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    isLoading: isLoadingNotifications,
+  } = useNotificationsWithRealTime();
+
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const logout = useAuthStore((state) => state.logout);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleNotificationClick = async (n: Notification) => {
+    if (!n.is_read) {
+      await markAsRead(n.id);
+    }
+    // Handle notification navigation logic here
+  };
+
+  const changePage = () => {
+    if (pathname === "/feed") {
+      router.push("/dashboard");
+    } else {
+      router.push("/feed");
+    }
+  };
+
+  const handleFollowersClick = () => {
+    setIsProfileOpen(false);
+    setIsFollowersOpen(true);
+  };
+
+  const handleUnfollow = async (id: string) => {
+    if (!id) return;
+    if (!window.confirm("Are you sure you want to unfollow this user?")) return;
+
+    try {
+      await apiClient.unfollowUser(id);
+      // React Query will automatically refetch followers
+    } catch (error) {
+      console.error("Failed to unfollow user", error);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    // Close any open dropdowns
+    setIsNotificationsOpen(false);
+    setIsProfileOpen(false);
+    setIsFollowersOpen(false);
+    window.location.href = "/login";
+  };
 
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -35,96 +90,6 @@ export default function Header() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const { user, isAuthenticated, logout } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const data = await apiClient.getMyNotifications();
-        const parsedData = Array.isArray(data)
-          ? data
-          : (data as any).notifications || [];
-        parsedData.sort(
-          (a: any, b: any) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        );
-        setNotifications(parsedData);
-        setUnreadCount(
-          parsedData.filter((n: Notification) => !n.is_read).length,
-        );
-      } catch (error) {
-        console.error("Failed to fetch notifications", error);
-      }
-    };
-
-    if (isAuthenticated) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 20000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated]);
-
-  const handleNotificationClick = async (n: Notification) => {
-    if (!n.is_read) {
-      try {
-        await apiClient.markNotificationRead(n.id);
-        setNotifications((prev) =>
-          prev.map((notif) =>
-            notif.id === n.id ? { ...notif, is_read: true } : notif,
-          ),
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      } catch (error) {
-        console.error("Failed to mark notification as read", error);
-      }
-    }
-  };
-
-  const changePage = () => {
-    if (pathname === "/feed") {
-      router.push("/dashboard");
-    } else {
-      router.push("/feed");
-    }
-  };
-
-  const handleFollowersClick = async () => {
-    setIsProfileOpen(false);
-    setIsFollowersOpen(true);
-    setIsLoadingFollowers(true);
-    try {
-      const data = await apiClient.getMyFollowers();
-      setFollowers(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed to fetch followers", error);
-    } finally {
-      setIsLoadingFollowers(false);
-    }
-  };
-
-  const handleLogout = () => {
-    logout();
-    // Close any open dropdowns
-    setIsNotificationsOpen(false);
-    setIsProfileOpen(false);
-    setIsFollowersOpen(false);
-    window.location.href = "/login";
-  };
-
-  const handleUnfollow = async (id: string) => {
-    if (!id) return;
-    if (!window.confirm("Are you sure you want to unfollow this user?")) return;
-
-    try {
-      await apiClient.unfollowUser(id);
-      setFollowers((prev) => prev.filter((f) => f.id !== id));
-    } catch (error) {
-      console.error("Failed to unfollow user", error);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-coffee-bean/10 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 md:px-10 lg:px-40 py-3">
@@ -228,10 +193,11 @@ export default function Header() {
                               setIsCopied(true);
                               setTimeout(() => setIsCopied(false), 2000);
                             }}
-                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${isCopied
-                              ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                              }`}
+                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${
+                              isCopied
+                                ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                            }`}
                             title="Copy ID"
                           >
                             <span className="material-symbols-outlined text-[14px]">
@@ -316,56 +282,65 @@ export default function Header() {
               </button>
             </div>
             <div className="max-h-96 overflow-y-auto">
-              {notifications.slice(0, 3).map((n) => (
-                <div
-                  key={n.id}
-                  onClick={() => handleNotificationClick(n)}
-                  className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${!n.is_read ? "bg-slate-50 dark:bg-slate-800/50" : ""
+              {isLoadingNotifications ? (
+                <div className="p-6 text-center text-sm text-slate-500">
+                  Loading notifications...
+                </div>
+              ) : notifications && notifications.length > 0 ? (
+                notifications.slice(0, 3).map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n)}
+                    className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${
+                      !n.is_read ? "bg-slate-50 dark:bg-slate-800/50" : ""
                     }`}
-                >
-                  <div className="flex gap-3">
-                    <span
-                      className={`material-symbols-outlined text-xl ${n.type === "AUCTION_WON" || n.type === "success"
-                        ? "text-primary"
-                        : n.type === "fail"
-                          ? "text-red-500"
-                          : "text-amber-500"
+                  >
+                    <div className="flex gap-3">
+                      <span
+                        className={`material-symbols-outlined text-xl ${
+                          n.type === "AUCTION_WON" || n.type === "success"
+                            ? "text-primary"
+                            : n.type === "fail"
+                              ? "text-red-500"
+                              : "text-amber-500"
                         }`}
-                    >
-                      {n.type === "AUCTION_WON" || n.type === "success"
-                        ? "check_circle"
-                        : n.type === "fail"
-                          ? "error"
-                          : "notifications"}
-                    </span>
-                    <div className="flex flex-col gap-1 w-full justify-center">
-                      <p
-                        className={`text-xs ${!n.is_read ? "font-bold" : "font-medium"} text-slate-800 dark:text-slate-200 leading-normal`}
                       >
-                        {n.title || n.message || (n as any).text}
-                      </p>
-                      {n.winner_agreement_file_url && (
-                        <div className="mt-1">
-                          <a
-                            href={n.winner_agreement_file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNotificationClick(n);
-                            }}
-                          >
-                            <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
-                            View PDF
-                          </a>
-                        </div>
-                      )}
+                        {n.type === "AUCTION_WON" || n.type === "success"
+                          ? "check_circle"
+                          : n.type === "fail"
+                            ? "error"
+                            : "notifications"}
+                      </span>
+                      <div className="flex flex-col gap-1 w-full justify-center">
+                        <p
+                          className={`text-xs ${!n.is_read ? "font-bold" : "font-medium"} text-slate-800 dark:text-slate-200 leading-normal`}
+                        >
+                          {n.title || n.message || (n as any).text}
+                        </p>
+                        {n.winner_agreement_file_url && (
+                          <div className="mt-1">
+                            <a
+                              href={n.winner_agreement_file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNotificationClick(n);
+                              }}
+                            >
+                              <span className="material-symbols-outlined text-[14px]">
+                                picture_as_pdf
+                              </span>
+                              View PDF
+                            </a>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {notifications.length === 0 && (
+                ))
+              ) : (
                 <div className="p-6 text-center text-sm text-slate-500">
                   No notifications yet.
                 </div>
@@ -410,8 +385,8 @@ export default function Header() {
               ) : followers && followers.length > 0 ? (
                 <div className="flex flex-col gap-3">
                   {followers.map((f) => (
-                    <div className="flex justify-between">
-                      <div key={f.id} className="flex items-center gap-3">
+                    <div key={f.id} className="flex justify-between">
+                      <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm font-bold uppercase">
                           {f.username?.[0] || "?"}
                         </div>
@@ -419,7 +394,10 @@ export default function Header() {
                           {f.username}
                         </span>
                       </div>
-                      <button onClick={() => handleUnfollow(f.id)} className="text-sm font-medium text-slate-800 dark:text-slate-200 px-2 py-1 cursor-pointer rounded-md bg-red-200 dark:bg-red-200">
+                      <button
+                        onClick={() => handleUnfollow(f.id)}
+                        className="text-sm font-medium text-slate-800 dark:text-slate-200 px-2 py-1 cursor-pointer rounded-md bg-red-200 dark:bg-red-200"
+                      >
                         Unfollow
                       </button>
                     </div>

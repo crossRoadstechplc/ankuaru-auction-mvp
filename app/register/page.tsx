@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../contexts/AuthContext";
 import { RegisterData } from "../../lib/types";
+import { useAuthStore } from "../../stores/auth.store";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState<RegisterData>({
@@ -17,7 +17,7 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register } = useAuth();
+  const register = useAuthStore((state) => state.register);
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

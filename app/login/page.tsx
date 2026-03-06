@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
 import { LoginData } from "../../lib/types";
+import { useAuthStore } from "../../stores/auth.store";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState<LoginData>({
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login } = useAuth();
+  const login = useAuthStore((state) => state.login);
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

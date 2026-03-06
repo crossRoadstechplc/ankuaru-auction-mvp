@@ -3,14 +3,15 @@
 import { useEffect, useState } from "react";
 import apiClient from "../../lib/api";
 import { Notification } from "../../lib/types";
-import { useAuth } from "../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "../../stores/auth.store";
 
 export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [returnUrl, setReturnUrl] = useState('/feed');
-    const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const isAuthLoading = useAuthStore((state) => state.isLoading);
     const router = useRouter();
 
     useEffect(() => {

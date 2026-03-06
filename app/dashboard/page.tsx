@@ -8,12 +8,15 @@ import { getImageWithFallback } from "@/lib/imageUtils";
 import { Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import apiClient from "../../lib/api";
 import {
-  Auction,
-  BidWithAuction,
-  RatingSummaryResponse,
-} from "../../lib/types";
+    useAuctions,
+    useMyBids,
+    useMyFollowers,
+    useMyFollowing,
+} from "../../hooks/useAuctions";
+import apiClient from "../../lib/api";
+import { RatingSummaryResponse } from "../../lib/types";
+import { useAuthStore } from "../../stores/auth.store";
 
 // Helper to format time left for AuctionCard
 const formatTimeLeft = (endAt: string, now: Date) => {
@@ -28,24 +31,32 @@ const formatTimeLeft = (endAt: string, now: Date) => {
   return `${hours}h ${minutes}m ${seconds}s`;
 };
 
-
-
 export default function DashboardPage() {
+  const user = useAuthStore((state) => state.user);
   const [ratingSummary, setRatingSummary] =
     useState<RatingSummaryResponse | null>(null);
   const [isLoadingRating, setIsLoadingRating] = useState(true);
-
-  const [myAuctions, setMyAuctions] = useState<Auction[]>([]);
-  const [isLoadingAuctions, setIsLoadingAuctions] = useState(true);
-
-  const [myBids, setMyBids] = useState<BidWithAuction[]>([]);
-  const [isLoadingBids, setIsLoadingBids] = useState(true);
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingsCount, setFollowingsCount] = useState(0);
-  const [isLoadingFollowers, setIsLoadingFollowers] = useState(true);
-  const [liveAuctions, setLiveAuctions] = useState<Auction[]>([]);
-  const [isLoadingLive, setIsLoadingLive] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // React Query hooks
+  const { data: auctions = [] } = useAuctions();
+  const { data: myBids = [], isLoading: isLoadingBids } = useMyBids();
+  const { data: followers = [] } = useMyFollowers();
+  const { data: following = [] } = useMyFollowing();
+
+  // Filter user's auctions from all auctions
+  const myAuctions = user
+    ? auctions.filter((auction) => auction.createdBy === user.id)
+    : [];
+  const isLoadingAuctions = false; // Data comes from useAuctions hook
+
+  // Filter live auctions
+  const liveAuctions = auctions.filter((a) => a.status === "OPEN");
+  const isLoadingLive = false; // Data comes from useAuctions hook
+
+  // Followers counts
+  const followersCount = followers.length;
+  const followingsCount = following.length;
 
   // Update current time every second for live countdown
   useEffect(() => {
@@ -56,8 +67,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      // Rating Summary
+    const fetchRatingSummary = async () => {
       try {
         const summary = await apiClient.getMyRatingSummary();
         setRatingSummary(summary);
@@ -66,81 +76,16 @@ export default function DashboardPage() {
       } finally {
         setIsLoadingRating(false);
       }
-
-      // My Auctions
-      try {
-        const user = localStorage.getItem("auth_user") || "";
-        const userId = JSON.parse(user).id;
-        if (userId) {
-          const auctions = await apiClient.getUserAuctions(userId);
-          setMyAuctions(auctions);
-        } else {
-          console.log("No user ID found in local storage");
-        }
-      } catch (error) {
-        console.error("Failed to fetch my auctions:", error);
-      } finally {
-        setIsLoadingAuctions(false);
-      }
-
-      // My Bids (Participating)
-      try {
-        const bids = await apiClient.getMyBids();
-        setMyBids(bids);
-      } catch (error) {
-        console.error("Failed to fetch my bids:", error);
-      } finally {
-        setIsLoadingBids(false);
-      }
-
-      //My Followers and followisngs
-      try {
-        const followers = await apiClient.getMyFollowers();
-        const f = await apiClient.getMyFollowing();
-        setFollowersCount(followers.length);
-        setFollowingsCount(f.length);
-      } catch (error) {
-        console.error("Failed to fetch my followers:", error);
-      } finally {
-        setIsLoadingFollowers(false);
-      }
     };
-    fetchDashboardData();
-  }, []);
-
-  // Separate useEffect for Live Auctions to avoid interfering with dashboard data
-  useEffect(() => {
-    const fetchLiveAuctions = async () => {
-      try {
-        setIsLoadingLive(true);
-        const auctions = await apiClient.getAuctions();
-        const live = auctions.filter((a) => a.status === "OPEN");
-        setLiveAuctions(live);
-      } catch (error) {
-        console.error("Failed to fetch live auctions:", error);
-      } finally {
-        setIsLoadingLive(false);
-      }
-    };
-    fetchLiveAuctions();
+    fetchRatingSummary();
   }, []);
 
   // Filter live auctions that haven't ended yet and are not created by the current user
-  const activeLiveAuctions = (() => {
-    let currentUserId = "";
-    try {
-      const user = typeof window !== "undefined" ? localStorage.getItem("auth_user") : null;
-      if (user) currentUserId = JSON.parse(user).id;
-    } catch (e) {
-      console.error("Error parsing auth_user", e);
-    }
-
-    return liveAuctions.filter((auction) => {
-      const isPast = new Date(auction.endAt).getTime() <= currentTime.getTime();
-      const isOwner = auction.createdBy === currentUserId;
-      return !isPast && !isOwner;
-    });
-  })();
+  const activeLiveAuctions = liveAuctions.filter((auction) => {
+    const isPast = new Date(auction.endAt).getTime() <= currentTime.getTime();
+    const isOwner = auction.createdBy === user?.id;
+    return !isPast && !isOwner;
+  });
 
   const ratingValue = isLoadingRating
     ? "..."
@@ -371,12 +316,13 @@ export default function DashboardPage() {
                             </span>
                           )}
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isOpen
-                              ? "bg-primary/10 text-primary"
-                              : isRevealPhase
-                                ? "bg-amber-500/10 text-amber-500"
-                                : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                              }`}
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                              isOpen
+                                ? "bg-primary/10 text-primary"
+                                : isRevealPhase
+                                  ? "bg-amber-500/10 text-amber-500"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                            }`}
                           >
                             {auc.status}
                           </span>

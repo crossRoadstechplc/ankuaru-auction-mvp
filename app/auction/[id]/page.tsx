@@ -4,9 +4,10 @@ import Header from "@/components/layout/Header";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuthStore } from "../../../stores/auth.store";
+import { useAuction, useAuctionBids } from "../../../hooks/useAuctions";
 import apiClient from "../../../lib/api";
-import { Auction, User, UserRating, Bid } from "../../../lib/types";
+import { UserRating } from "../../../lib/types";
 import { AuctionDetailsCard } from "./_components/AuctionDetailsCard";
 import { BidActivity } from "./_components/BidActivity";
 import { BiddingSidebar } from "./_components/BiddingSidebar";
@@ -16,86 +17,61 @@ function AuctionDetailContent() {
   const params = useParams();
   const id = params.id as string;
   const isCreator = searchParams.get("view") === "creator";
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user } = useAuthStore();
 
-  const [auction, setAuction] = useState<Auction | null>(null);
-  const [bids, setBids] = useState<Bid[]>([]);
-  const [creator, setCreator] = useState<User | null>(null);
+  // React Query hooks
+  const {
+    data: auction,
+    isLoading: auctionLoading,
+    error: auctionError,
+    refetch: refetchAuction,
+  } = useAuction(id);
+  const { data: bids = [], refetch: refetchBids } = useAuctionBids(id);
+
   const [creatorRating, setCreatorRating] = useState<UserRating | null>(null);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const isOwner = isCreator || (!!user?.id && user?.id === auction?.createdBy);
 
   useEffect(() => {
-    const fetchAuctionDetails = async () => {
-      if (!id) return;
+    const fetchCreatorInfo = async () => {
+      if (!auction?.createdBy) return;
 
       try {
-        setIsLoading(true);
-        setError(null);
-        const data = await apiClient.getAuction(id);
-        setAuction(data);
-
-        // Fetch creator info and rating
-        if (data.createdBy) {
-          try {
-            const [ratingData] = await Promise.all([
-              apiClient.getUserRating(data.createdBy),
-            ]);
-            setCreatorRating(ratingData);
-          } catch (err) {
-            console.warn("Failed to fetch creator info:", err);
-          }
-        }
+        const ratingData = await apiClient.getUserRating(auction.createdBy);
+        setCreatorRating(ratingData);
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to fetch auction details",
-        );
+        console.warn("Failed to fetch creator info:", err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAuctionDetails();
-  }, [id]);
+    if (auction && !auctionLoading) {
+      fetchCreatorInfo();
+    }
+  }, [auction, auctionLoading]);
 
-  // Polling for bids and updates
+  // Polling for bids and updates (only for owners)
   useEffect(() => {
     if (!id || !isOwner || auction?.status === "CLOSED") return;
 
     const pollInterval = setInterval(async () => {
       try {
-        const [updatedAuction, updatedBids] = await Promise.all([
-          apiClient.getAuction(id),
-          apiClient.getAuctionBids(id)
-        ]);
-        setAuction(updatedAuction);
-        setBids(updatedBids);
+        await Promise.all([refetchAuction(), refetchBids()]);
       } catch (err) {
         console.warn("Polling error:", err);
       }
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [id, isOwner, auction?.status]);
+  }, [id, isOwner, auction?.status, refetchAuction, refetchBids]);
 
-  // Initial bids fetch
+  // Initial bids fetch for owners
   useEffect(() => {
     if (!id || !isOwner) return;
-    const fetchBids = async () => {
-      try {
-        const data = await apiClient.getAuctionBids(id);
-        setBids(data);
-      } catch (err) {
-        console.error("Failed to fetch initial bids:", err);
-      }
-    };
-    fetchBids();
-  }, [id, isOwner]);
+    refetchBids();
+  }, [id, isOwner, refetchBids]);
 
   if (!isAuthenticated) {
     return (
@@ -116,7 +92,7 @@ function AuctionDetailContent() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || auctionLoading) {
     return (
       <div className="dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased bg-[#f8f5f0] min-h-screen">
         <Header />
@@ -138,7 +114,7 @@ function AuctionDetailContent() {
     );
   }
 
-  if (error || !auction) {
+  if (auctionError || !auction) {
     return (
       <div className="dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased bg-[#f8f5f0] min-h-screen">
         <Header />
@@ -149,7 +125,9 @@ function AuctionDetailContent() {
             </span>
             <h2 className="text-2xl font-bold mb-4">Failed to load auction</h2>
             <p className="text-slate-600 dark:text-slate-400 mb-6">
-              {error || "Auction not found"}
+              {auctionError instanceof Error
+                ? auctionError.message
+                : "Auction not found"}
             </p>
             <Link
               href="/feed"
@@ -181,10 +159,11 @@ function AuctionDetailContent() {
             </div>
           )}
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${isSell
-              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-              }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${
+              isSell
+                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+            }`}
           >
             <span className="material-symbols-outlined text-sm">
               {isSell ? "sell" : "shopping_cart"}
@@ -220,8 +199,7 @@ function AuctionDetailContent() {
               isCreator={isOwner}
               onAuctionUpdate={async () => {
                 try {
-                  const refreshedData = await apiClient.getAuction(id);
-                  setAuction(refreshedData);
+                  await refetchAuction();
                 } catch (err) {
                   console.warn("Failed to refresh auction:", err);
                 }

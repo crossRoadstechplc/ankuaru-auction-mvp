@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuthStore } from "../../../stores/auth.store";
 import apiClient from "../../../lib/api";
 import { CreateAuctionData, User } from "../../../lib/types";
 
@@ -48,7 +48,7 @@ export default function PostAuctionPage() {
   const [success, setSuccess] = useState(false);
 
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthStore();
 
   const selectedFollowersCount = useMemo(() => {
     return selectedUserIds.length;

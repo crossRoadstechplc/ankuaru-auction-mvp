@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuth } from "../../../../contexts/AuthContext";
-import apiClient from "../../../../lib/api";
+import { useState } from "react";
+import { useAuthStore } from "../../../../stores/auth.store";
+import { useMyBid } from "../../../../hooks/useAuctions";
+import {
+    useFollowUser,
+    useMyFollowing,
+    useUnfollowUser,
+} from "../../../../hooks/useFollowers";
 import { UserRating } from "../../../../lib/types";
 
 interface AuctionDetailsCardProps {
@@ -33,44 +38,19 @@ export function AuctionDetailsCard({
   creatorRating,
   isCreator,
 }: AuctionDetailsCardProps) {
-  const { user } = useAuth();
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
-  const [myBid, setMyBid] = useState<any>(null);
+  const { user } = useAuthStore();
   const [idCopied, setIdCopied] = useState(false);
 
-  // Fetch my bid status if not creator
-  useEffect(() => {
-    const fetchMyBid = async () => {
-      try {
-        const bid = await apiClient.getMyBid(data.id);
-        setMyBid(bid);
-      } catch (error) {
-        // Silently fail as it's common to not have a bid
-      }
-    };
+  // React Query hooks
+  const { data: myBid } = useMyBid(data.id);
+  const { data: following = [] } = useMyFollowing();
+  const followMutation = useFollowUser();
+  const unfollowMutation = useUnfollowUser();
 
-    if (!isCreator && user) {
-      fetchMyBid();
-    }
-  }, [data.id, isCreator, user]);
-
-  // Pre-check if this creator is already being followed
-  useEffect(() => {
-    const checkFollowStatus = async () => {
-      try {
-        const following = await apiClient.getMyFollowing();
-        const alreadyFollowing = following.some((u) => u.id === data.createdBy);
-        setIsFollowing(alreadyFollowing);
-      } catch (error) {
-        console.warn("Could not check follow status:", error);
-      }
-    };
-
-    if (!isCreator && user) {
-      checkFollowStatus();
-    }
-  }, [data.createdBy, isCreator, user]);
+  // Check if creator is already being followed
+  const isFollowing = following.some((u: any) => u.id === data.createdBy);
+  const isFollowLoading =
+    followMutation.isPending || unfollowMutation.isPending;
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(data.id).then(() => {
@@ -82,26 +62,18 @@ export function AuctionDetailsCard({
   const handleFollow = async () => {
     if (!data.createdBy || isFollowLoading) return;
     try {
-      setIsFollowLoading(true);
-      await apiClient.followUser(data.createdBy);
-      setIsFollowing(true);
+      await followMutation.mutateAsync(data.createdBy);
     } catch (error) {
       console.error("Follow failed:", error);
-    } finally {
-      setIsFollowLoading(false);
     }
   };
 
   const handleUnfollow = async () => {
     if (!data.createdBy || isFollowLoading) return;
     try {
-      setIsFollowLoading(true);
-      await apiClient.unfollowUser(data.createdBy);
-      setIsFollowing(false);
+      await unfollowMutation.mutateAsync(data.createdBy);
     } catch (error) {
       console.error("Unfollow failed:", error);
-    } finally {
-      setIsFollowLoading(false);
     }
   };
 

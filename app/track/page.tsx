@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Footer from "../../components/layout/Footer";
 import Header from "../../components/layout/Header";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuthStore } from "../../stores/auth.store";
 import apiClient from "../../lib/api";
 import { Auction } from "../../lib/types";
 
@@ -47,7 +47,7 @@ export default function TrackAuctionPage() {
     console.log("Active tab changed to:", activeTab);
   }, [activeTab]);
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthStore();
   const router = useRouter();
 
   // Helper function to calculate time remaining

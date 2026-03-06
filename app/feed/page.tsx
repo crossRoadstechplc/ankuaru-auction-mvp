@@ -4,105 +4,63 @@ import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import { getImageWithFallback } from "@/lib/imageUtils";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
-import apiClient from "../../lib/api";
-import { Auction } from "../../lib/types";
-
-// Helper to calculate time remaining for sorting
-function getTimeRemaining(endAt: string): number {
-  const now = new Date().getTime();
-  const end = new Date(endAt).getTime();
-  return end - now;
-}
-
-// Helper function to sort auctions based on status and dates
-function sortAuctions(auctions: Auction[]): Auction[] {
-  return auctions.sort((a, b) => {
-    // Priority 1: OPEN auctions come first
-    if (a.status === "OPEN" && b.status !== "OPEN") return -1;
-    if (a.status !== "OPEN" && b.status === "OPEN") return 1;
-
-    // For same status, sort by end time (most urgent first)
-    const aEnd = new Date(a.endAt).getTime();
-    const bEnd = new Date(b.endAt).getTime();
-    return aEnd - bEnd;
-  });
-}
+import { useState } from "react";
+import { useAuctions } from "../../hooks/useAuctions";
+import { useAuthStore } from "../../stores/auth.store";
 
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
-  const [auctions, setAuctions] = useState<Auction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(3);
-  const { isAuthenticated, user } = useAuth();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
 
-  // Reset display limit when filters change
-  useEffect(() => {
-    setDisplayLimit(3);
-  }, [activeTab, activeStatus]);
+  // React Query hook for fetching auctions
+  const { data: auctions = [], isLoading, error, refetch } = useAuctions();
 
-  useEffect(() => {
-    const fetchAuctions = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await apiClient.getAuctions();
-        setAuctions(Array.isArray(data) ? data : []);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch auctions",
-        );
-        // Fallback to mock data if API fails
-        setAuctions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAuctions();
-  }, [user]); // Re-fetch when user changes
+  // Handle retry on error
+  const handleRetry = () => {
+    refetch();
+  };
 
   // Filter auctions based on active tab, status, user ownership, and status
   const filteredAuctions = Array.isArray(auctions)
     ? auctions
-      .filter((auction) => {
-        // Filter out user's own auctions
-        if (user?.id && auction.createdBy === user.id) {
-          return false;
-        }
+        .filter((auction) => {
+          // Filter out user's own auctions
+          if (user?.id && auction.createdBy === user.id) {
+            return false;
+          }
 
-        // Status filtering
-        if (activeStatus !== "all" && auction.status !== activeStatus) {
-          return false;
-        }
+          // Status filtering
+          if (activeStatus !== "all" && auction.status !== activeStatus) {
+            return false;
+          }
 
-        // Map tab names to visibility levels
-        const visibilityMap = {
-          public: "PUBLIC",
-          private: "FOLLOWERS",
-          custom: "SELECTED",
-        };
+          // Map tab names to visibility levels
+          const visibilityMap = {
+            public: "PUBLIC",
+            private: "FOLLOWERS",
+            custom: "SELECTED",
+          };
 
-        // Check if auction matches the selected category
-        const targetVisibility =
-          visibilityMap[activeTab as keyof typeof visibilityMap];
-        return targetVisibility
-          ? auction.visibility === targetVisibility
-          : true;
-      })
-      .sort((a, b) => {
-        // Priority 1: OPEN auctions come first
-        if (a.status === "OPEN" && b.status !== "OPEN") return -1;
-        if (a.status !== "OPEN" && b.status === "OPEN") return 1;
+          // Check if auction matches the selected category
+          const targetVisibility =
+            visibilityMap[activeTab as keyof typeof visibilityMap];
+          return targetVisibility
+            ? auction.visibility === targetVisibility
+            : true;
+        })
+        .sort((a, b) => {
+          // Priority 1: OPEN auctions come first
+          if (a.status === "OPEN" && b.status !== "OPEN") return -1;
+          if (a.status !== "OPEN" && b.status === "OPEN") return 1;
 
-        // For same status, sort by end time (most urgent first)
-        const aEnd = new Date(a.endAt).getTime();
-        const bEnd = new Date(b.endAt).getTime();
-        return aEnd - bEnd;
-      })
+          // For same status, sort by end time (most urgent first)
+          const aEnd = new Date(a.endAt).getTime();
+          const bEnd = new Date(b.endAt).getTime();
+          return aEnd - bEnd;
+        })
     : [];
 
   const visibleAuctions = filteredAuctions.slice(0, displayLimit);
@@ -146,11 +104,15 @@ export default function FeedPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 font-semibold rounded-lg text-sm whitespace-nowrap transition-all ${activeTab === tab.id
-                  ? "bg-primary text-white"
-                  : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50"
-                  }`}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setDisplayLimit(3);
+                }}
+                className={`px-4 py-2 font-semibold rounded-lg text-sm whitespace-nowrap transition-all ${
+                  activeTab === tab.id
+                    ? "bg-primary text-white"
+                    : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-primary/50"
+                }`}
               >
                 {tab.label}
               </button>
@@ -164,7 +126,10 @@ export default function FeedPage() {
             </label>
             <select
               value={activeStatus}
-              onChange={(e) => setActiveStatus(e.target.value)}
+              onChange={(e) => {
+                setActiveStatus(e.target.value);
+                setDisplayLimit(3);
+              }}
               className="px-4 py-2 font-semibold rounded-lg text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
             >
               <option value="all">All Status</option>
@@ -205,9 +170,13 @@ export default function FeedPage() {
               <h3 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
                 Failed to load auctions
               </h3>
-              <p className="text-red-700 dark:text-red-300 mb-4">{error}</p>
+              <p className="text-red-700 dark:text-red-300 mb-4">
+                {error instanceof Error
+                  ? error.message
+                  : "Failed to load auctions"}
+              </p>
               <button
-                onClick={() => window.location.reload()}
+                onClick={handleRetry}
                 className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 Try Again
@@ -264,10 +233,11 @@ export default function FeedPage() {
                           {auction.title}
                         </Link>
                         <span
-                          className={`text-[10px] font-black px-3 py-1.5 rounded-full border tracking-widest uppercase shadow-sm ${isSell
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                            : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                            }`}
+                          className={`text-[10px] font-black px-3 py-1.5 rounded-full border tracking-widest uppercase shadow-sm ${
+                            isSell
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          }`}
                         >
                           {isSell ? "SELL" : "BUY"}
                         </span>
@@ -344,10 +314,11 @@ export default function FeedPage() {
                       </div>
                       <Link
                         href={`/auction/${auction.id}`}
-                        className={`px-6 py-2.5 font-bold text-sm rounded-lg transition-all shadow-sm ${isSell
-                          ? "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
-                          : "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
-                          }`}
+                        className={`px-6 py-2.5 font-bold text-sm rounded-lg transition-all shadow-sm ${
+                          isSell
+                            ? "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
+                            : "bg-primary hover:bg-primary-dark text-white shadow-primary/20"
+                        }`}
                       >
                         {isSell ? "View Auction" : "View Auction"}
                       </Link>

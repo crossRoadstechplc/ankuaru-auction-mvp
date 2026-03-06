@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
-import { AuthProvider } from "../contexts/AuthContext";
-import { ThemeContextProvider } from "../contexts/ThemeContext";
 import ProtectedRoute from "../components/ProtectedRoute";
+import { ThemeContextProvider } from "../contexts/ThemeContext";
 import "./globals.css";
+import AuthHydrator from "./auth-hydrator";
+import Providers from "./providers";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -30,11 +31,10 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-display antialiased`}>
-        <ThemeContextProvider>
-          <AuthProvider>
-            <ProtectedRoute>
-              {children}
-            </ProtectedRoute>
+        <Providers>
+          <AuthHydrator />
+          <ThemeContextProvider>
+            <ProtectedRoute>{children}</ProtectedRoute>
             <Toaster
               richColors
               position="top-center"
@@ -44,8 +44,8 @@ export default function RootLayout({
                 },
               }}
             />
-          </AuthProvider>
-        </ThemeContextProvider>
+          </ThemeContextProvider>
+        </Providers>
       </body>
     </html>
   );

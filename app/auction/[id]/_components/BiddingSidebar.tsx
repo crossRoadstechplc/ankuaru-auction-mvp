@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "../../../../contexts/AuthContext";
-import apiClient from "../../../../lib/api";
-import { Bid } from "../../../../lib/types";
+import { useAuthStore } from "../../../../stores/auth.store";
+import {
+    useCloseAuction,
+    useMyBid,
+    usePlaceBid,
+    useRevealBid,
+} from "../../../../hooks/useAuctions";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
 import { RevealBidsModal } from "./RevealBidsModal";
@@ -141,7 +145,7 @@ export function BiddingSidebar({
   onAuctionUpdate,
 }: BiddingSidebarProps) {
   const isSell = data.auctionType === "SELL";
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const isCreator = isCreatorProp || user?.id === data.createdBy;
 
   // --- Live countdown timer ---
@@ -177,8 +181,6 @@ export function BiddingSidebar({
   } = timeLeft;
 
   const [bidAmount, setBidAmount] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [myBid, setMyBid] = useState<Bid | null>(null);
   const [localBid, setLocalBid] = useState<{
     amount: string;
     nonce: string;
@@ -186,6 +188,12 @@ export function BiddingSidebar({
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showRevealBidsModal, setShowRevealBidsModal] = useState(false);
+
+  // React Query hooks
+  const { data: myBid, refetch: refetchMyBid } = useMyBid(data.id);
+  const placeBidMutation = usePlaceBid();
+  const revealBidMutation = useRevealBid();
+  const closeAuctionMutation = useCloseAuction();
 
   // Helper to save bid details
   const saveBidLocally = (amount: string, nonce: string) => {
@@ -231,22 +239,6 @@ export function BiddingSidebar({
   const isRevealPhase = actualStatus === "REVEAL";
   const isClosedPhase = actualStatus === "CLOSED";
 
-  // Fetch user's current bid
-  useEffect(() => {
-    const fetchMyBid = async () => {
-      try {
-        const bid = await apiClient.getMyBid(data.id);
-        setMyBid(bid);
-      } catch (error) {
-        console.error("Failed to fetch my bid:", error);
-      }
-    };
-
-    if (!isCreator && !isClosedPhase && !isScheduledPhase) {
-      fetchMyBid();
-    }
-  }, [data.id, isCreator, isClosedPhase, isScheduledPhase]);
-
   const handleBidSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Placing bid:", bidAmount);
@@ -280,34 +272,21 @@ export function BiddingSidebar({
     }
 
     try {
-      setIsSubmitting(true);
-
-      // Generate proper commit hash using SHA256 (Temporarily removed)
-      // const nonce = Math.random().toString(36).substring(2, 11);
-      // const raw = `${data.id}:${user.id}:${bidAmount}:${nonce}`;
-      // const commitHash = await generateSHA256Hash(raw);
-
-      // Save bid details locally BEFORE submitting
-      // saveBidLocally(bidAmount, nonce);
-      // setLocalBid({ amount: bidAmount, nonce });
-
-      await apiClient.placeBid(data.id, bidAmount);
+      await placeBidMutation.mutateAsync({
+        auctionId: data.id,
+        amount: bidAmount,
+      });
 
       toast.success(
         "Bid submitted! Your bid is hidden until the reveal phase.",
       );
       setBidAmount("");
 
-      // Refresh my bid status from API
-      const updatedBid = await apiClient.getMyBid(data.id);
-      setMyBid(updatedBid);
+      // Refresh my bid status
+      await refetchMyBid();
     } catch (error) {
       console.error("Bid submission failed:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to submit bid",
-      );
-    } finally {
-      setIsSubmitting(false);
+      // Error is already handled by the mutation's error handling
     }
   };
 
@@ -327,38 +306,30 @@ export function BiddingSidebar({
       if (!manualAmount || !manualNonce) return;
 
       try {
-        setIsSubmitting(true);
-        await apiClient.revealBid(data.id, manualAmount, manualNonce);
+        await revealBidMutation.mutateAsync({
+          auctionId: data.id,
+          amount: manualAmount,
+          nonce: manualNonce,
+        });
         toast.success("Bid revealed successfully!");
-        const updatedBid = await apiClient.getMyBid(data.id);
-        setMyBid(updatedBid);
+        await refetchMyBid();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Reveal failed");
-      } finally {
-        setIsSubmitting(false);
+        // Error is already handled by the mutation
       }
       return;
     }
 
     try {
-      setIsSubmitting(true);
-      await apiClient.revealBid(data.id, saved.amount, saved.nonce);
-
+      await revealBidMutation.mutateAsync({
+        auctionId: data.id,
+        amount: saved.amount,
+        nonce: saved.nonce,
+      });
       toast.success("Bid revealed successfully!");
-
-      // Refresh status
-      const updatedBid = await apiClient.getMyBid(data.id);
-      setMyBid(updatedBid);
-
-      // Optionally clear local storage after successful reveal
-      // localStorage.removeItem(`bid_${data.id}_${user?.id}`);
+      await refetchMyBid();
     } catch (error) {
       console.error("Bid reveal failed:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to reveal bid",
-      );
-    } finally {
-      setIsSubmitting(false);
+      // Error is already handled by the mutation
     }
   };
 
@@ -394,14 +365,15 @@ export function BiddingSidebar({
     <div className="flex flex-col gap-6">
       {/* Countdown Card */}
       <div
-        className={`${isClosedPhase
-          ? "bg-slate-700"
-          : isRevealPhase
-            ? "bg-orange-600 dark:bg-orange-600/90"
-            : isScheduledPhase
-              ? "bg-blue-600 dark:bg-blue-600/90"
-              : "bg-primary dark:bg-primary/90"
-          } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
+        className={`${
+          isClosedPhase
+            ? "bg-slate-700"
+            : isRevealPhase
+              ? "bg-orange-600 dark:bg-orange-600/90"
+              : isScheduledPhase
+                ? "bg-blue-600 dark:bg-blue-600/90"
+                : "bg-primary dark:bg-primary/90"
+        } rounded-xl p-6 text-white shadow-lg shadow-primary/20`}
       >
         <p className="text-xs font-bold uppercase tracking-[0.2em] mb-4 opacity-80 text-center">
           {isClosedPhase
@@ -416,110 +388,110 @@ export function BiddingSidebar({
         {/* Circular Timer */}
         {!isClosedPhase && !isRevealPhase
           ? (() => {
-            const displayDays =
-              isScheduledPhase && timeUntilStart ? timeUntilStart.days : days;
-            const displayHours =
-              isScheduledPhase && timeUntilStart
-                ? timeUntilStart.hours
-                : hours;
-            const displayMinutes =
-              isScheduledPhase && timeUntilStart
-                ? timeUntilStart.minutes
-                : minutes;
-            const displaySeconds =
-              isScheduledPhase && timeUntilStart
-                ? timeUntilStart.seconds
-                : seconds;
+              const displayDays =
+                isScheduledPhase && timeUntilStart ? timeUntilStart.days : days;
+              const displayHours =
+                isScheduledPhase && timeUntilStart
+                  ? timeUntilStart.hours
+                  : hours;
+              const displayMinutes =
+                isScheduledPhase && timeUntilStart
+                  ? timeUntilStart.minutes
+                  : minutes;
+              const displaySeconds =
+                isScheduledPhase && timeUntilStart
+                  ? timeUntilStart.seconds
+                  : seconds;
 
-            return (
-              <div className="flex flex-col items-center">
-                {/* Circular Progress Ring */}
-                <div className="relative" style={{ width: 200, height: 200 }}>
-                  <svg
-                    width="200"
-                    height="200"
-                    viewBox="0 0 200 200"
-                    className="transform -rotate-90"
-                  >
-                    {/* Background track */}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.15)"
-                      strokeWidth="8"
-                    />
-                    {/* Progress arc */}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.9)"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeDasharray={circleCircumference}
-                      strokeDashoffset={strokeDashoffset}
-                      style={{ transition: "stroke-dashoffset 1s linear" }}
-                    />
-                    {/* Glowing dot at the tip */}
-                    <circle
-                      cx="100"
-                      cy="100"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="white"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeDasharray={`2 ${circleCircumference - 2}`}
-                      strokeDashoffset={strokeDashoffset}
-                      style={{
-                        transition: "stroke-dashoffset 1s linear",
-                        filter: "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
-                      }}
-                    />
-                  </svg>
-
-                  {/* Center content */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    {/* Days (if any) */}
-                    {displayDays > 0 && (
-                      <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-0.5">
-                        {displayDays}d remaining
-                      </p>
-                    )}
-
-                    {/* Hours & Minutes — small but visible */}
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-sm font-bold opacity-80">
-                        {String(displayHours).padStart(2, "0")}
-                      </span>
-                      <span className="text-xs opacity-50">h</span>
-                      <span className="text-sm font-bold opacity-80">
-                        {String(displayMinutes).padStart(2, "0")}
-                      </span>
-                      <span className="text-xs opacity-50">m</span>
-                    </div>
-
-                    {/* Seconds — BIG & distinctive */}
-                    <p
-                      className="text-5xl font-black tabular-nums leading-none tracking-tight"
-                      style={{
-                        textShadow: "0 0 20px rgba(255,255,255,0.3)",
-                        animation: "secondsPulse 1s ease-in-out infinite",
-                      }}
+              return (
+                <div className="flex flex-col items-center">
+                  {/* Circular Progress Ring */}
+                  <div className="relative" style={{ width: 200, height: 200 }}>
+                    <svg
+                      width="200"
+                      height="200"
+                      viewBox="0 0 200 200"
+                      className="transform -rotate-90"
                     >
-                      {String(displaySeconds).padStart(2, "0")}
-                    </p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">
-                      Seconds
-                    </p>
+                      {/* Background track */}
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.15)"
+                        strokeWidth="8"
+                      />
+                      {/* Progress arc */}
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.9)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={circleCircumference}
+                        strokeDashoffset={strokeDashoffset}
+                        style={{ transition: "stroke-dashoffset 1s linear" }}
+                      />
+                      {/* Glowing dot at the tip */}
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`2 ${circleCircumference - 2}`}
+                        strokeDashoffset={strokeDashoffset}
+                        style={{
+                          transition: "stroke-dashoffset 1s linear",
+                          filter: "drop-shadow(0 0 6px rgba(255,255,255,0.8))",
+                        }}
+                      />
+                    </svg>
+
+                    {/* Center content */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      {/* Days (if any) */}
+                      {displayDays > 0 && (
+                        <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-0.5">
+                          {displayDays}d remaining
+                        </p>
+                      )}
+
+                      {/* Hours & Minutes — small but visible */}
+                      <div className="flex items-center gap-1 mb-1">
+                        <span className="text-sm font-bold opacity-80">
+                          {String(displayHours).padStart(2, "0")}
+                        </span>
+                        <span className="text-xs opacity-50">h</span>
+                        <span className="text-sm font-bold opacity-80">
+                          {String(displayMinutes).padStart(2, "0")}
+                        </span>
+                        <span className="text-xs opacity-50">m</span>
+                      </div>
+
+                      {/* Seconds — BIG & distinctive */}
+                      <p
+                        className="text-5xl font-black tabular-nums leading-none tracking-tight"
+                        style={{
+                          textShadow: "0 0 20px rgba(255,255,255,0.3)",
+                          animation: "secondsPulse 1s ease-in-out infinite",
+                        }}
+                      >
+                        {String(displaySeconds).padStart(2, "0")}
+                      </p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">
+                        Seconds
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()
+              );
+            })()
           : null}
 
         {isScheduledPhase && (
@@ -725,15 +697,15 @@ export function BiddingSidebar({
                             placeholder="Enter amount"
                             value={bidAmount}
                             onChange={(e) => setBidAmount(e.target.value)}
-                            disabled={isSubmitting}
+                            disabled={placeBidMutation.isPending}
                           />
                         </div>
                         <button
                           type="submit"
                           className="w-full bg-primary hover:bg-primary-dark text-white py-5 rounded-xl font-black text-lg shadow-xl shadow-primary/30 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={isSubmitting}
+                          disabled={placeBidMutation.isPending}
                         >
-                          {isSubmitting ? (
+                          {placeBidMutation.isPending ? (
                             <>
                               <span className="material-symbols-outlined animate-spin">
                                 refresh
