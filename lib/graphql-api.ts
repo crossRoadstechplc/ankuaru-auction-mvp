@@ -13,6 +13,7 @@ import {
   AuthResponse,
   Bid,
   BidResponse,
+  BidWithAuction,
   CreateAuctionData,
   FollowRequest,
   LoginData,
@@ -379,9 +380,18 @@ class GraphQLApiClient {
   }
 
   public async markNotificationRead(notificationId: string): Promise<void> {
-    await graphqlClient.request<{
-      markNotificationRead: { success: boolean };
+    const response = await graphqlClient.request<{
+      markNotificationRead: any; // JSON! type
     }>(mutations.MARK_NOTIFICATION_READ_MUTATION, { notificationId });
+
+    // Parse the JSON response if needed
+    const result =
+      typeof response.markNotificationRead === "string"
+        ? JSON.parse(response.markNotificationRead)
+        : response.markNotificationRead;
+
+    // The mutation doesn't return meaningful data, just succeeds
+    return;
   }
 
   public async blockUser(userId: string): Promise<void> {
@@ -562,10 +572,17 @@ class GraphQLApiClient {
 
   public async closeAuction(auctionId: string): Promise<any> {
     const response = await graphqlClient.request<{
-      closeAuction: Auction;
+      closeAuction: any; // JSON! type
     }>(mutations.CLOSE_AUCTION_MUTATION, { id: auctionId });
 
-    return response.closeAuction;
+    // Parse the JSON response to extract auction data
+    const auctionData =
+      typeof response.closeAuction === "string"
+        ? JSON.parse(response.closeAuction)
+        : response.closeAuction;
+
+    // Return the auction object from the parsed data
+    return auctionData.auction || auctionData;
   }
 
   // ==========================================
@@ -620,18 +637,24 @@ class GraphQLApiClient {
     amount: string,
   ): Promise<BidResponse> {
     const response = await graphqlClient.request<{
-      submitBid: Bid;
+      submitBid: any; // JSON! type
     }>(mutations.SUBMIT_BID_MUTATION, {
       id: auctionId,
       input: { amount },
     });
 
+    // Parse the JSON response to extract bid data
+    const bidData =
+      typeof response.submitBid === "string"
+        ? JSON.parse(response.submitBid)
+        : response.submitBid;
+
     // Transform to match REST response shape
     return {
-      bid: response.submitBid,
+      bid: bidData.bid || bidData,
       success: true,
       message: "Bid submitted successfully",
-    };
+    } as BidResponse & { success: boolean };
   }
 
   public async getMyBid(auctionId: string): Promise<Bid | null> {
@@ -640,22 +663,55 @@ class GraphQLApiClient {
         myBid: any; // JSON! type
       }>(queries.MY_BID_QUERY, { id: auctionId });
 
+      // Debug: Log the raw response to see what's available
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[GraphQL Debug] Raw myBid response:", response);
+        console.log("[GraphQL Debug] myBid type:", typeof response.myBid);
+        console.log(
+          "[GraphQL Debug] myBid value:",
+          JSON.stringify(response.myBid, null, 2),
+        );
+      }
+
       // Parse the JSON response to extract bid object
       const bidData =
         typeof response.myBid === "string"
           ? JSON.parse(response.myBid)
           : response.myBid;
 
-      return bidData.myBid || null;
+      // Debug: Log the parsed data
+      if (process.env.NODE_ENV !== "production") {
+        console.log(
+          "[GraphQL Debug] Parsed bidData:",
+          JSON.stringify(bidData, null, 2),
+        );
+        console.log(
+          "[GraphQL Debug] bidData.myBid:",
+          JSON.stringify(bidData.myBid, null, 2),
+        );
+      }
+
+      return bidData.bid || bidData.myBid || bidData || null;
     } catch (error: any) {
-      if (error.message?.includes("not found") || error.status === 404) {
+      // Handle expected 404 errors when user hasn't placed a bid yet
+      if (
+        error.message?.includes("not found") ||
+        error.status === 404 ||
+        error.message?.includes("No bid found for this user in the auction")
+      ) {
+        // This is expected when user hasn't placed a bid yet
+        if (process.env.NODE_ENV !== "production") {
+          console.log(
+            "[GraphQL Debug] No bid found for user in auction (expected)",
+          );
+        }
         return null;
       }
       throw error;
     }
   }
 
-  public async getMyBids(): Promise<Bid[]> {
+  public async getMyBids(): Promise<BidWithAuction[]> {
     const response = await graphqlClient.request<{
       myBids: any; // JSON! type
     }>(queries.MY_BIDS_QUERY);
@@ -688,7 +744,44 @@ class GraphQLApiClient {
       );
     }
 
-    return bidsData.myBids || [];
+    const bids = bidsData.myBids || bidsData.bids || [];
+
+    // For each bid, fetch the auction data to create BidWithAuction objects
+    const bidsWithAuction: BidWithAuction[] = await Promise.all(
+      bids.map(async (bid: any) => {
+        try {
+          const auction = await this.getAuction(bid.auctionId);
+          return {
+            ...bid,
+            auction: {
+              id: auction.id,
+              title: auction.title,
+              status: auction.status,
+              visibility: auction.visibility,
+              startAt: auction.startAt,
+              endAt: auction.endAt,
+              createdBy: auction.createdBy,
+            },
+          };
+        } catch (error) {
+          // If auction fetch fails, return bid with minimal auction data
+          return {
+            ...bid,
+            auction: {
+              id: bid.auctionId,
+              title: "Unknown Auction",
+              status: "UNKNOWN" as any,
+              visibility: "UNKNOWN",
+              startAt: "",
+              endAt: "",
+              createdBy: "",
+            },
+          };
+        }
+      }),
+    );
+
+    return bidsWithAuction;
   }
 
   public async revealBid(
@@ -712,7 +805,7 @@ class GraphQLApiClient {
   }> {
     try {
       const response = await fetch(
-        `${graphqlClient.getToken ? "https://testauction.ankuaru.com" : process.env.NEXT_PUBLIC_API_BASE_URL || "https://testauction.ankuaru.com"}/health`,
+        `${graphqlClient.getToken() ? "https://testauction.ankuaru.com" : process.env.NEXT_PUBLIC_API_BASE_URL || "https://testauction.ankuaru.com"}/health`,
       );
       return {
         url: "https://testauction.ankuaru.com",

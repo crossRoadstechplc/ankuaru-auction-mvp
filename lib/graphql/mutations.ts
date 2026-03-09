@@ -132,9 +132,7 @@ export const UNBLOCK_USER_MUTATION = `
 
 export const MARK_NOTIFICATION_READ_MUTATION = `
   mutation MarkNotificationRead($notificationId: ID!) {
-    markNotificationRead(notificationId: $notificationId) {
-      success
-    }
+    markNotificationRead(notificationId: $notificationId)
   }
 `;
 
@@ -187,38 +185,7 @@ export const EDIT_AUCTION_MUTATION = `
 
 export const CLOSE_AUCTION_MUTATION = `
   mutation CloseAuction($id: ID!) {
-    closeAuction(id: $id) {
-      id
-      title
-      auctionCategory
-      itemDescription
-      reservePrice
-      minBid
-      auctionType
-      visibility
-      startAt
-      endAt
-      status
-      createdBy
-      createdAt
-      bidCount
-      currentBid
-      winnerId
-      winningBid
-      closedAt
-      # UI-specific fields for feed display
-      creator {
-        id
-        username
-        avatar
-        fullName
-      }
-      timeLeft
-      isActive
-      isEndingSoon
-      currentBidAmount
-      totalBids
-    }
+    closeAuction(id: $id)
   }
 `;
 
@@ -228,22 +195,7 @@ export const CLOSE_AUCTION_MUTATION = `
 
 export const SUBMIT_BID_MUTATION = `
   mutation SubmitBid($id: ID!, $input: SubmitBidInput!) {
-    submitBid(id: $id, input: $input) {
-      id
-      auctionId
-      bidderId
-      amount
-      isRevealed
-      nonce
-      createdAt
-      updatedAt
-      bidder {
-        id
-        username
-        avatar
-        fullName
-      }
-    }
+    submitBid(id: $id, input: $input)
   }
 `;
 

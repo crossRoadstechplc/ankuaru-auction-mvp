@@ -1,10 +1,10 @@
 "use client";
 
+import graphQLApiClient from "@/lib/graphql-api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AuctionCloseResponse, Bid } from "../../../../lib/types";
-import graphQLApiClient from "@/lib/graphql-api";
+import { Bid } from "../../../../lib/types";
 
 interface RevealBidsModalProps {
   auction: {
@@ -34,9 +34,7 @@ export function RevealBidsModal({
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
-  const [closeResult, setCloseResult] = useState<AuctionCloseResponse | null>(
-    null,
-  );
+  const [closeResult, setCloseResult] = useState<any | null>(null);
 
   useEffect(() => {
     if (!isOpen || !auction.id) return;
@@ -90,6 +88,12 @@ export function RevealBidsModal({
     const res = isSell ? amountB - amountA : amountA - amountB;
     return res;
   });
+
+  // Debug: Log the bids data
+  console.log("[RevealBidsModal Debug] Raw bids data:", bids);
+  console.log("[RevealBidsModal Debug] Sorted bids:", sortedBids);
+  console.log("[RevealBidsModal Debug] First bid structure:", sortedBids[0]);
+  console.log("[RevealBidsModal Debug] Total bids count:", bids.length);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
@@ -168,7 +172,7 @@ export function RevealBidsModal({
                       Winner ID
                     </p>
                     <p className="text-sm font-mono font-bold text-slate-900 dark:text-white break-all">
-                      {closeResult.auction.winnerId}
+                      {closeResult?.winnerId || "TBD"}
                     </p>
                   </div>
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
@@ -176,7 +180,7 @@ export function RevealBidsModal({
                       Winning Bid
                     </p>
                     <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                      ETB ${closeResult.auction.winningBid}
+                      ETB ${closeResult?.winningBid || "0"}
                     </p>
                   </div>
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
@@ -184,7 +188,7 @@ export function RevealBidsModal({
                       Total Bids
                     </p>
                     <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                      {closeResult.auction.bidCount}
+                      {closeResult?.bidCount || bids.length}
                     </p>
                   </div>
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
@@ -192,7 +196,9 @@ export function RevealBidsModal({
                       Closed At
                     </p>
                     <p className="text-sm font-bold text-slate-900 dark:text-white">
-                      {new Date(closeResult.auction.closedAt).toLocaleString()}
+                      {closeResult?.closedAt
+                        ? new Date(closeResult.closedAt).toLocaleString()
+                        : new Date().toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -212,7 +218,7 @@ export function RevealBidsModal({
                       Title:
                     </span>{" "}
                     <span className="font-medium text-slate-900 dark:text-white">
-                      {closeResult.auction.title}
+                      {closeResult?.title || auction.title}
                     </span>
                   </div>
                   <div>
@@ -220,7 +226,7 @@ export function RevealBidsModal({
                       Category:
                     </span>{" "}
                     <span className="font-medium text-slate-900 dark:text-white">
-                      {closeResult.auction.auctionCategory}
+                      {closeResult?.auctionCategory || auction.auctionCategory}
                     </span>
                   </div>
                   <div>
@@ -228,7 +234,7 @@ export function RevealBidsModal({
                       Reserve Price:
                     </span>{" "}
                     <span className="font-medium text-slate-900 dark:text-white">
-                      ETB ${closeResult.auction.reservePrice}
+                      ETB ${closeResult?.reservePrice || auction.reservePrice}
                     </span>
                   </div>
                   <div>
@@ -236,7 +242,7 @@ export function RevealBidsModal({
                       Min Bid:
                     </span>{" "}
                     <span className="font-medium text-slate-900 dark:text-white">
-                      ETB ${closeResult.auction.minBid}
+                      ETB ${closeResult?.minBid || auction.minBid}
                     </span>
                   </div>
                 </div>

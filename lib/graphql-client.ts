@@ -8,15 +8,22 @@
  * - Token management integration
  */
 
-export class GraphQLError extends Error {
-  public readonly errors: any[];
-  public readonly status?: number;
+import { ErrorHandler } from "./error-handler/error-handler";
+import { toastManager } from "./error-handler/toast-manager";
 
-  constructor(message: string, errors: any[] = [], status?: number) {
+/**
+ * GraphQL Client with Centralized Error Handling
+ */
+
+export class GraphQLError extends Error {
+  public readonly errors: unknown[];
+  public readonly statusCode?: number;
+
+  constructor(message: string, errors: unknown[] = [], statusCode?: number) {
     super(message);
     this.name = "GraphQLError";
     this.errors = errors;
-    this.status = status;
+    this.statusCode = statusCode;
 
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, GraphQLError);
@@ -31,7 +38,7 @@ export class GraphQLClient {
 
   constructor() {
     this.baseURL =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://testauction.ankuaru.com";
+      process.env.NEXT_PUBLIC_API_BASE_URL || "https://gql.ankuaru.com/graphql";
     this.isDebug = process.env.NODE_ENV !== "production";
   }
 
@@ -129,9 +136,11 @@ export class GraphQLClient {
   public async request<T>(
     query: string,
     variables?: Record<string, unknown>,
+    context?: any,
   ): Promise<T> {
     const url = `${this.baseURL}/graphql`;
     const headers = this.buildHeaders();
+    const errorHandler = ErrorHandler.getInstance();
 
     if (this.isDebug) {
       console.log(`[GraphQL Request] POST ${url}`, {
@@ -158,11 +167,30 @@ export class GraphQLClient {
       // Handle HTTP errors
       if (!response.ok) {
         const errorText = await response.text();
-        throw new GraphQLError(
+        const error = new GraphQLError(
           `HTTP ${response.status}: ${response.statusText} - ${errorText}`,
           [],
           response.status,
         );
+
+        // Handle through centralized error system
+        const centralizedError = errorHandler.handleError(error, {
+          ...context,
+          url,
+          method: "POST",
+          query: query.trim().split("\n")[0],
+          variables,
+        });
+
+        // Show toast for user-facing errors
+        if (centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
+          toastManager.showError(centralizedError, {
+            showRetry: centralizedError.retryable,
+            onRetry: () => this.request<T>(query, variables, context),
+          });
+        }
+
+        throw error;
       }
 
       const json = await response.json();
@@ -171,32 +199,95 @@ export class GraphQLClient {
       if (json.errors?.length) {
         const primaryError = json.errors[0];
         const message = this.extractErrorMessage(primaryError);
-        throw new GraphQLError(message, json.errors, response.status);
-      }
+        const error = new GraphQLError(message, json.errors, response.status);
 
-      // Handle HTTP errors
-      if (!response.ok) {
-        throw new GraphQLError(
-          `HTTP ${response.status}: ${response.statusText}`,
-          [],
-          response.status,
-        );
+        // Handle through centralized error system
+        const centralizedError = errorHandler.handleError(error, {
+          ...context,
+          url,
+          method: "POST",
+          query: query.trim().split("\n")[0],
+          variables,
+          graphqlErrors: json.errors,
+        });
+
+        // Show toast for user-facing errors
+        if (centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
+          toastManager.showError(centralizedError, {
+            showRetry: centralizedError.retryable,
+            onRetry: () => this.request<T>(query, variables, context),
+          });
+        }
+
+        throw error;
       }
 
       // Return data with proper typing
       return json.data as T;
     } catch (error) {
-      // Re-throw GraphQL errors
+      // Re-throw GraphQL errors (already handled above)
       if (error instanceof GraphQLError) {
-        if (this.isDebug) {
-          console.error(`[GraphQL Error] ${error.message}`, error.errors);
-        }
         throw error;
       }
 
-      // Handle network/parsing errors
-      const errorMessage =
-        error instanceof Error ? error.message : "Network error occurred";
+      // Handle network/parsing errors through centralized system
+      const centralizedError = errorHandler.handleError(error, {
+        ...context,
+        url,
+        method: "POST",
+        query: query.trim().split("\n")[0],
+        variables,
+      });
+
+      // Show toast for network errors
+      toastManager.showError(centralizedError, {
+        showRetry: centralizedError.retryable,
+        onRetry: () => this.request<T>(query, variables, context),
+      });
+
+      // Debug: Log the error to understand its structure
+      if (this.isDebug) {
+        console.error("[GraphQL Debug] Network error structure:", {
+          error,
+          errorType: typeof error,
+          isError: error instanceof Error,
+          errorMessage: error instanceof Error ? error.message : "not an Error",
+          errorString: String(error),
+        });
+      }
+
+      // More defensive error message extraction
+      let errorMessage: string;
+      try {
+        if (error instanceof Error && error.message) {
+          errorMessage = error.message;
+        } else if (typeof error === "string") {
+          errorMessage = error;
+        } else if (
+          error &&
+          typeof error === "object" &&
+          Object.keys(error).length > 0
+        ) {
+          // Handle error objects with properties
+          errorMessage = error.message || error.error || String(error);
+        } else {
+          // Handle empty objects, null, undefined, etc.
+          errorMessage = "Network error occurred";
+        }
+      } catch (e) {
+        errorMessage = "Network error occurred";
+      }
+
+      // Final fallback to ensure errorMessage is never undefined
+      if (
+        !errorMessage ||
+        errorMessage === "undefined" ||
+        errorMessage === "null" ||
+        errorMessage === "[object Object]"
+      ) {
+        errorMessage = "Network error occurred";
+      }
+
       const networkError = new GraphQLError(errorMessage, [], undefined);
 
       if (this.isDebug) {

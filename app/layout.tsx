@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import ClientErrorBoundary from "../components/error-handling/ClientErrorBoundary";
+import { ToastContainer } from "../components/error-handling/ToastContainer";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { ThemeContextProvider } from "../contexts/ThemeContext";
-import "./globals.css";
 import AuthHydrator from "./auth-hydrator";
+import "./globals.css";
 import Providers from "./providers";
 
 const inter = Inter({
@@ -32,19 +34,22 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-display antialiased`}>
         <Providers>
-          <AuthHydrator />
-          <ThemeContextProvider>
-            <ProtectedRoute>{children}</ProtectedRoute>
-            <Toaster
-              richColors
-              position="top-center"
-              toastOptions={{
-                style: {
-                  fontFamily: "var(--font-inter)",
-                },
-              }}
-            />
-          </ThemeContextProvider>
+          <ClientErrorBoundary>
+            <AuthHydrator />
+            <ThemeContextProvider>
+              <ProtectedRoute>{children}</ProtectedRoute>
+              <Toaster
+                richColors
+                position="top-center"
+                toastOptions={{
+                  style: {
+                    fontFamily: "var(--font-inter)",
+                  },
+                }}
+              />
+              <ToastContainer />
+            </ThemeContextProvider>
+          </ClientErrorBoundary>
         </Providers>
       </body>
     </html>

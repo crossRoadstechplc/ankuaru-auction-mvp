@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LoginData } from "../../lib/types";
+import { LoginData, loginDataSchema, safeParse } from "../../lib/validation";
 import { useAuthStore } from "../../stores/auth.store";
 
 export default function LoginPage() {
@@ -13,6 +13,7 @@ export default function LoginPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
 
   const login = useAuthStore((state) => state.login);
@@ -24,29 +25,47 @@ export default function LoginPage() {
       ...prev,
       [name]: value,
     }));
-    // Clear error when user starts typing
+
+    // Clear errors when user starts typing
     if (error) setError(null);
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const result = safeParse(loginDataSchema, formData);
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        if (issue.path.length > 0) {
+          errors[issue.path[0] as string] = issue.message;
+        }
+      });
+      setFieldErrors(errors);
+      return false;
+    }
+
+    setFieldErrors({});
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Clear previous errors when attempting new login
-    setError(null);
-
-    // Basic validation
-    if (!formData.email || !formData.password) {
-      setError("Email and password are required");
-      return;
-    }
-
-    if (!formData.email.includes("@")) {
-      setError("Please enter a valid email address");
+    // Validate form with Zod
+    if (!validateForm()) {
       return;
     }
 
     try {
       setIsLoading(true);
+      setError(null);
 
       await login(formData);
 
@@ -128,7 +147,11 @@ export default function LoginPage() {
                   email
                 </span>
                 <input
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                  className={`w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400 ${
+                    fieldErrors.email
+                      ? "border-red-300 dark:border-red-700 focus:ring-red-100 dark:focus:ring-red-900/20"
+                      : "border-slate-200 dark:border-slate-700"
+                  }`}
                   placeholder="Enter your email"
                   type="email"
                   name="email"
@@ -138,6 +161,11 @@ export default function LoginPage() {
                   required
                 />
               </div>
+              {fieldErrors.email && (
+                <p className="text-xs text-red-600 dark:text-red-400 px-1 mt-1">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
 
             {/* Password Field */}
@@ -158,7 +186,11 @@ export default function LoginPage() {
                   lock
                 </span>
                 <input
-                  className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                  className={`w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400 ${
+                    fieldErrors.password
+                      ? "border-red-300 dark:border-red-700 focus:ring-red-100 dark:focus:ring-red-900/20"
+                      : "border-slate-200 dark:border-slate-700"
+                  }`}
                   placeholder="••••••••"
                   type={showPassword ? "text" : "password"}
                   name="password"
@@ -177,6 +209,11 @@ export default function LoginPage() {
                   </span>
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="text-xs text-red-600 dark:text-red-400 px-1 mt-1">
+                  {fieldErrors.password}
+                </p>
+              )}
             </div>
 
             {/* Remember Me */}

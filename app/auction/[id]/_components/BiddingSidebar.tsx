@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useAuthStore } from "../../../../stores/auth.store";
 import {
-    useCloseAuction,
-    useMyBid,
-    usePlaceBid,
-    useRevealBid,
+  useCloseAuction,
+  useMyBid,
+  usePlaceBid,
+  useRevealBid,
 } from "../../../../hooks/useAuctions";
+import { useAuthStore } from "../../../../stores/auth.store";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
 import { RevealBidsModal } from "./RevealBidsModal";
@@ -185,6 +185,7 @@ export function BiddingSidebar({
     amount: string;
     nonce: string;
   } | null>(null);
+  const [hasPlacedBid, setHasPlacedBid] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showRevealBidsModal, setShowRevealBidsModal] = useState(false);
@@ -225,8 +226,30 @@ export function BiddingSidebar({
     if (user?.id) {
       const saved = loadBidLocally();
       setLocalBid(saved);
+
+      // Also check if we have a placed bid flag in localStorage
+      const placedBidKey = `placedBid_${data.id}_${user.id}`;
+      const hasPlaced = localStorage.getItem(placedBidKey) === "true";
+      if (hasPlaced) {
+        setHasPlacedBid(true);
+      }
     }
   }, [user?.id, data.id, loadBidLocally]);
+
+  // Save hasPlacedBid to localStorage when it changes
+  useEffect(() => {
+    if (user?.id) {
+      const placedBidKey = `placedBid_${data.id}_${user.id}`;
+      localStorage.setItem(placedBidKey, hasPlacedBid.toString());
+    }
+  }, [hasPlacedBid, user?.id, data.id]);
+
+  // Sync hasPlacedBid with server data, but don't override if we already have it set
+  useEffect(() => {
+    if (myBid && !hasPlacedBid) {
+      setHasPlacedBid(true);
+    }
+  }, [myBid, hasPlacedBid]);
 
   // Determine actual auction status based on time and backend status
   const actualStatus =
@@ -242,28 +265,12 @@ export function BiddingSidebar({
   const handleBidSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Placing bid:", bidAmount);
+    console.log("Current myBid:", myBid);
+    console.log("Current hasPlacedBid:", hasPlacedBid);
 
     if (!bidAmount || parseFloat(bidAmount) <= 0) {
       toast.warning("Please enter a valid bid amount");
       return;
-    }
-
-    if (data.auctionType == "SELL") {
-      if (parseFloat(bidAmount) < parseFloat(data.reservePrice)) {
-        toast.warning(
-          `Your bid cannot be less than the starting price of ETB ${data.reservePrice}`,
-        );
-        return;
-      }
-    }
-
-    if (data.auctionType == "BUY") {
-      if (parseFloat(bidAmount) > parseFloat(data.reservePrice)) {
-        toast.warning(
-          `Your bid cannot be more than the starting price of ETB ${data.reservePrice}`,
-        );
-        return;
-      }
     }
 
     if (!user?.id) {
@@ -271,7 +278,17 @@ export function BiddingSidebar({
       return;
     }
 
+    // Check if user has already placed a bid (both server state and local state)
+    if (myBid || hasPlacedBid) {
+      toast.error(
+        "You have already placed a bid on this auction. Only one bid per auction is allowed.",
+      );
+      return;
+    }
+
     try {
+      setHasPlacedBid(true); // Set local state immediately to prevent double clicks
+
       await placeBidMutation.mutateAsync({
         auctionId: data.id,
         amount: bidAmount,
@@ -280,12 +297,19 @@ export function BiddingSidebar({
       toast.success(
         "Bid submitted! Your bid is hidden until the reveal phase.",
       );
+
+      // Save bid details locally for immediate display
+      const nonce = Math.random().toString(36).substring(2, 15); // Generate random nonce
+      saveBidLocally(bidAmount, nonce);
+      setLocalBid({ amount: bidAmount, nonce });
+
       setBidAmount("");
 
       // Refresh my bid status
       await refetchMyBid();
     } catch (error) {
       console.error("Bid submission failed:", error);
+      setHasPlacedBid(false); // Reset state on error
       // Error is already handled by the mutation's error handling
     }
   };
@@ -640,8 +664,29 @@ export function BiddingSidebar({
                       </p>
                     </div>
                     <div className="flex items-baseline gap-2 mt-3">
+                      {/* Debug: Log the actual bid data */}
+                      {(() => {
+                        console.log("[Bid Display Debug] myBid:", myBid);
+                        console.log("[Bid Display Debug] localBid:", localBid);
+                        console.log(
+                          "[Bid Display Debug] myBid?.revealedAmount:",
+                          myBid?.revealedAmount,
+                        );
+                        console.log(
+                          "[Bid Display Debug] myBid?.amount:",
+                          myBid?.amount,
+                        );
+                        console.log(
+                          "[Bid Display Debug] localBid?.amount:",
+                          localBid?.amount,
+                        );
+                        return null;
+                      })()}
                       <p className="text-3xl font-black text-emerald-900 dark:text-white">
-                        {myBid.amount || localBid?.amount || "Pending"}
+                        {myBid?.revealedAmount ||
+                          myBid?.amount ||
+                          localBid?.amount ||
+                          "Pending"}
                       </p>
                       <span className="text-xs font-bold text-emerald-600 dark:text-emerald-300 uppercase">
                         USD
@@ -692,18 +737,26 @@ export function BiddingSidebar({
                             ETB
                           </span>
                           <input
-                            className="ml-12 w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all"
+                            className="ml-12 w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             type="number"
                             placeholder="Enter amount"
                             value={bidAmount}
                             onChange={(e) => setBidAmount(e.target.value)}
-                            disabled={placeBidMutation.isPending}
+                            disabled={
+                              placeBidMutation.isPending ||
+                              !!myBid ||
+                              hasPlacedBid
+                            }
                           />
                         </div>
                         <button
                           type="submit"
                           className="w-full bg-primary hover:bg-primary-dark text-white py-5 rounded-xl font-black text-lg shadow-xl shadow-primary/30 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={placeBidMutation.isPending}
+                          disabled={
+                            placeBidMutation.isPending ||
+                            !!myBid ||
+                            hasPlacedBid
+                          }
                         >
                           {placeBidMutation.isPending ? (
                             <>
@@ -711,6 +764,13 @@ export function BiddingSidebar({
                                 refresh
                               </span>
                               Submitting...
+                            </>
+                          ) : myBid || hasPlacedBid ? (
+                            <>
+                              <span className="material-symbols-outlined">
+                                check_circle
+                              </span>
+                              Bid Already Placed
                             </>
                           ) : (
                             <>

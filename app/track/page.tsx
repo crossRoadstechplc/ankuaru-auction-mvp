@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Footer from "../../components/layout/Footer";
 import Header from "../../components/layout/Header";
-import { useAuthStore } from "../../stores/auth.store";
 import apiClient from "../../lib/api";
 import { Auction } from "../../lib/types";
+import { useAuthStore } from "../../stores/auth.store";
 
 interface TrackedAuction extends Auction {
   creator?: {
