@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useMyFollowers } from "../../hooks/useFollowers";
 import { useNotificationsWithRealTime } from "../../hooks/useNotifications";
-import apiClient from "../../lib/api";
 import { Notification } from "../../lib/types";
 import { useAuthStore } from "../../stores/auth.store";
 import ThemeToggle from "../ui/ThemeToggle";
@@ -57,7 +56,7 @@ export default function Header() {
     if (!window.confirm("Are you sure you want to unfollow this user?")) return;
 
     try {
-      await apiClient.unfollowUser(id);
+      await graphQLApiClient.unfollowUser(id);
       // React Query will automatically refetch followers
     } catch (error) {
       console.error("Failed to unfollow user", error);
@@ -224,6 +223,18 @@ export default function Header() {
                         visibility
                       </span>
                       Track Auction
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push("/profile");
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50"
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        person
+                      </span>
+                      My Profile
                     </button>
                     <button
                       onClick={handleFollowersClick}

@@ -5,6 +5,9 @@ export interface User {
   username: string;
   email: string;
   fullName?: string;
+  bio?: string;
+  profileImageUrl?: string;
+  isPrivate?: boolean;
   avatar?: string;
   rating?: number;
   isFollowing?: boolean;
@@ -47,6 +50,13 @@ export interface Auction {
   winnerId?: string;
   winningBid?: string;
   closedAt?: string;
+  // Creator information (populated from GraphQL)
+  creator?: {
+    id: string;
+    username: string;
+    fullName?: string;
+    avatar?: string;
+  };
   // UI-specific fields for feed display
   tag?: string;
   tagColor?: string;
@@ -171,6 +181,42 @@ export interface Notification {
   winner_agreement_file_url?: string;
   is_read: boolean;
   created_at: string;
+}
+
+export interface FollowRequest {
+  id: string;
+  requester: {
+    id: string;
+    username: string;
+    fullName?: string;
+    avatar?: string;
+  };
+  target: {
+    id: string;
+    username: string;
+    fullName?: string;
+    avatar?: string;
+  };
+  status: string;
+  createdAt: string;
+}
+
+export interface RatingSummary {
+  averageRating: number;
+  totalRatings: number;
+  ratingDistribution: Record<string, number>;
+  recentReviews: {
+    id: string;
+    rating: number;
+    reviewText: string;
+    reviewer: {
+      id: string;
+      username: string;
+      fullName?: string;
+      avatar?: string;
+    };
+    createdAt: string;
+  }[];
 }
 
 export interface ApiResponse<T> {

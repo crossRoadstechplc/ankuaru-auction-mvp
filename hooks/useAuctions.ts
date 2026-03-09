@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "../lib/api";
+import { graphQLApiClient } from "../lib/graphql-api";
 import { CreateAuctionData } from "../lib/types";
 import { useAuthStore } from "../stores/auth.store";
 
@@ -21,7 +21,7 @@ export const queryKeys = {
 export function useAuctions() {
   return useQuery({
     queryKey: queryKeys.auctions,
-    queryFn: () => apiClient.getAuctions(),
+    queryFn: () => graphQLApiClient.getAuctions(),
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
   });
@@ -31,10 +31,22 @@ export function useAuctions() {
 export function useAuction(id: string) {
   return useQuery({
     queryKey: queryKeys.auction(id),
-    queryFn: () => apiClient.getAuction(id),
+    queryFn: () => graphQLApiClient.getAuction(id),
     enabled: !!id,
     staleTime: 1000 * 30, // 30 seconds
     gcTime: 1000 * 60 * 5, // 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on network errors or GraphQL validation errors
+      if (
+        error instanceof Error &&
+        (error.message.includes("Failed to fetch") ||
+          error.message.includes("must not have a selection") ||
+          error.message.includes("GRAPHQL_VALIDATION_FAILED"))
+      ) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 }
 
@@ -42,10 +54,27 @@ export function useAuction(id: string) {
 export function useAuctionBids(id: string) {
   return useQuery({
     queryKey: queryKeys.auctionBids(id),
-    queryFn: () => apiClient.getAuctionBids(id),
+    queryFn: () => graphQLApiClient.getAuctionBids(id),
     enabled: !!id,
     staleTime: 1000 * 15, // 15 seconds
     gcTime: 1000 * 60 * 3, // 3 minutes
+    retry: (failureCount, error) => {
+      // Don't retry permission errors (403) - these are business logic, not technical errors
+      if (
+        error instanceof Error &&
+        error.message.includes("Only the auction creator can view all bids")
+      ) {
+        return false;
+      }
+      // Don't retry on 403/401 errors
+      if (
+        error instanceof Error &&
+        (error.message.includes("403") || error.message.includes("401"))
+      ) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 }
 
@@ -53,7 +82,7 @@ export function useAuctionBids(id: string) {
 export function useUserAuctions(userId: string) {
   return useQuery({
     queryKey: queryKeys.userAuctions(userId),
-    queryFn: () => apiClient.getUserAuctions(userId),
+    queryFn: () => graphQLApiClient.getUserAuctions(userId),
     enabled: !!userId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -65,7 +94,7 @@ export function useMyBid(auctionId: string) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.myBid(auctionId),
-    queryFn: () => apiClient.getMyBid(auctionId),
+    queryFn: () => graphQLApiClient.getMyBid(auctionId),
     enabled: !!auctionId && isAuthenticated,
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 5, // 5 minutes
@@ -84,7 +113,7 @@ export function useMyBids() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.myBids,
-    queryFn: () => apiClient.getMyBids(),
+    queryFn: () => graphQLApiClient.getMyBids(),
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 3, // 3 minutes
     gcTime: 1000 * 60 * 5, // 5 minutes
@@ -96,7 +125,7 @@ export function useMyFollowers() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.followers,
-    queryFn: () => apiClient.getMyFollowers(),
+    queryFn: () => graphQLApiClient.getMyFollowers(),
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -108,7 +137,7 @@ export function useMyFollowing() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.following,
-    queryFn: () => apiClient.getMyFollowing(),
+    queryFn: () => graphQLApiClient.getMyFollowing(),
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -119,7 +148,7 @@ export function useMyFollowing() {
 export function useUserFollowers(userId: string) {
   return useQuery({
     queryKey: queryKeys.userFollowers(userId),
-    queryFn: () => apiClient.getMyFollowers(), // NOTE: no getUserFollowers endpoint exists
+    queryFn: () => graphQLApiClient.getMyFollowers(),
     enabled: !!userId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -130,19 +159,21 @@ export function useUserFollowers(userId: string) {
 export function useUserFollowing(userId: string) {
   return useQuery({
     queryKey: queryKeys.userFollowing(userId),
-    queryFn: () => apiClient.getMyFollowing(), // NOTE: no getUserFollowing endpoint exists
+    queryFn: () => graphQLApiClient.getMyFollowing(),
     enabled: !!userId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
   });
 }
 
+// Mutation for creating an auction ( Option A: invalidate + force refetch)
 // Mutation for creating an auction (✅ Option A: invalidate + force refetch)
 export function useCreateAuction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateAuctionData) => apiClient.createAuction(data),
+    mutationFn: (data: CreateAuctionData) =>
+      graphQLApiClient.createAuction(data),
 
     onSuccess: async () => {
       // 1) mark auctions list as stale
@@ -171,18 +202,18 @@ export function usePlaceBid() {
     }: {
       auctionId: string;
       amount: string;
-    }) => apiClient.placeBid(auctionId, amount),
+    }) => graphQLApiClient.placeBid(auctionId, amount),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.auction(variables.auctionId),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.myBid(variables.auctionId),
-      });
-      queryClient.invalidateQueries({
         queryKey: queryKeys.auctionBids(variables.auctionId),
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.myBids });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.myBid(variables.auctionId),
+      });
     },
   });
 }
@@ -200,7 +231,7 @@ export function useRevealBid() {
       auctionId: string;
       amount: string;
       nonce: string;
-    }) => apiClient.revealBid(auctionId, amount, nonce),
+    }) => graphQLApiClient.revealBid(auctionId, amount, nonce),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.auction(variables.auctionId),
@@ -208,10 +239,10 @@ export function useRevealBid() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.auctionBids(variables.auctionId),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myBids });
       queryClient.invalidateQueries({
         queryKey: queryKeys.myBid(variables.auctionId),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.myBids });
     },
   });
 }
@@ -221,7 +252,7 @@ export function useCloseAuction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (auctionId: string) => apiClient.closeAuction(auctionId),
+    mutationFn: (auctionId: string) => graphQLApiClient.closeAuction(auctionId),
     onSuccess: (_data, auctionId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.auction(auctionId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.auctions });
@@ -234,7 +265,7 @@ export function useFollowUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (userId: string) => apiClient.followUser(userId),
+    mutationFn: (userId: string) => graphQLApiClient.followUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.following });
       queryClient.invalidateQueries({ queryKey: queryKeys.followers });
@@ -247,7 +278,7 @@ export function useUnfollowUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (userId: string) => apiClient.unfollowUser(userId),
+    mutationFn: (userId: string) => graphQLApiClient.unfollowUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.following });
       queryClient.invalidateQueries({ queryKey: queryKeys.followers });

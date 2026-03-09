@@ -6,9 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useAuthStore } from "../../../stores/auth.store";
-import apiClient from "../../../lib/api";
+import { graphQLApiClient } from "../../../lib/graphql-api";
 import { CreateAuctionData, User } from "../../../lib/types";
+import { useAuthStore } from "../../../stores/auth.store";
 
 export default function PostAuctionPage() {
   const [activeTab, setActiveTab] = useState("sell");
@@ -194,7 +194,7 @@ export default function PostAuctionPage() {
         setIsFollowersLoading(true);
         setFollowersError(null);
         console.log("Fetching followers...");
-        const data = await apiClient.getMyFollowers();
+        const data = await graphQLApiClient.getMyFollowers();
         console.log("Followers response:", data);
         if (!cancelled) {
           const followersArray = Array.isArray(data) ? data : [];
@@ -334,7 +334,7 @@ export default function PostAuctionPage() {
       }
 
       console.log("Submitting auction data:", auctionData);
-      await apiClient.createAuction(auctionData);
+      await graphQLApiClient.createAuction(auctionData);
       setSuccess(true);
       toast.success("Auction created successfully!");
 

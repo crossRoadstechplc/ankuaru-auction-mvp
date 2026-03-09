@@ -4,10 +4,9 @@ import Header from "@/components/layout/Header";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { useAuthStore } from "../../../stores/auth.store";
 import { useAuction, useAuctionBids } from "../../../hooks/useAuctions";
-import apiClient from "../../../lib/api";
 import { UserRating } from "../../../lib/types";
+import { useAuthStore } from "../../../stores/auth.store";
 import { AuctionDetailsCard } from "./_components/AuctionDetailsCard";
 import { BidActivity } from "./_components/BidActivity";
 import { BiddingSidebar } from "./_components/BiddingSidebar";
@@ -29,6 +28,7 @@ function AuctionDetailContent() {
   const { data: bids = [], refetch: refetchBids } = useAuctionBids(id);
 
   const [creatorRating, setCreatorRating] = useState<UserRating | null>(null);
+  const [creatorInfo, setCreatorInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const isOwner = isCreator || (!!user?.id && user?.id === auction?.createdBy);
@@ -38,8 +38,15 @@ function AuctionDetailContent() {
       if (!auction?.createdBy) return;
 
       try {
-        const ratingData = await apiClient.getUserRating(auction.createdBy);
-        setCreatorRating(ratingData);
+        // Import GraphQL API client
+        const { default: graphQLApiClient } =
+          await import("../../../lib/graphql-api");
+
+        // Fetch creator information
+        const userInfo = await graphQLApiClient.getUserInfo(auction.createdBy);
+        setCreatorInfo(userInfo);
+
+        console.log("Creator info fetched:", userInfo);
       } catch (err) {
         console.warn("Failed to fetch creator info:", err);
       } finally {
@@ -212,6 +219,7 @@ function AuctionDetailContent() {
             <AuctionDetailsCard
               data={auction}
               creatorRating={creatorRating}
+              creatorInfo={creatorInfo}
               isCreator={isOwner}
             />
             <BidActivity data={auction} bids={bids} isCreator={isOwner} />

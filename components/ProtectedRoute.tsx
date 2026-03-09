@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAuthStore } from "../stores/auth.store";
 
 // Routes that don't require authentication
@@ -22,36 +22,14 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     (route) => pathname === route || pathname.startsWith(route + "/"),
   );
 
-  const [minLoadingTimeReached, setMinLoadingTimeReached] = useState(false);
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMinLoadingTimeReached(true);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (
-      hasHydrated &&
-      !isLoading &&
-      minLoadingTimeReached &&
-      !isAuthenticated &&
-      !isPublicRoute
-    ) {
+    if (hasHydrated && !isLoading && !isAuthenticated && !isPublicRoute) {
       router.replace("/login");
     }
-  }, [
-    isLoading,
-    hasHydrated,
-    minLoadingTimeReached,
-    isAuthenticated,
-    isPublicRoute,
-    router,
-  ]);
+  }, [isLoading, hasHydrated, isAuthenticated, isPublicRoute, router]);
 
   // While auth state is being loaded, show a loading screen for protected routes
-  if ((!hasHydrated || isLoading || !minLoadingTimeReached) && !isPublicRoute) {
+  if ((!hasHydrated || isLoading) && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
         <div className="flex flex-col items-center gap-6 animate-pulse">

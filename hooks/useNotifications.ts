@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "../lib/api";
+import { graphQLApiClient } from "../lib/graphql-api";
 import { Notification } from "../lib/types";
 import { useAuthStore } from "../stores/auth.store";
 
@@ -14,7 +14,7 @@ export function useMyNotifications() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery<Notification[]>({
     queryKey: notificationsQueryKeys.notifications,
-    queryFn: () => apiClient.getMyNotifications(),
+    queryFn: () => graphQLApiClient.getMyNotifications(),
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 2, // 2 minutes - notifications should be fresh
     gcTime: 1000 * 60 * 5, // 5 minutes
@@ -29,15 +29,14 @@ export function useUnreadNotificationsCount() {
   return useQuery({
     queryKey: notificationsQueryKeys.unreadCount,
     queryFn: async () => {
-      const notifications = await apiClient.getMyNotifications();
-      return notifications.filter((notification) => !notification.is_read)
-        .length;
+      const notifications = await graphQLApiClient.getMyNotifications();
+      return notifications.filter(
+        (notification: Notification) => !notification.is_read,
+      ).length;
     },
     enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 1, // 1 minute - count should be very fresh
-    gcTime: 1000 * 60 * 3, // 3 minutes
-    refetchInterval: 1000 * 60 * 2, // Auto-refetch every 2 minutes
-    refetchIntervalInBackground: false,
+    staleTime: 1000 * 60 * 1, // 1 minute - unread count should be very fresh
+    gcTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -47,9 +46,10 @@ export function useMarkNotificationRead() {
 
   return useMutation({
     mutationFn: (notificationId: string) =>
-      apiClient.markNotificationRead(notificationId),
+      graphQLApiClient.markNotificationRead(notificationId),
+
     onSuccess: () => {
-      // Invalidate notifications queries to refresh data
+      // Invalidate notifications list and unread count
       queryClient.invalidateQueries({
         queryKey: notificationsQueryKeys.notifications,
       });
@@ -69,18 +69,21 @@ export function useMarkAllNotificationsRead() {
 
   return useMutation({
     mutationFn: async () => {
-      const notifications = await apiClient.getMyNotifications();
-      const unreadNotifications = notifications.filter((n) => !n.is_read);
-
-      // Mark each unread notification as read
-      const promises = unreadNotifications.map((notification) =>
-        apiClient.markNotificationRead(notification.id),
+      const notifications = await graphQLApiClient.getMyNotifications();
+      const unreadNotifications = notifications.filter(
+        (n: Notification) => !n.is_read,
       );
 
-      await Promise.all(promises);
+      // Mark each unread notification as read
+      await Promise.all(
+        unreadNotifications.map((notification: Notification) =>
+          graphQLApiClient.markNotificationRead(notification.id),
+        ),
+      );
     },
+
     onSuccess: () => {
-      // Invalidate notifications queries to refresh data
+      // Invalidate notifications list and unread count
       queryClient.invalidateQueries({
         queryKey: notificationsQueryKeys.notifications,
       });

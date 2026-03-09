@@ -9,13 +9,12 @@ import { Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-    useAuctions,
-    useMyBids,
-    useMyFollowers,
-    useMyFollowing,
+  useAuctions,
+  useMyBids,
+  useMyFollowers,
+  useMyFollowing,
 } from "../../hooks/useAuctions";
-import apiClient from "../../lib/api";
-import { RatingSummaryResponse } from "../../lib/types";
+import { useMyRatingSummary } from "../../hooks/useProfile";
 import { useAuthStore } from "../../stores/auth.store";
 
 // Helper to format time left for AuctionCard
@@ -33,22 +32,32 @@ const formatTimeLeft = (endAt: string, now: Date) => {
 
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
-  const [ratingSummary, setRatingSummary] =
-    useState<RatingSummaryResponse | null>(null);
-  const [isLoadingRating, setIsLoadingRating] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Debug: Log user state
+  console.log("[Dashboard Debug] Current user:", user);
+  console.log("[Dashboard Debug] User ID:", user?.id);
 
   // React Query hooks
   const { data: auctions = [] } = useAuctions();
   const { data: myBids = [], isLoading: isLoadingBids } = useMyBids();
   const { data: followers = [] } = useMyFollowers();
   const { data: following = [] } = useMyFollowing();
+  const { data: ratingSummary, isLoading: isLoadingRating } =
+    useMyRatingSummary();
 
   // Filter user's auctions from all auctions
   const myAuctions = user
     ? auctions.filter((auction) => auction.createdBy === user.id)
     : [];
   const isLoadingAuctions = false; // Data comes from useAuctions hook
+
+  // Debug: Log auction filtering
+  console.log("[Dashboard Debug] Total auctions:", auctions.length);
+  console.log("[Dashboard Debug] My auctions count:", myAuctions.length);
+  console.log(
+    "[Dashboard Debug] User ID filter match:",
+    myAuctions.map((a) => a.createdBy === user.id),
+  );
 
   // Filter live auctions
   const liveAuctions = auctions.filter((a) => a.status === "OPEN");
@@ -59,25 +68,12 @@ export default function DashboardPage() {
   const followingsCount = following.length;
 
   // Update current time every second for live countdown
+  const [currentTime, setCurrentTime] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const fetchRatingSummary = async () => {
-      try {
-        const summary = await apiClient.getMyRatingSummary();
-        setRatingSummary(summary);
-      } catch (error) {
-        console.error("Failed to fetch rating summary:", error);
-      } finally {
-        setIsLoadingRating(false);
-      }
-    };
-    fetchRatingSummary();
   }, []);
 
   // Filter live auctions that haven't ended yet and are not created by the current user

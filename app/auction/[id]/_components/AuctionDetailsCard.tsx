@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useAuthStore } from "../../../../stores/auth.store";
 import { useMyBid } from "../../../../hooks/useAuctions";
 import {
     useFollowUser,
@@ -9,6 +8,7 @@ import {
     useUnfollowUser,
 } from "../../../../hooks/useFollowers";
 import { UserRating } from "../../../../lib/types";
+import { useAuthStore } from "../../../../stores/auth.store";
 
 interface AuctionDetailsCardProps {
   data: {
@@ -30,12 +30,14 @@ interface AuctionDetailsCardProps {
     winningBid?: string;
   };
   creatorRating?: UserRating | null;
+  creatorInfo?: any;
   isCreator: boolean;
 }
 
 export function AuctionDetailsCard({
   data,
   creatorRating,
+  creatorInfo,
   isCreator,
 }: AuctionDetailsCardProps) {
   const { user } = useAuthStore();
@@ -257,7 +259,9 @@ export function AuctionDetailsCard({
                 Auction Creator
               </p>
               <p className="font-bold text-slate-900 dark:text-white">
-                {creatorRating?.user?.username || `User ID: ${data.createdBy}`}
+                {creatorInfo?.username ||
+                  creatorRating?.user?.username ||
+                  `User ID: ${data.createdBy}`}
                 {creatorRating?.user?.averageRating && (
                   <span className="text-yellow-500 ml-1">
                     ★ {parseFloat(creatorRating.user.averageRating).toFixed(1)}

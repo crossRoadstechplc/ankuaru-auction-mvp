@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import apiClient from "../lib/api";
+import { graphQLApiClient } from "../lib/graphql-api";
 import { useAuthStore } from "../stores/auth.store";
 
 // Query keys for better cache management
@@ -15,7 +15,7 @@ export function useMyFollowers() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: followersQueryKeys.followers,
-    queryFn: () => apiClient.getMyFollowers(),
+    queryFn: () => graphQLApiClient.getMyFollowers(),
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -27,7 +27,7 @@ export function useMyFollowing() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: followersQueryKeys.following,
-    queryFn: () => apiClient.getMyFollowing(),
+    queryFn: () => graphQLApiClient.getMyFollowing(),
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -38,7 +38,7 @@ export function useMyFollowing() {
 export function useUserFollowers(userId: string) {
   return useQuery({
     queryKey: followersQueryKeys.userFollowers(userId),
-    queryFn: () => apiClient.getMyFollowers(), // Using getMyFollowers as getUserFollowers doesn't exist
+    queryFn: () => graphQLApiClient.getMyFollowers(), // NOTE: no getUserFollowers endpoint exists
     enabled: !!userId,
     staleTime: 1000 * 60 * 1, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -49,7 +49,7 @@ export function useUserFollowers(userId: string) {
 export function useUserFollowing(userId: string) {
   return useQuery({
     queryKey: followersQueryKeys.userFollowing(userId),
-    queryFn: () => apiClient.getMyFollowing(), // Using getMyFollowing as getUserFollowing doesn't exist
+    queryFn: () => graphQLApiClient.getMyFollowing(), // NOTE: no getUserFollowing endpoint exists
     enabled: !!userId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -61,9 +61,8 @@ export function useFollowUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (userId: string) => apiClient.followUser(userId),
+    mutationFn: (userId: string) => graphQLApiClient.followUser(userId),
     onSuccess: () => {
-      // Invalidate following and followers queries
       queryClient.invalidateQueries({ queryKey: followersQueryKeys.following });
       queryClient.invalidateQueries({ queryKey: followersQueryKeys.followers });
     },
@@ -75,9 +74,8 @@ export function useUnfollowUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (userId: string) => apiClient.unfollowUser(userId),
+    mutationFn: (userId: string) => graphQLApiClient.unfollowUser(userId),
     onSuccess: () => {
-      // Invalidate following and followers queries
       queryClient.invalidateQueries({ queryKey: followersQueryKeys.following });
       queryClient.invalidateQueries({ queryKey: followersQueryKeys.followers });
     },

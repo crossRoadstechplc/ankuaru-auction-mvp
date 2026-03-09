@@ -1,8 +1,8 @@
 "use client";
 
+import graphQLApiClient from "@/lib/graphql-api";
 import { useState } from "react";
 import { toast } from "sonner";
-import apiClient from "../../../../lib/api";
 
 interface CloseEarlyModalProps {
   auctionId: string;
@@ -26,14 +26,14 @@ export function CloseEarlyModal({
 
     try {
       setIsClosing(true);
-      await apiClient.closeAuction(auctionId);
-      
+      await graphQLApiClient.closeAuction(auctionId);
+
       toast.success("Auction closed successfully!");
       onClosed();
     } catch (error) {
       console.error("Failed to close auction:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to close auction"
+        error instanceof Error ? error.message : "Failed to close auction",
       );
     } finally {
       setIsClosing(false);
@@ -62,8 +62,8 @@ export function CloseEarlyModal({
           </p>
           <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
             <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-              <strong>Warning:</strong> Closing early will end all bidding immediately
-              and move to the reveal phase if bids were placed.
+              <strong>Warning:</strong> Closing early will end all bidding
+              immediately and move to the reveal phase if bids were placed.
             </p>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
@@ -93,9 +93,7 @@ export function CloseEarlyModal({
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-sm">
-                  block
-                </span>
+                <span className="material-symbols-outlined text-sm">block</span>
                 Close Early
               </>
             )}
