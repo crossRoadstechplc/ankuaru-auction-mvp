@@ -1,23 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { graphQLApiClient } from "../../../lib/graphql-api";
+import { 
+  useRemoveMyProfileImage, 
+  useUpdateMyProfile, 
+  useMyProfile 
+} from "../../../hooks/useProfile";
 import { toast } from "sonner";
 
 export default function ProfileSettingsTab() {
-  const [isRemovingImage, setIsRemovingImage] = useState(false);
+  const { data: profile } = useMyProfile();
+  const removeImageMutation = useRemoveMyProfileImage();
+  const updateProfileMutation = useUpdateMyProfile();
 
   const handleRemoveProfileImage = async () => {
     if (!window.confirm("Are you sure you want to remove your profile image?")) return;
 
-    setIsRemovingImage(true);
     try {
-      await graphQLApiClient.removeMyProfileImage();
+      await removeImageMutation.mutateAsync();
       toast.success("Profile image removed successfully!");
     } catch (error) {
       toast.error("Failed to remove profile image");
-    } finally {
-      setIsRemovingImage(false);
+    }
+  };
+
+  const handleTogglePrivacy = async () => {
+    const isPrivate = !profile?.isPrivate;
+    try {
+      await updateProfileMutation.mutateAsync({ isPrivate });
+      toast.success(`Profile is now ${isPrivate ? "private" : "public"}`);
+    } catch (error) {
+      toast.error("Failed to update privacy settings");
     }
   };
 
@@ -40,10 +52,10 @@ export default function ProfileSettingsTab() {
               </p>
               <button
                 onClick={handleRemoveProfileImage}
-                disabled={isRemovingImage}
+                disabled={removeImageMutation.isPending}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {isRemovingImage ? (
+                {removeImageMutation.isPending ? (
                   <>
                     <span className="material-symbols-outlined text-sm animate-spin">
                       refresh
@@ -75,8 +87,16 @@ export default function ProfileSettingsTab() {
                     Only approved followers can see your profile and auctions.
                   </p>
                 </div>
-                <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 dark:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
-                  <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" />
+                <button 
+                  onClick={handleTogglePrivacy}
+                  disabled={updateProfileMutation.isPending}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                    profile?.isPrivate ? "bg-primary" : "bg-slate-200 dark:bg-slate-700"
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    profile?.isPrivate ? "translate-x-6" : "translate-x-1"
+                  }`} />
                 </button>
               </div>
             </div>

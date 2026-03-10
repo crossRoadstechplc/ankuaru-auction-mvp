@@ -58,10 +58,7 @@ class GraphQLApiClient {
     }>(mutations.REGISTER_MUTATION, { input: data });
 
     // Parse the JSON response to extract token and user
-    const authData =
-      typeof response.register === "string"
-        ? JSON.parse(response.register)
-        : response.register;
+    const authData = graphqlClient.parseJSONResponse<AuthResponse>(response.register);
 
     if (authData.token) {
       this.setToken(authData.token);
@@ -78,10 +75,7 @@ class GraphQLApiClient {
     }>(mutations.LOGIN_MUTATION, { input: data });
 
     // Parse the JSON response to extract token and user
-    const authData =
-      typeof response.login === "string"
-        ? JSON.parse(response.login)
-        : response.login;
+    const authData = graphqlClient.parseJSONResponse<AuthResponse>(response.login);
 
     if (authData.token) {
       this.setToken(authData.token);
@@ -126,10 +120,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract rating summary data
-    const ratingSummaryData =
-      typeof response.myRatingSummary === "string"
-        ? JSON.parse(response.myRatingSummary)
-        : response.myRatingSummary;
+    const ratingSummaryData = graphqlClient.parseJSONResponse<any>(response.myRatingSummary);
 
     // Debug: Log the parsed data
     if (process.env.NODE_ENV !== "production") {
@@ -178,10 +169,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract followers array
-    const followersData =
-      typeof response.myFollowers === "string"
-        ? JSON.parse(response.myFollowers)
-        : response.myFollowers;
+    const followersData = graphqlClient.parseJSONResponse<any>(response.myFollowers);
 
     // Debug: Log the parsed data
     if (process.env.NODE_ENV !== "production") {
@@ -221,10 +209,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract following array
-    const followingData =
-      typeof response.myFollowing === "string"
-        ? JSON.parse(response.myFollowing)
-        : response.myFollowing;
+    const followingData = graphqlClient.parseJSONResponse<any>(response.myFollowing);
 
     // Debug: Log the parsed data
     if (process.env.NODE_ENV !== "production") {
@@ -264,10 +249,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract follow requests array
-    const followRequestsData =
-      typeof response.myFollowRequests === "string"
-        ? JSON.parse(response.myFollowRequests)
-        : response.myFollowRequests;
+    const followRequestsData = graphqlClient.parseJSONResponse<any>(response.myFollowRequests);
 
     // Debug: Log the parsed data
     if (process.env.NODE_ENV !== "production") {
@@ -309,10 +291,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract blocked users array
-    const blockedUsersData =
-      typeof response.myBlockedUsers === "string"
-        ? JSON.parse(response.myBlockedUsers)
-        : response.myBlockedUsers;
+    const blockedUsersData = graphqlClient.parseJSONResponse<any>(response.myBlockedUsers);
 
     // Debug: Log the parsed data
     if (process.env.NODE_ENV !== "production") {
@@ -358,10 +337,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract notifications array
-    const notificationsData =
-      typeof response.myNotifications === "string"
-        ? JSON.parse(response.myNotifications)
-        : response.myNotifications;
+    const notificationsData = graphqlClient.parseJSONResponse<any>(response.myNotifications);
 
     // Debug: Log the parsed data
     if (process.env.NODE_ENV !== "production") {
@@ -385,10 +361,7 @@ class GraphQLApiClient {
     }>(mutations.MARK_NOTIFICATION_READ_MUTATION, { notificationId });
 
     // Parse the JSON response if needed
-    const result =
-      typeof response.markNotificationRead === "string"
-        ? JSON.parse(response.markNotificationRead)
-        : response.markNotificationRead;
+    const result = graphqlClient.parseJSONResponse<any>(response.markNotificationRead);
 
     // The mutation doesn't return meaningful data, just succeeds
     return;
@@ -428,10 +401,7 @@ class GraphQLApiClient {
     }>(queries.AUCTIONS_QUERY);
 
     // Parse the JSON response to extract auctions array
-    const auctionsData =
-      typeof response.auctions === "string"
-        ? JSON.parse(response.auctions)
-        : response.auctions;
+    const auctionsData = graphqlClient.parseJSONResponse<any>(response.auctions);
 
     return auctionsData.auctions || [];
   }
@@ -442,10 +412,7 @@ class GraphQLApiClient {
     }>(queries.AUCTIONS_BY_USER_QUERY, { userId });
 
     // Parse the JSON response to extract auctions array
-    const auctionsData =
-      typeof response.auctionsByUser === "string"
-        ? JSON.parse(response.auctionsByUser)
-        : response.auctionsByUser;
+    const auctionsData = graphqlClient.parseJSONResponse<any>(response.auctionsByUser);
 
     return auctionsData.auctions || [];
   }
@@ -470,10 +437,7 @@ class GraphQLApiClient {
       }
 
       // Parse the JSON response to extract user object
-      const userData =
-        typeof response.userById === "string"
-          ? JSON.parse(response.userById)
-          : response.userById;
+      const userData = graphqlClient.parseJSONResponse<any>(response.userById);
 
       // Debug: Log the parsed data
       if (process.env.NODE_ENV !== "production") {
@@ -534,10 +498,7 @@ class GraphQLApiClient {
     }>(queries.AUCTION_QUERY, { id });
 
     // Parse the JSON response to extract auction object
-    const auctionData =
-      typeof response.auction === "string"
-        ? JSON.parse(response.auction)
-        : response.auction;
+    const auctionData = graphqlClient.parseJSONResponse<any>(response.auction);
 
     // Debug: Log the raw auction data to see what's available
     if (process.env.NODE_ENV !== "production") {
@@ -576,10 +537,7 @@ class GraphQLApiClient {
     }>(mutations.CLOSE_AUCTION_MUTATION, { id: auctionId });
 
     // Parse the JSON response to extract auction data
-    const auctionData =
-      typeof response.closeAuction === "string"
-        ? JSON.parse(response.closeAuction)
-        : response.closeAuction;
+    const auctionData = graphqlClient.parseJSONResponse<any>(response.closeAuction);
 
     // Return the auction object from the parsed data
     return auctionData.auction || auctionData;
@@ -608,10 +566,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract bids array
-    const bidsData =
-      typeof response.auctionBids === "string"
-        ? JSON.parse(response.auctionBids)
-        : response.auctionBids;
+    const bidsData = graphqlClient.parseJSONResponse<any>(response.auctionBids);
 
     // Debug: Log the parsed data
     if (process.env.NODE_ENV !== "production") {
@@ -644,10 +599,7 @@ class GraphQLApiClient {
     });
 
     // Parse the JSON response to extract bid data
-    const bidData =
-      typeof response.submitBid === "string"
-        ? JSON.parse(response.submitBid)
-        : response.submitBid;
+    const bidData = graphqlClient.parseJSONResponse<any>(response.submitBid);
 
     // Transform to match REST response shape
     return {
@@ -674,10 +626,7 @@ class GraphQLApiClient {
       }
 
       // Parse the JSON response to extract bid object
-      const bidData =
-        typeof response.myBid === "string"
-          ? JSON.parse(response.myBid)
-          : response.myBid;
+      const bidData = graphqlClient.parseJSONResponse<any>(response.myBid);
 
       // Debug: Log the parsed data
       if (process.env.NODE_ENV !== "production") {
@@ -727,10 +676,7 @@ class GraphQLApiClient {
     }
 
     // Parse the JSON response to extract bids array
-    const bidsData =
-      typeof response.myBids === "string"
-        ? JSON.parse(response.myBids)
-        : response.myBids;
+    const bidsData = graphqlClient.parseJSONResponse<any>(response.myBids);
 
     // Debug: Log the parsed data structure
     if (process.env.NODE_ENV !== "production") {
@@ -803,17 +749,19 @@ class GraphQLApiClient {
     status: string;
     error?: string;
   }> {
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://gql.ankuaru.com/graphql";
+    // Remove /graphql if present for health check
+    const healthUrl = baseUrl.replace(/\/graphql$/, "") + "/health";
+    
     try {
-      const response = await fetch(
-        `${graphqlClient.getToken() ? "https://testauction.ankuaru.com" : process.env.NEXT_PUBLIC_API_BASE_URL || "https://testauction.ankuaru.com"}/health`,
-      );
+      const response = await fetch(healthUrl);
       return {
-        url: "https://testauction.ankuaru.com",
+        url: healthUrl,
         status: response.ok ? "OK" : `Error: ${response.status}`,
       };
     } catch (error) {
       return {
-        url: "https://testauction.ankuaru.com",
+        url: healthUrl,
         status: "Failed",
         error: error instanceof Error ? error.message : "Unknown error",
       };

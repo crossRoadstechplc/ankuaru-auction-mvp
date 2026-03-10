@@ -4,41 +4,22 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { graphQLApiClient } from "../../lib/graphql-api";
 import { useAuthStore } from "../../stores/auth.store";
+import { useNotifications, useMarkNotificationRead } from "../../hooks/useProfile";
+import { Notification } from "../../lib/types";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [returnUrl, setReturnUrl] = useState("/feed");
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isAuthLoading = useAuthStore((state) => state.isLoading);
   const router = useRouter();
 
+  const { data: notifications = [], isLoading: notificationsLoading } = useNotifications();
+  const markReadMutation = useMarkNotificationRead();
+
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
       router.push("/login");
       return;
-    }
-
-    const fetchNotifications = async () => {
-      try {
-        const data = await graphQLApiClient.getMyNotifications();
-        const parsedData = Array.isArray(data)
-          ? data
-          : (data as any).notifications || [];
-        parsedData.sort(
-          (a: any, b: any) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        );
-        setNotifications(parsedData);
-      } catch (error) {
-        console.error("Failed to fetch notifications", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      fetchNotifications();
     }
 
     if (typeof sessionStorage !== "undefined") {
@@ -48,16 +29,7 @@ export default function NotificationsPage() {
 
   const handleNotificationClick = async (n: Notification) => {
     if (!n.is_read) {
-      try {
-        await graphQLApiClient.markNotificationRead(n.id);
-        setNotifications((prev) =>
-          prev.map((notif) =>
-            notif.id === n.id ? { ...notif, is_read: true } : notif,
-          ),
-        );
-      } catch (error) {
-        console.error("Failed to mark notification as read", error);
-      }
+      markReadMutation.mutate(n.id);
     }
   };
 
@@ -65,19 +37,11 @@ export default function NotificationsPage() {
     const unreadNotifications = notifications.filter((n) => !n.is_read);
 
     for (const n of unreadNotifications) {
-      try {
-        await graphQLApiClient.markNotificationRead(n.id);
-      } catch (error) {
-        console.error(`Failed to mark notification ${n.id} as read`, error);
-      }
+      markReadMutation.mutate(n.id);
     }
-
-    setNotifications((prev) =>
-      prev.map((notif) => ({ ...notif, is_read: true })),
-    );
   };
 
-  if (isAuthLoading || isLoading) {
+  if (isAuthLoading || notificationsLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>

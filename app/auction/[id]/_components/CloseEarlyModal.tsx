@@ -1,6 +1,6 @@
 "use client";
 
-import graphQLApiClient from "@/lib/graphql-api";
+import { useCloseAuction } from "../../../../hooks/useAuctions";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,14 +19,13 @@ export function CloseEarlyModal({
   onClose,
   onClosed,
 }: CloseEarlyModalProps) {
-  const [isClosing, setIsClosing] = useState(false);
+  const closeAuctionMutation = useCloseAuction();
 
   const handleCloseEarly = async () => {
     if (!auctionId) return;
 
     try {
-      setIsClosing(true);
-      await graphQLApiClient.closeAuction(auctionId);
+      await closeAuctionMutation.mutateAsync(auctionId);
 
       toast.success("Auction closed successfully!");
       onClosed();
@@ -35,8 +34,6 @@ export function CloseEarlyModal({
       toast.error(
         error instanceof Error ? error.message : "Failed to close auction",
       );
-    } finally {
-      setIsClosing(false);
     }
   };
 
@@ -74,17 +71,17 @@ export function CloseEarlyModal({
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            disabled={isClosing}
+            disabled={closeAuctionMutation.isPending}
             className="flex-1 py-2 px-4 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={handleCloseEarly}
-            disabled={isClosing}
+            disabled={closeAuctionMutation.isPending}
             className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {isClosing ? (
+            {closeAuctionMutation.isPending ? (
               <>
                 <span className="material-symbols-outlined animate-spin text-sm">
                   refresh

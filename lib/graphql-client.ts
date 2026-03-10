@@ -37,8 +37,8 @@ export class GraphQLClient {
   private readonly isDebug: boolean;
 
   constructor() {
-    this.baseURL =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://gql.ankuaru.com/graphql";
+    const defaultUrl = "https://gql.ankuaru.com/graphql";
+    this.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || defaultUrl;
     this.isDebug = process.env.NODE_ENV !== "production";
   }
 
@@ -87,11 +87,13 @@ export class GraphQLClient {
 
     try {
       // Try to decode payload to check expiration
-      const payload = JSON.parse(atob(parts[1]));
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = typeof window !== "undefined" ? atob(base64) : Buffer.from(base64, "base64").toString("binary");
+      const payload = JSON.parse(decoded);
       const now = Math.floor(Date.now() / 1000);
 
-      // Check if token is expired or will expire within 1 hour
-      if (payload.exp && payload.exp < now + 3600) {
+      // Check if token is expired or will expire within 60 seconds
+      if (payload.exp && payload.exp < now + 60) {
         if (this.isDebug) {
           console.log("[GraphQL] Token expired or will expire soon");
         }
@@ -116,9 +118,11 @@ export class GraphQLClient {
     error?: string;
   }> {
     try {
-      const response = await fetch(`${this.baseURL}/health`);
+      // Stripping /graphql to get health endpoint
+      const healthBase = this.baseURL.replace(/\/graphql$/, "");
+      const response = await fetch(`${healthBase}/health`);
       return {
-        url: this.baseURL,
+        url: `${healthBase}/health`,
         status: response.ok ? "OK" : `Error: ${response.status}`,
       };
     } catch (error) {
@@ -138,7 +142,9 @@ export class GraphQLClient {
     variables?: Record<string, unknown>,
     context?: any,
   ): Promise<T> {
-    const url = `${this.baseURL}/graphql`;
+    // Ensure we don't duplicate /graphql and handle trailing slashes robustly
+    const cleanBase = this.baseURL.replace(/\/$/, "");
+    const url = cleanBase.endsWith("/graphql") ? cleanBase : `${cleanBase}/graphql`;
     const headers = this.buildHeaders();
     const errorHandler = ErrorHandler.getInstance();
 
@@ -182,8 +188,8 @@ export class GraphQLClient {
           variables,
         });
 
-        // Show toast for user-facing errors
-        if (centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
+        // Show toast for user-facing errors (client-side only)
+        if (typeof window !== "undefined" && centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
           toastManager.showError(centralizedError, {
             showRetry: centralizedError.retryable,
             onRetry: () => this.request<T>(query, variables, context),
@@ -211,8 +217,8 @@ export class GraphQLClient {
           graphqlErrors: json.errors,
         });
 
-        // Show toast for user-facing errors
-        if (centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
+        // Show toast for user-facing errors (client-side only)
+        if (typeof window !== "undefined" && centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
           toastManager.showError(centralizedError, {
             showRetry: centralizedError.retryable,
             onRetry: () => this.request<T>(query, variables, context),
@@ -239,20 +245,21 @@ export class GraphQLClient {
         variables,
       });
 
-      // Show toast for network errors
-      toastManager.showError(centralizedError, {
-        showRetry: centralizedError.retryable,
-        onRetry: () => this.request<T>(query, variables, context),
-      });
+      // Show toast for network errors (client-side only)
+      if (typeof window !== "undefined") {
+        toastManager.showError(centralizedError, {
+          showRetry: centralizedError.retryable,
+          onRetry: () => this.request<T>(query, variables, context),
+        });
+      }
 
       // Debug: Log the error to understand its structure
       if (this.isDebug) {
-        console.error("[GraphQL Debug] Network error structure:", {
-          error,
-          errorType: typeof error,
-          isError: error instanceof Error,
-          errorMessage: error instanceof Error ? error.message : "not an Error",
-          errorString: String(error),
+        console.error("[GraphQL Debug] Network/Parsing error occurred:", {
+          errorObject: error,
+          type: typeof error,
+          isErrorInstance: error instanceof Error,
+          message: error instanceof Error ? error.message : String(error)
         });
       }
 
@@ -269,7 +276,7 @@ export class GraphQLClient {
           Object.keys(error).length > 0
         ) {
           // Handle error objects with properties
-          errorMessage = error.message || error.error || String(error);
+          errorMessage = (error as any).message || (error as any).error || String(error);
         } else {
           // Handle empty objects, null, undefined, etc.
           errorMessage = "Network error occurred";
@@ -291,11 +298,9 @@ export class GraphQLClient {
       const networkError = new GraphQLError(errorMessage, [], undefined);
 
       if (this.isDebug) {
-        console.error(`[Network Error] ${url}`, networkError);
-        console.error(`[Network Error Details]`, {
-          url,
+        console.error(`[GraphQL] Network Error: ${url}`, {
           message: errorMessage,
-          error,
+          originalError: error
         });
       }
 
@@ -332,6 +337,24 @@ export class GraphQLClient {
       error.extensions?.code ||
       "GraphQL operation failed"
     );
+  }
+
+  /**
+   * Parse potential JSON string response from GraphQL
+   * Useful for handling JSON! types from the backend
+   */
+  public parseJSONResponse<T>(data: any): T {
+    if (typeof data === "string") {
+      try {
+        return JSON.parse(data) as T;
+      } catch (error) {
+        if (this.isDebug) {
+          console.error("[GraphQL] Failed to parse JSON string:", error);
+        }
+        return data as unknown as T;
+      }
+    }
+    return data as T;
   }
 }
 

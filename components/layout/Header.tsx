@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useMyFollowers } from "../../hooks/useFollowers";
+import { useMyFollowers, useUnfollowUser } from "../../hooks/useFollowers";
 import { useNotificationsWithRealTime } from "../../hooks/useNotifications";
 import { Notification } from "../../lib/types";
 import { useAuthStore } from "../../stores/auth.store";
@@ -51,12 +51,14 @@ export default function Header() {
     setIsFollowersOpen(true);
   };
 
+  const unfollowMutation = useUnfollowUser();
+
   const handleUnfollow = async (id: string) => {
     if (!id) return;
     if (!window.confirm("Are you sure you want to unfollow this user?")) return;
 
     try {
-      await graphQLApiClient.unfollowUser(id);
+      await unfollowMutation.mutateAsync(id);
       // React Query will automatically refetch followers
     } catch (error) {
       console.error("Failed to unfollow user", error);
@@ -407,9 +409,16 @@ export default function Header() {
                       </div>
                       <button
                         onClick={() => handleUnfollow(f.id)}
-                        className="text-sm font-medium text-slate-800 dark:text-slate-200 px-2 py-1 cursor-pointer rounded-md bg-red-200 dark:bg-red-200"
+                        disabled={unfollowMutation.isPending && unfollowMutation.variables === f.id}
+                        className="text-sm font-medium text-slate-800 dark:text-slate-200 px-2 py-1 cursor-pointer rounded-md bg-red-200 dark:bg-red-200 disabled:opacity-50"
                       >
-                        Unfollow
+                        {unfollowMutation.isPending && unfollowMutation.variables === f.id ? (
+                           <span className="material-symbols-outlined text-[14px] animate-spin">
+                            refresh
+                          </span>
+                        ) : (
+                          "Unfollow"
+                        )}
                       </button>
                     </div>
                   ))}

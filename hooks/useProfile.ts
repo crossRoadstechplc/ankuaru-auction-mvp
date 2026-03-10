@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { graphQLApiClient } from "../lib/graphql-api";
-import { FollowRequest, User } from "../lib/types";
+import { FollowRequest, Notification, RatingSummaryResponse, User } from "../lib/types";
 
 // Query keys for better cache management
 export const profileQueryKeys = {
@@ -10,6 +10,8 @@ export const profileQueryKeys = {
   followRequests: ["followRequests"] as const,
   blockedUsers: ["blockedUsers"] as const,
   ratingSummary: ["ratingSummary"] as const,
+  user: (id: string) => ["users", id] as const,
+  notifications: ["notifications"] as const,
 };
 
 // Hook for fetching current user's profile
@@ -30,6 +32,57 @@ export function useMyProfile() {
         return false;
       }
       return failureCount < 2;
+    },
+  });
+}
+
+// Hook for fetching a specific user's profile by ID
+export function useUser(userId: string) {
+  return useQuery<User>({
+    queryKey: profileQueryKeys.user(userId),
+    queryFn: () => graphQLApiClient.getUserInfo(userId),
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes("404")) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+}
+
+// Hook for fetching current user's notifications
+export function useNotifications() {
+  return useQuery<Notification[]>({
+    queryKey: profileQueryKeys.notifications,
+    queryFn: () => graphQLApiClient.getMyNotifications(),
+    staleTime: 1000 * 60 * 1, // 1 minute
+    gcTime: 1000 * 60 * 5, // 5 minutes
+    retry: (failureCount, error) => {
+      if (
+        error instanceof Error &&
+        (error.message.includes("Failed to fetch") ||
+          error.message.includes("GRAPHQL_VALIDATION_FAILED"))
+      ) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+}
+
+// Hook for marking a notification as read
+export function useMarkNotificationRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) =>
+      graphQLApiClient.markNotificationRead(notificationId),
+    onSuccess: () => {
+      // Invalidate notifications to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: profileQueryKeys.notifications });
     },
   });
 }

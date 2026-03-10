@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { FollowRequest } from "../../../lib/types";
-import { graphQLApiClient } from "../../../lib/graphql-api";
+import { useApproveFollowRequest, useRejectFollowRequest } from "../../../hooks/useProfile";
 import { toast } from "sonner";
 
 interface FollowRequestsTabProps {
@@ -10,29 +9,24 @@ interface FollowRequestsTabProps {
 }
 
 export default function FollowRequestsTab({ requests }: FollowRequestsTabProps) {
-  const [loadingRequestId, setLoadingRequestId] = useState<string | null>(null);
+  const approveMutation = useApproveFollowRequest();
+  const rejectMutation = useRejectFollowRequest();
 
   const handleApprove = async (requestId: string) => {
-    setLoadingRequestId(requestId);
     try {
-      await graphQLApiClient.approveFollowRequest(requestId);
+      await approveMutation.mutateAsync(requestId);
       toast.success("Follow request approved!");
     } catch (error) {
       toast.error("Failed to approve follow request");
-    } finally {
-      setLoadingRequestId(null);
     }
   };
 
   const handleReject = async (requestId: string) => {
-    setLoadingRequestId(requestId);
     try {
-      await graphQLApiClient.rejectFollowRequest(requestId);
+      await rejectMutation.mutateAsync(requestId);
       toast.success("Follow request rejected!");
     } catch (error) {
       toast.error("Failed to reject follow request");
-    } finally {
-      setLoadingRequestId(null);
     }
   };
 
@@ -95,10 +89,10 @@ export default function FollowRequestsTab({ requests }: FollowRequestsTabProps) 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleApprove(request.id)}
-                disabled={loadingRequestId === request.id}
+                disabled={approveMutation.isPending && approveMutation.variables === request.id}
                 className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loadingRequestId === request.id ? (
+                {approveMutation.isPending && approveMutation.variables === request.id ? (
                   <span className="material-symbols-outlined text-sm animate-spin">
                     refresh
                   </span>
@@ -108,10 +102,10 @@ export default function FollowRequestsTab({ requests }: FollowRequestsTabProps) 
               </button>
               <button
                 onClick={() => handleReject(request.id)}
-                disabled={loadingRequestId === request.id}
+                disabled={rejectMutation.isPending && rejectMutation.variables === request.id}
                 className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loadingRequestId === request.id ? (
+                {rejectMutation.isPending && rejectMutation.variables === request.id ? (
                   <span className="material-symbols-outlined text-sm animate-spin">
                     refresh
                   </span>

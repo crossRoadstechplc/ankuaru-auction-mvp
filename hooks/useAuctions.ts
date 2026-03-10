@@ -18,23 +18,26 @@ export const queryKeys = {
 };
 
 // Hook for fetching all auctions
-export function useAuctions() {
+export function useAuctions(initialData?: any) {
   return useQuery({
     queryKey: queryKeys.auctions,
     queryFn: () => graphQLApiClient.getAuctions(),
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
+    initialData,
   });
 }
 
 // Hook for fetching a single auction
-export function useAuction(id: string) {
+export function useAuction(id: string, initialData?: any, refetchInterval?: number | false) {
   return useQuery({
     queryKey: queryKeys.auction(id),
     queryFn: () => graphQLApiClient.getAuction(id),
     enabled: !!id,
     staleTime: 1000 * 30, // 30 seconds
     gcTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval,
+    initialData,
     retry: (failureCount, error) => {
       // Don't retry on network errors or GraphQL validation errors
       if (
@@ -51,13 +54,14 @@ export function useAuction(id: string) {
 }
 
 // Hook for fetching auction bids
-export function useAuctionBids(id: string) {
+export function useAuctionBids(id: string, refetchInterval?: number | false) {
   return useQuery({
     queryKey: queryKeys.auctionBids(id),
     queryFn: () => graphQLApiClient.getAuctionBids(id),
     enabled: !!id,
     staleTime: 1000 * 15, // 15 seconds
     gcTime: 1000 * 60 * 3, // 3 minutes
+    refetchInterval,
     retry: (failureCount, error) => {
       // Don't retry permission errors (403) - these are business logic, not technical errors
       if (

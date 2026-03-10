@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { graphQLApiClient } from "../../../lib/graphql-api";
+import { useCreateAuction, useMyFollowers } from "../../../hooks/useAuctions";
 import { CreateAuctionData, User } from "../../../lib/types";
 import { useAuthStore } from "../../../stores/auth.store";
 
@@ -15,13 +15,10 @@ export default function PostAuctionPage() {
   const [selectedVisibility, setSelectedVisibility] = useState<
     "PUBLIC" | "FOLLOWERS" | "SELECTED"
   >("PUBLIC");
-  const [followers, setFollowers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [manualUserId, setManualUserId] = useState("");
   const [manualUserError, setManualUserError] = useState("");
   const [manuallyAddedUsers, setManuallyAddedUsers] = useState<User[]>([]);
-  const [isFollowersLoading, setIsFollowersLoading] = useState(false);
-  const [followersError, setFollowersError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateAuctionData>({
     title: "",
     auctionCategory: "Coffee",
@@ -43,9 +40,14 @@ export default function PostAuctionPage() {
     minutes: "00",
     period: "PM",
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const { data: followersData = [], isLoading: isFollowersLoading, error: followersErrorObj } = useMyFollowers();
+  const createAuctionMutation = useCreateAuction();
+
+  const followers = Array.isArray(followersData) ? followersData : [];
+  const followersError = followersErrorObj ? (followersErrorObj as Error).message : null;
 
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
@@ -177,48 +179,6 @@ export default function PostAuctionPage() {
     }
   };
 
-  useEffect(() => {
-    const needsFollowers =
-      selectedVisibility === "FOLLOWERS" || selectedVisibility === "SELECTED";
-
-    if (!needsFollowers) {
-      setFollowersError(null);
-      return;
-    }
-
-    if (followers.length > 0) return;
-
-    let cancelled = false;
-    const fetchFollowers = async () => {
-      try {
-        setIsFollowersLoading(true);
-        setFollowersError(null);
-        console.log("Fetching followers...");
-        const data = await graphQLApiClient.getMyFollowers();
-        console.log("Followers response:", data);
-        if (!cancelled) {
-          const followersArray = Array.isArray(data) ? data : [];
-          console.log("Setting followers:", followersArray);
-          setFollowers(followersArray);
-        }
-      } catch (err) {
-        console.error("Followers fetch error:", err);
-        if (!cancelled) {
-          setFollowersError(
-            err instanceof Error ? err.message : "Failed to load followers",
-          );
-        }
-      } finally {
-        if (!cancelled) setIsFollowersLoading(false);
-      }
-    };
-
-    fetchFollowers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [followers.length, selectedVisibility]);
 
   const fields = [
     {
@@ -293,9 +253,6 @@ export default function PostAuctionPage() {
     }
 
     try {
-      setIsLoading(true);
-      setError(null);
-
       // Format date to proper ISO format
       const formatDate = (dateString: string) => {
         if (!dateString) return new Date().toISOString();
@@ -317,11 +274,6 @@ export default function PostAuctionPage() {
 
       let auctionData: CreateAuctionData = baseAuctionData;
 
-      if (selectedVisibility === "FOLLOWERS") {
-        // For FOLLOWERS visibility, don't send selectedUserIds - backend handles it automatically
-        auctionData = baseAuctionData;
-      }
-
       if (selectedVisibility === "SELECTED") {
         if (selectedUserIds.length === 0) {
           setError("Please select at least one follower for Custom audience");
@@ -333,8 +285,7 @@ export default function PostAuctionPage() {
         };
       }
 
-      console.log("Submitting auction data:", auctionData);
-      await graphQLApiClient.createAuction(auctionData);
+      await createAuctionMutation.mutateAsync(auctionData);
       setSuccess(true);
       toast.success("Auction created successfully!");
 
@@ -344,12 +295,6 @@ export default function PostAuctionPage() {
       }, 2000);
     } catch (err) {
       console.error("Auction creation error:", err);
-      const errorMsg =
-        err instanceof Error ? err.message : "Failed to create auction";
-      setError(errorMsg);
-      toast.error(errorMsg);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -467,16 +412,15 @@ export default function PostAuctionPage() {
           </button>
         </div>
 
-        {/* Form Container */}
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
-          {error && (
+          {(error || createAuctionMutation.error) && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mx-6 mb-4">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-sm">
                   error
                 </span>
                 <p className="text-sm text-red-600 dark:text-red-400">
-                  {error}
+                  {error || (createAuctionMutation.error as Error).message}
                 </p>
               </div>
             </div>
@@ -777,7 +721,7 @@ export default function PostAuctionPage() {
               <button
                 className="text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
                 type="button"
-                disabled={isLoading}
+                disabled={createAuctionMutation.isPending}
               >
                 Save as Draft
               </button>
@@ -785,16 +729,16 @@ export default function PostAuctionPage() {
                 <button
                   className="rounded-lg border border-slate-200 bg-white px-6 py-2.5 text-sm font-bold hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800"
                   type="button"
-                  disabled={isLoading}
+                  disabled={createAuctionMutation.isPending}
                 >
                   Preview
                 </button>
                 <button
                   className="rounded-lg bg-primary-dark px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   type="submit"
-                  disabled={isLoading}
+                  disabled={createAuctionMutation.isPending}
                 >
-                  {isLoading ? (
+                  {createAuctionMutation.isPending ? (
                     <>
                       <span className="material-symbols-outlined text-lg animate-spin">
                         refresh

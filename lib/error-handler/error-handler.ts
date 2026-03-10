@@ -162,13 +162,13 @@ export class ErrorHandler {
   ): CentralizedError {
     const gqlError = error as any;
 
-    if (!gqlError.errors || !Array.isArray(gqlError.errors)) {
+    if (!gqlError.errors || !Array.isArray(gqlError.errors) || gqlError.errors.length === 0) {
       return createUnknownError(error, context);
     }
 
     const primaryError = gqlError.errors[0];
-    const message = primaryError.message || "GraphQL error occurred";
-    const extensions = primaryError.extensions || {};
+    const message = primaryError?.message || "GraphQL error occurred";
+    const extensions = primaryError?.extensions || {};
     const code = extensions.code;
     const statusCode = gqlError.status;
 

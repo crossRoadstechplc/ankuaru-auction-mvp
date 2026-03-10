@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { User } from "../../../lib/types";
-import { graphQLApiClient } from "../../../lib/graphql-api";
+import { 
+  useFollowUser, 
+  useUnfollowUser, 
+  useBlockUser, 
+  useUnblockUser 
+} from "../../../hooks/useProfile";
 import { toast } from "sonner";
 
 interface UserListProps {
@@ -24,55 +28,46 @@ export default function UserList({
   showBlockButton = false,
   showUnblockButton = false,
 }: UserListProps) {
-  const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+  const followMutation = useFollowUser();
+  const unfollowMutation = useUnfollowUser();
+  const blockMutation = useBlockUser();
+  const unblockMutation = useUnblockUser();
 
   const handleFollow = async (userId: string) => {
-    setLoadingUserId(userId);
     try {
-      await graphQLApiClient.followUser(userId);
+      await followMutation.mutateAsync(userId);
       toast.success("User followed successfully!");
     } catch (error) {
       toast.error("Failed to follow user");
-    } finally {
-      setLoadingUserId(null);
     }
   };
 
   const handleUnfollow = async (userId: string) => {
-    setLoadingUserId(userId);
     try {
-      await graphQLApiClient.unfollowUser(userId);
+      await unfollowMutation.mutateAsync(userId);
       toast.success("User unfollowed successfully!");
     } catch (error) {
       toast.error("Failed to unfollow user");
-    } finally {
-      setLoadingUserId(null);
     }
   };
 
   const handleBlock = async (userId: string) => {
     if (!window.confirm("Are you sure you want to block this user?")) return;
     
-    setLoadingUserId(userId);
     try {
-      await graphQLApiClient.blockUser(userId);
+      await blockMutation.mutateAsync(userId);
       toast.success("User blocked successfully!");
     } catch (error) {
       toast.error("Failed to block user");
-    } finally {
-      setLoadingUserId(null);
     }
   };
 
   const handleUnblock = async (userId: string) => {
-    setLoadingUserId(userId);
     try {
-      await graphQLApiClient.unblockUser(userId);
+      await unblockMutation.mutateAsync(userId);
       toast.success("User unblocked successfully!");
     } catch (error) {
       toast.error("Failed to unblock user");
-    } finally {
-      setLoadingUserId(null);
     }
   };
 
@@ -141,10 +136,10 @@ export default function UserList({
               {showFollowButton && (
                 <button
                   onClick={() => handleFollow(user.id)}
-                  disabled={loadingUserId === user.id}
+                  disabled={followMutation.isPending && followMutation.variables === user.id}
                   className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingUserId === user.id ? (
+                  {followMutation.isPending && followMutation.variables === user.id ? (
                     <span className="material-symbols-outlined text-sm animate-spin">
                       refresh
                     </span>
@@ -157,10 +152,10 @@ export default function UserList({
               {showUnfollowButton && (
                 <button
                   onClick={() => handleUnfollow(user.id)}
-                  disabled={loadingUserId === user.id}
+                  disabled={unfollowMutation.isPending && unfollowMutation.variables === user.id}
                   className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingUserId === user.id ? (
+                  {unfollowMutation.isPending && unfollowMutation.variables === user.id ? (
                     <span className="material-symbols-outlined text-sm animate-spin">
                       refresh
                     </span>
@@ -173,10 +168,10 @@ export default function UserList({
               {showBlockButton && (
                 <button
                   onClick={() => handleBlock(user.id)}
-                  disabled={loadingUserId === user.id}
+                  disabled={blockMutation.isPending && blockMutation.variables === user.id}
                   className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingUserId === user.id ? (
+                  {blockMutation.isPending && blockMutation.variables === user.id ? (
                     <span className="material-symbols-outlined text-sm animate-spin">
                       refresh
                     </span>
@@ -189,10 +184,10 @@ export default function UserList({
               {showUnblockButton && (
                 <button
                   onClick={() => handleUnblock(user.id)}
-                  disabled={loadingUserId === user.id}
+                  disabled={unblockMutation.isPending && unblockMutation.variables === user.id}
                   className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingUserId === user.id ? (
+                  {unblockMutation.isPending && unblockMutation.variables === user.id ? (
                     <span className="material-symbols-outlined text-sm animate-spin">
                       refresh
                     </span>

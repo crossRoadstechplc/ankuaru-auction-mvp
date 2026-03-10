@@ -1,8 +1,8 @@
 "use client";
 
-import graphQLApiClient from "@/lib/graphql-api";
+import { useAuctionBids, useCloseAuction } from "../../../../hooks/useAuctions";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Bid } from "../../../../lib/types";
 
@@ -31,35 +31,14 @@ export function RevealBidsModal({
   onClose,
 }: RevealBidsModalProps) {
   const router = useRouter();
-  const [bids, setBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isClosing, setIsClosing] = useState(false);
   const [closeResult, setCloseResult] = useState<any | null>(null);
 
-  useEffect(() => {
-    if (!isOpen || !auction.id) return;
-
-    const fetchBids = async () => {
-      try {
-        setLoading(true);
-        const fetchedBids = await graphQLApiClient.getAuctionBids(auction.id);
-        console.log("fetchedBids", fetchedBids);
-        setBids(fetchedBids);
-      } catch (error) {
-        console.error("Failed to fetch auction bids:", error);
-        toast.error("Failed to load bids");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBids();
-  }, [isOpen, auction.id]);
+  const { data: bids = [], isLoading: loading } = useAuctionBids(auction.id, isOpen ? 5000 : false);
+  const closeAuctionMutation = useCloseAuction();
 
   const handleCloseAuction = async () => {
     try {
-      setIsClosing(true);
-      const result = await graphQLApiClient.closeAuction(auction.id);
+      const result = await closeAuctionMutation.mutateAsync(auction.id);
       setCloseResult(result);
       toast.success("Auction closed successfully!");
     } catch (error) {
@@ -67,8 +46,6 @@ export function RevealBidsModal({
       toast.error(
         error instanceof Error ? error.message : "Failed to close auction",
       );
-    } finally {
-      setIsClosing(false);
     }
   };
 
@@ -440,10 +417,10 @@ export function RevealBidsModal({
               {/* Close Auction Button */}
               <button
                 onClick={handleCloseAuction}
-                disabled={isClosing}
+                disabled={closeAuctionMutation.isPending}
                 className="w-full py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isClosing ? (
+                {closeAuctionMutation.isPending ? (
                   <>
                     <span className="material-symbols-outlined animate-spin text-lg">
                       refresh

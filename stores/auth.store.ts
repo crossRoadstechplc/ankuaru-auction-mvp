@@ -134,8 +134,8 @@ export const useAuthStore = create<AuthState>()(
                 timeUntilExpiry: payload.exp - now,
               });
 
-              // Check if token is expired or will expire within 1 hour
-              if (!payload.exp || payload.exp < now + 3600) {
+              // Check if token is expired or will expire within 60 seconds
+              if (!payload.exp || payload.exp < now + 60) {
                 console.warn(
                   "[Auth] Token expired or will expire soon, clearing auth",
                 );
