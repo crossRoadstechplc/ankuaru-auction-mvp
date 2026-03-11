@@ -1,13 +1,19 @@
 "use client";
 
-import AuctionCard from "@/components/auction/AuctionCard";
 import StatsCard from "@/components/dashboard/StatsCard";
-import Footer from "@/components/layout/Footer";
-import Header from "@/components/layout/Header";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageSection } from "@/components/layout/page-section";
+import { PageShell } from "@/components/layout/page-shell";
+import { PanelCard } from "@/components/layout/panel-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getImageWithFallback } from "@/lib/imageUtils";
+import { AuctionCard } from "@/src/components/domain/auction/auction-card";
 import { Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import {
   useAuctions,
   useMyBids,
@@ -17,27 +23,29 @@ import {
 import { useMyRatingSummary } from "../../hooks/useProfile";
 import { useAuthStore } from "../../stores/auth.store";
 
-// Helper to format time left for AuctionCard
-const formatTimeLeft = (endAt: string, now: Date) => {
-  const total = Date.parse(endAt) - now.getTime();
-  if (total <= 0) return "Auction Ended";
-  const seconds = Math.floor((total / 1000) % 60);
-  const minutes = Math.floor((total / 1000 / 60) % 60);
-  const hours = Math.floor((total / (1000 * 60 * 60)) % 24);
-  const days = Math.floor(total / (1000 * 60 * 60 * 24));
+function formatRelativeTime(dateString: string) {
+  const value = new Date(dateString).getTime();
+  const now = Date.now();
+  const diff = Math.max(1, Math.floor((now - value) / 1000));
 
-  if (days > 0) return `${days}d ${hours}h`;
-  return `${hours}h ${minutes}m ${seconds}s`;
-};
+  if (diff < 60) {
+    return "just now";
+  }
+
+  if (diff < 3600) {
+    return `${Math.floor(diff / 60)}m ago`;
+  }
+
+  if (diff < 86400) {
+    return `${Math.floor(diff / 3600)}h ago`;
+  }
+
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
 
-  // Debug: Log user state
-  console.log("[Dashboard Debug] Current user:", user);
-  console.log("[Dashboard Debug] User ID:", user?.id);
-
-  // React Query hooks
   const { data: auctions = [] } = useAuctions();
   const { data: myBids = [], isLoading: isLoadingBids } = useMyBids();
   const { data: followers = [] } = useMyFollowers();
@@ -45,42 +53,28 @@ export default function DashboardPage() {
   const { data: ratingSummary, isLoading: isLoadingRating } =
     useMyRatingSummary();
 
-  // Filter user's auctions from all auctions
   const myAuctions = user
     ? auctions.filter((auction) => auction.createdBy === user.id)
     : [];
-  const isLoadingAuctions = false; // Data comes from useAuctions hook
+  const isLoadingAuctions = false;
 
-  // Debug: Log auction filtering
-  console.log("[Dashboard Debug] Total auctions:", auctions.length);
-  console.log("[Dashboard Debug] My auctions count:", myAuctions.length);
-  console.log(
-    "[Dashboard Debug] User ID filter match:",
-    myAuctions.map((a) => a.createdBy === user.id),
-  );
-
-  // Filter live auctions
-  const liveAuctions = auctions.filter((a) => a.status === "OPEN");
-  const isLoadingLive = false; // Data comes from useAuctions hook
-
-  // Followers counts
   const followersCount = followers.length;
   const followingsCount = following.length;
 
-  // Update current time every second for live countdown
   const [currentTime, setCurrentTime] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
+
     return () => clearInterval(timer);
   }, []);
 
-  // Filter live auctions that haven't ended yet and are not created by the current user
-  const activeLiveAuctions = liveAuctions.filter((auction) => {
+  const activeLiveAuctions = auctions.filter((auction) => {
+    const isOpen = auction.status === "OPEN";
     const isPast = new Date(auction.endAt).getTime() <= currentTime.getTime();
-    const isOwner = auction.createdBy === user?.id;
-    return !isPast && !isOwner;
+    const isOwner = user ? auction.createdBy === user.id : false;
+    return isOpen && !isPast && !isOwner;
   });
 
   const ratingValue = isLoadingRating
@@ -89,332 +83,437 @@ export default function DashboardPage() {
       ? `${parseFloat(ratingSummary.user.averageRating).toFixed(1)} / 5.0`
       : "N/A";
 
+  const recentActivity = useMemo(
+    () =>
+      [...myBids]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )
+        .slice(0, 6),
+    [myBids],
+  );
+
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
-      <Header />
+    <PageShell>
+      <PageContainer className="space-y-8 py-8 md:py-10">
+        <PageHeader
+          title="Dashboard"
+          description="Track your auctions, bids, and account activity in one place."
+          actions={
+            <Link href="/auction/new">
+              <Button>
+                <span className="material-symbols-outlined text-lg">
+                  add_circle
+                </span>
+                Create Auction
+              </Button>
+            </Link>
+          }
+        />
 
-      <main className="mx-auto w-full max-w-[1200px] px-4 md:px-10 lg:px-40 py-8">
-        {/* Welcome & Quick Action */}
-        <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-          <div className="space-y-1">
-            <h2 className="text-3xl md:text-4xl font-black text-coffee-bean dark:text-slate-100">
-              Dashboard
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium italic">
-              Welcome back! Manage your auction here.
-            </p>
-          </div>
-          <Link
-            href="/auction/new"
-            className="group flex h-11 items-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 text-sm"
-          >
-            <span className="material-symbols-outlined text-lg">
-              add_circle
-            </span>
-            <span>Create Auction</span>
-          </Link>
-        </div>
-
-        {/* Stats Overview */}
-        <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <StatsCard
-            label="Participating"
-            value={`${isLoadingBids ? "..." : myBids.length} Bids`}
-            icon="layers"
-            iconBgColor="bg-primary/10"
-            iconTextColor="text-primary"
-          />
-          <StatsCard
-            label="My Auctions"
-            value={`${isLoadingAuctions ? "..." : myAuctions.length} Items`}
-            icon="store"
-            iconBgColor="bg-amber-500/10"
-            iconTextColor="text-amber-500"
-          />
-          <StatsCard
-            label="Reputation"
-            value={ratingValue}
-            icon="military_tech"
-            iconBgColor="bg-blue-500/10"
-            iconTextColor="text-blue-500"
-          />
-          <StatsCard
-            label="Followers / Following"
-            value={
-              followersCount.toString() + " / " + followingsCount.toString()
-            }
-            icon={<Users className="w-5 h-5" />}
-            iconBgColor="bg-emerald-500/10"
-            iconTextColor="text-emerald-600"
-          />
-        </div>
-
-        {/* Main Management Section */}
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 mb-16">
-          {/* My Auctions (Created) */}
-          <section>
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-coffee-bean dark:text-slate-100">
-                My Auctions
-              </h3>
-              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-400">
-                {myAuctions.length} Items
-              </span>
+        <PageSection>
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card p-5 shadow-sm md:p-7">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+                  Workspace Summary
+                </p>
+                <h2 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">
+                  Welcome back{user?.username ? `, ${user.username}` : ""}
+                </h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="px-3 py-1">
+                  {myAuctions.length} Created
+                </Badge>
+                <Badge variant="secondary" className="px-3 py-1">
+                  {isLoadingBids ? "..." : `${myBids.length} Participating`}
+                </Badge>
+                <Badge variant="secondary" className="px-3 py-1">
+                  {activeLiveAuctions.length} Live Nearby
+                </Badge>
+              </div>
             </div>
-            <div className="space-y-4">
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href="/auction/new">
+                <Button size="sm" className="gap-2">
+                  <span className="material-symbols-outlined text-sm">
+                    add_circle
+                  </span>
+                  New Auction
+                </Button>
+              </Link>
+              <Link href="/feed">
+                <Button size="sm" variant="outline" className="gap-2">
+                  <span className="material-symbols-outlined text-sm">
+                    travel_explore
+                  </span>
+                  Explore Market
+                </Button>
+              </Link>
+              <Link href="/profile">
+                <Button size="sm" variant="outline" className="gap-2">
+                  <span className="material-symbols-outlined text-sm">
+                    person
+                  </span>
+                  My Profile
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </PageSection>
+
+        <PageSection>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatsCard
+              label="Participating"
+              value={`${isLoadingBids ? "..." : myBids.length} Bids`}
+              icon="layers"
+              iconBgColor="bg-primary/10"
+              iconTextColor="text-primary"
+            />
+            <StatsCard
+              label="My Auctions"
+              value={`${isLoadingAuctions ? "..." : myAuctions.length} Items`}
+              icon="store"
+              iconBgColor="bg-amber-500/10"
+              iconTextColor="text-amber-500"
+            />
+            <StatsCard
+              label="Reputation"
+              value={ratingValue}
+              icon="military_tech"
+              iconBgColor="bg-blue-500/10"
+              iconTextColor="text-blue-500"
+            />
+            <StatsCard
+              label="Followers / Following"
+              value={`${followersCount} / ${followingsCount}`}
+              icon={<Users className="h-5 w-5" />}
+              iconBgColor="bg-emerald-500/10"
+              iconTextColor="text-emerald-600"
+            />
+          </div>
+        </PageSection>
+
+        <PageSection>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <PanelCard
+              title="My Auctions"
+              description="Listings you created and currently manage."
+              className="xl:col-span-6"
+              action={
+                <Badge variant="secondary" className="px-2.5 py-1 text-xs">
+                  {myAuctions.length} Items
+                </Badge>
+              }
+              bodyClassName="space-y-3"
+            >
               {isLoadingAuctions ? (
-                <div className="p-4 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
                   Loading your auctions...
                 </div>
               ) : myAuctions.length === 0 ? (
-                <div className="p-4 text-center flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                  <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">
+                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/80 bg-muted/20 p-8 text-center">
+                  <span className="material-symbols-outlined mb-2 text-4xl text-muted-foreground">
                     storefront
                   </span>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                    You haven't created any auctions yet.
+                  <p className="text-sm font-medium text-muted-foreground">
+                    You have not created any auctions yet.
                   </p>
-                  <Link
-                    href="/auction/create"
-                    className="mt-4 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
-                  >
-                    Create New Auction
+                  <Link href="/auction/new" className="mt-4">
+                    <Button size="sm">Create New Auction</Button>
                   </Link>
                 </div>
               ) : (
-                myAuctions.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/auction/${item.id}?view=creator`}
-                    className="flex items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  >
-                    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-coffee-cream flex items-center justify-center text-slate-300">
-                      {item.image ? (
-                        <img
-                          alt={item.title}
-                          className="h-full w-full object-cover"
-                          src={getImageWithFallback(item.image)}
-                        />
-                      ) : (
-                        <span className="material-symbols-outlined text-3xl">
-                          image
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-grow">
-                      <h5
-                        className="text-sm font-bold truncate max-w-[200px]"
-                        title={item.title}
-                      >
-                        {item.title}
-                      </h5>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs font-bold text-primary">
-                          ${item.reservePrice}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          • {item.bidCount ?? 0} Bids
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${item.status === "OPEN" ? "bg-primary/10 text-primary" : item.status === "CLOSED" ? "bg-slate-100 dark:bg-slate-800 text-slate-500" : "bg-amber-500/10 text-amber-500"}`}
-                        >
-                          {item.status}
-                        </span>
+                <>
+                  {myAuctions.slice(0, 5).map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/auction/${item.id}?view=creator`}
+                      className="group flex items-center gap-4 rounded-xl border border-border/70 bg-card px-4 py-3 transition-colors hover:bg-muted/30"
+                    >
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
+                        {item.image ? (
+                          <img
+                            alt={item.title}
+                            className="h-full w-full object-cover"
+                            src={getImageWithFallback(item.image)}
+                          />
+                        ) : (
+                          <span className="material-symbols-outlined text-3xl">
+                            image
+                          </span>
+                        )}
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="truncate text-sm font-bold text-foreground">
+                          {item.title}
+                        </h4>
+                        <div className="mt-1 flex items-center gap-2 text-xs">
+                          <span className="font-semibold text-primary">
+                            ${item.reservePrice}
+                          </span>
+                          <span className="text-muted-foreground">
+                            - {item.bidCount ?? 0} bids
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className="px-2 py-0 text-[10px]"
+                          >
+                            {item.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <span className="material-symbols-outlined text-muted-foreground transition-transform group-hover:translate-x-0.5">
+                        chevron_right
+                      </span>
+                    </Link>
+                  ))}
+                  {myAuctions.length > 5 && (
+                    <div className="pt-2">
+                      <Link href="/profile" className="block w-full">
+                        <Button variant="ghost" className="w-full text-sm font-medium text-primary hover:text-primary/80">
+                          View all {myAuctions.length} auctions
+                          <span className="material-symbols-outlined ml-1.5 text-[16px]">
+                            arrow_forward
+                          </span>
+                        </Button>
+                      </Link>
                     </div>
-                    <span className="material-symbols-outlined text-slate-300">
-                      chevron_right
-                    </span>
-                  </Link>
-                ))
+                  )}
+                </>
               )}
-            </div>
-          </section>
+            </PanelCard>
 
-          {/* Participating Auctions (Bidding) */}
-          <section>
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-coffee-bean dark:text-slate-100">
-                Participating
-              </h3>
-              <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-400">
-                {isLoadingBids ? "..." : `${myBids.length} Bids`}
-              </span>
-            </div>
-            <div className="space-y-4">
+            <PanelCard
+              title="Participating"
+              description="Auctions where you have active bids."
+              className="xl:col-span-6"
+              action={
+                <Badge variant="secondary" className="px-2.5 py-1 text-xs">
+                  {isLoadingBids ? "..." : `${myBids.length} Bids`}
+                </Badge>
+              }
+              bodyClassName="space-y-3"
+            >
               {isLoadingBids ? (
-                <div className="p-4 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
                   Loading your bids...
                 </div>
               ) : myBids.length === 0 ? (
-                <div className="p-4 text-center flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                  <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2">
+                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/80 bg-muted/20 p-8 text-center">
+                  <span className="material-symbols-outlined mb-2 text-4xl text-muted-foreground">
                     gavel
                   </span>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                    You haven't placed any bids yet.
+                  <p className="text-sm font-medium text-muted-foreground">
+                    You have not placed any bids yet.
                   </p>
-                  <Link
-                    href="/feed"
-                    className="mt-4 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors"
-                  >
-                    Browse Auctions
+                  <Link href="/feed" className="mt-4">
+                    <Button size="sm">Browse Auctions</Button>
                   </Link>
                 </div>
               ) : (
-                myBids.map((bid) => {
-                  const auc = bid.auction;
-                  const isRevealed = bid.revealedAmount !== null;
-                  const isOpen = auc.status === "OPEN";
-                  const isRevealPhase = auc.status === "REVEAL";
-                  const isClosed = auc.status === "CLOSED";
+                <>
+                  {myBids.slice(0, 5).map((bid) => {
+                    const auc = bid.auction;
+                    const isRevealed = bid.revealedAmount !== null;
+                    const isOpen = auc.status === "OPEN";
+                    const isRevealPhase = auc.status === "REVEAL";
+                    const isClosed = auc.status === "CLOSED";
 
-                  let statusColor = "border-primary";
-                  let statusLabel = "Bid Placed";
-                  let statusTextColor = "text-primary";
-                  if (isRevealPhase) {
-                    statusColor = "border-amber-500";
-                    statusLabel = "Reveal Phase";
-                    statusTextColor = "text-amber-500";
-                  } else if (isClosed) {
-                    statusColor = "border-slate-400";
-                    statusLabel = "Closed";
-                    statusTextColor = "text-slate-500";
-                  }
+                    let accent = "border-primary/70";
+                    let statusLabel = "Bid placed";
+                    if (isRevealPhase) {
+                      accent = "border-amber-500/70";
+                      statusLabel = "Reveal phase";
+                    } else if (isClosed) {
+                      accent = "border-slate-400/70";
+                      statusLabel = "Closed";
+                    }
 
-                  return (
-                    <Link
-                      key={bid.id}
-                      href={`/auction/${auc.id}`}
-                      className={`relative flex items-center gap-4 rounded-xl border-l-4 ${statusColor} border-y border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors`}
-                    >
-                      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-coffee-cream flex items-center justify-center text-slate-300">
-                        <span className="material-symbols-outlined text-3xl">
-                          gavel
-                        </span>
-                      </div>
-                      <div className="flex-grow min-w-0">
-                        <h5
-                          className="text-sm font-bold truncate max-w-[180px]"
-                          title={auc.title}
-                        >
-                          {auc.title}
-                        </h5>
-                        <p
-                          className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${statusTextColor}`}
-                        >
-                          {statusLabel}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {isRevealed && (
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                              Revealed: {bid.revealedAmount}
-                            </span>
-                          )}
-                          <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                              isOpen
-                                ? "bg-primary/10 text-primary"
-                                : isRevealPhase
-                                  ? "bg-amber-500/10 text-amber-500"
-                                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                            }`}
-                          >
-                            {auc.status}
+                    return (
+                      <Link
+                        key={bid.id}
+                        href={`/auction/${auc.id}`}
+                        className={`group flex items-center gap-4 rounded-xl border ${accent} bg-card px-4 py-3 transition-colors hover:bg-muted/30`}
+                      >
+                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                          <span className="material-symbols-outlined text-2xl">
+                            gavel
                           </span>
                         </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="material-symbols-outlined text-slate-300">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="truncate text-sm font-bold text-foreground">
+                            {auc.title}
+                          </h4>
+                          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            {statusLabel}
+                          </p>
+                          <div className="mt-1 flex items-center gap-2 text-xs">
+                            {isRevealed ? (
+                              <span className="font-semibold text-foreground">
+                                Revealed: {bid.revealedAmount}
+                              </span>
+                            ) : null}
+                            <Badge
+                              variant="secondary"
+                              className={`px-2 py-0 text-[10px] ${
+                                isOpen
+                                  ? "text-primary"
+                                  : isRevealPhase
+                                    ? "text-amber-600"
+                                    : "text-muted-foreground"
+                              }`}
+                            >
+                              {auc.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <span className="material-symbols-outlined text-muted-foreground transition-transform group-hover:translate-x-0.5">
                           chevron_right
                         </span>
-                      </div>
-                    </Link>
-                  );
-                })
+                      </Link>
+                    );
+                  })}
+                  {myBids.length > 5 && (
+                    <div className="pt-2">
+                      <Link href="/profile" className="block w-full">
+                        <Button variant="ghost" className="w-full text-sm font-medium text-primary hover:text-primary/80">
+                          View all {myBids.length} active bids
+                          <span className="material-symbols-outlined ml-1.5 text-[16px]">
+                            arrow_forward
+                          </span>
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
-            </div>
-          </section>
-        </div>
+            </PanelCard>
 
-        {/* Live Auctions Section */}
-        <section className="mb-12">
-          <div className="mb-6 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-2xl font-bold text-coffee-bean dark:text-slate-100">
-              <span className="h-3 w-3 rounded-full bg-primary animate-pulse"></span>
-              Live Auctions
-            </h3>
-            <Link
-              className="text-sm font-bold text-primary hover:underline"
-              href="/feed"
+            <PanelCard
+              title="Recent Activity"
+              description="Latest actions from your bidding timeline."
+              className="xl:col-span-4"
+              bodyClassName="space-y-3"
+              action={
+                <Link
+                  href="/notifications"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  View notifications
+                </Link>
+              }
             >
-              View All Market
-            </Link>
+              {isLoadingBids ? (
+                <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted-foreground">
+                  Loading activity...
+                </div>
+              ) : recentActivity.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-5 text-sm text-muted-foreground">
+                  Your recent activity will appear here once you join auctions.
+                </div>
+              ) : (
+                recentActivity.map((bid) => (
+                  <Link
+                    key={`${bid.id}-activity`}
+                    href={`/auction/${bid.auction.id}`}
+                    className="block rounded-xl border border-border/70 bg-card p-3 transition-colors hover:bg-muted/30"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {bid.auction.title}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {bid.revealedAmount
+                            ? `Revealed ${bid.revealedAmount}`
+                            : "Commit submitted"}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className="px-2 py-0 text-[10px]"
+                      >
+                        {bid.auction.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-[11px] font-medium text-muted-foreground">
+                      {formatRelativeTime(bid.createdAt)}
+                    </p>
+                  </Link>
+                ))
+              )}
+            </PanelCard>
+
+            <PanelCard
+              title="Recommended for You"
+              description="Hand-picked active auctions you might like."
+              className="xl:col-span-8"
+              action={
+                <Link
+                  className="text-xs font-semibold text-primary hover:underline"
+                  href="/feed"
+                >
+                  Explore market
+                </Link>
+              }
+            >
+              {isLoadingAuctions ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-72 animate-pulse rounded-2xl border border-border bg-muted/40"
+                    />
+                  ))}
+                </div>
+              ) : activeLiveAuctions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/80 bg-muted/20 p-10 text-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                    <span className="material-symbols-outlined text-3xl text-primary/60">
+                      star
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-bold text-foreground">
+                    No recommendations right now
+                  </h4>
+                  <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                    There are no open auctions that match your profile at the moment. Explore the market
+                    or check back shortly.
+                  </p>
+                  <Link href="/feed" className="mt-5">
+                    <Button size="sm">Browse All Auctions</Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {activeLiveAuctions.slice(0, 4).map((auction) => (
+                    <AuctionCard
+                      key={auction.id}
+                      id={auction.id}
+                      title={auction.title}
+                      category={auction.auctionCategory || undefined}
+                      currentBidAmount={parseFloat(auction.minBid) || 0}
+                      endAt={auction.endAt}
+                      status={
+                        auction.status as
+                          | "OPEN"
+                          | "SCHEDULED"
+                          | "REVEAL"
+                          | "CLOSED"
+                      }
+                      images={auction.image ? [auction.image] : []}
+                    />
+                  ))}
+                </div>
+              )}
+            </PanelCard>
           </div>
-
-          {isLoadingLive ? (
-            <div className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="min-w-[300px] h-80 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-pulse"
-                ></div>
-              ))}
-            </div>
-          ) : activeLiveAuctions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 p-12 text-center bg-white dark:bg-slate-900 shadow-sm">
-              <div className="h-16 w-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-4xl text-primary/40">
-                  rocket_launch
-                </span>
-              </div>
-              <h4 className="text-xl font-bold text-coffee-bean dark:text-slate-100 mb-2">
-                No live auctions right now
-              </h4>
-              <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-sm">
-                There are currently no open auctions running on the platform.
-                Check back soon or explore the feed.
-              </p>
-              <Link
-                href="/feed"
-                className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
-              >
-                <span>Browse All Auctions</span>
-                <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
-                  arrow_forward
-                </span>
-              </Link>
-            </div>
-          ) : (
-            <div className="hide-scrollbar flex gap-6 overflow-x-auto pb-4">
-              {activeLiveAuctions.map((auction) => (
-                <AuctionCard
-                  key={auction.id}
-                  id={auction.id}
-                  title={auction.title}
-                  region={auction.auctionCategory || "N/A"}
-                  type={auction.auctionType}
-                  currentBid={`ETB ${auction.minBid}`}
-                  priceLabel="Starting Price"
-                  description={
-                    auction.itemDescription.length > 60
-                      ? `${auction.itemDescription.substring(0, 60)}...`
-                      : auction.itemDescription
-                  }
-                  timeLeft={formatTimeLeft(auction.endAt, currentTime)}
-                  image={auction.image || ""}
-                  endingSoon={
-                    new Date(auction.endAt).getTime() - currentTime.getTime() <
-                    24 * 60 * 60 * 1000
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+        </PageSection>
+      </PageContainer>
+    </PageShell>
   );
 }

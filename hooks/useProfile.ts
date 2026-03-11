@@ -1,16 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { graphQLApiClient } from "../lib/graphql-api";
-import { FollowRequest, User } from "../lib/types";
-
-// Query keys for better cache management
-export const profileQueryKeys = {
-  profile: ["profile"] as const,
-  followers: ["followers"] as const,
-  following: ["following"] as const,
-  followRequests: ["followRequests"] as const,
-  blockedUsers: ["blockedUsers"] as const,
-  ratingSummary: ["ratingSummary"] as const,
-};
+import { profileQueryKeys } from "../lib/query-keys";
+import { FollowRequest, RatingSummaryResponse, User } from "../lib/types";
 
 // Hook for fetching current user's profile
 export function useMyProfile() {
@@ -239,8 +231,13 @@ export function useUpdateMyProfile() {
       isPrivate?: boolean;
     }) => graphQLApiClient.updateMyProfile(data),
     onSuccess: () => {
+      toast.success("Profile updated successfully!");
       // Invalidate profile query
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.profile });
+    },
+    onError: (error) => {
+      console.error("Profile update error:", error);
+      // Let the component handle the toast
     },
   });
 }
@@ -251,8 +248,13 @@ export function useRemoveMyProfileImage() {
   return useMutation({
     mutationFn: () => graphQLApiClient.removeMyProfileImage(),
     onSuccess: () => {
+      toast.success("Profile image removed successfully!");
       // Invalidate profile query
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.profile });
+    },
+    onError: (error) => {
+      console.error("Profile image removal error:", error);
+      // Let component handle the toast
     },
   });
 }

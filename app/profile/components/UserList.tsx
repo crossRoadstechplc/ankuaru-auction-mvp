@@ -1,210 +1,118 @@
-"use client";
-
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { EmptyState } from "@/src/components/ui/empty-state";
+import { LoadingState } from "@/src/components/ui/loading-state";
 import { User } from "../../../lib/types";
-import { graphQLApiClient } from "../../../lib/graphql-api";
-import { toast } from "sonner";
 
-interface UserListProps {
+export interface UserListProps {
   users: User[];
-  title: string;
-  emptyMessage: string;
+  title?: string;
+  emptyMessage?: string;
   showFollowButton?: boolean;
   showUnfollowButton?: boolean;
   showBlockButton?: boolean;
   showUnblockButton?: boolean;
+  onFollow?: (userId: string) => void;
+  onUnfollow?: (userId: string) => void;
+  onBlock?: (userId: string) => void;
+  onUnblock?: (userId: string) => void;
+  className?: string;
+  isLoading?: boolean;
 }
 
-export default function UserList({
+export function UserList({
   users,
   title,
-  emptyMessage,
-  showFollowButton = false,
-  showUnfollowButton = false,
+  emptyMessage = "No users found.",
+  showFollowButton = true,
+  showUnfollowButton = true,
   showBlockButton = false,
   showUnblockButton = false,
+  onFollow,
+  onUnfollow,
+  onBlock,
+  onUnblock,
+  className,
+  isLoading = false,
 }: UserListProps) {
-  const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+  if (isLoading)
+    return <LoadingState type="list" count={4} className={className} />;
 
-  const handleFollow = async (userId: string) => {
-    setLoadingUserId(userId);
-    try {
-      await graphQLApiClient.followUser(userId);
-      toast.success("User followed successfully!");
-    } catch (error) {
-      toast.error("Failed to follow user");
-    } finally {
-      setLoadingUserId(null);
-    }
-  };
-
-  const handleUnfollow = async (userId: string) => {
-    setLoadingUserId(userId);
-    try {
-      await graphQLApiClient.unfollowUser(userId);
-      toast.success("User unfollowed successfully!");
-    } catch (error) {
-      toast.error("Failed to unfollow user");
-    } finally {
-      setLoadingUserId(null);
-    }
-  };
-
-  const handleBlock = async (userId: string) => {
-    if (!window.confirm("Are you sure you want to block this user?")) return;
-    
-    setLoadingUserId(userId);
-    try {
-      await graphQLApiClient.blockUser(userId);
-      toast.success("User blocked successfully!");
-    } catch (error) {
-      toast.error("Failed to block user");
-    } finally {
-      setLoadingUserId(null);
-    }
-  };
-
-  const handleUnblock = async (userId: string) => {
-    setLoadingUserId(userId);
-    try {
-      await graphQLApiClient.unblockUser(userId);
-      toast.success("User unblocked successfully!");
-    } catch (error) {
-      toast.error("Failed to unblock user");
-    } finally {
-      setLoadingUserId(null);
-    }
-  };
-
-  if (users.length === 0) {
+  if (!users.length) {
     return (
-      <div className="text-center py-12">
-        <div className="h-16 w-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="material-symbols-outlined text-2xl text-slate-400">
-            person_off
-          </span>
-        </div>
-        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-          No {title.toLowerCase()}
-        </h3>
-        <p className="text-slate-600 dark:text-slate-400">{emptyMessage}</p>
-      </div>
+      <EmptyState
+        iconName="group"
+        title={title || "No Users"}
+        description={emptyMessage}
+        className={cn("min-h-[200px]", className)}
+      />
     );
   }
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-        {title} ({users.length})
-      </h3>
-      <div className="space-y-3">
-        {users.map((user) => (
-          <div
-            key={user.id}
-            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
-                {user.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.fullName || user.username}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="material-symbols-outlined text-xl text-slate-400 dark:text-slate-500">
-                    person
-                  </span>
-                )}
+    <div className={cn("flex flex-col gap-4", className)}>
+      {users.map((user) => (
+        <Card key={user.id} className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-semibold">
+                {user.username?.[0] || user.fullName?.[0] || "?"}
               </div>
               <div>
-                <h4 className="font-medium text-slate-900 dark:text-white">
-                  {user.fullName || user.username}
-                </h4>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  @{user.username}
+                <p className="font-medium text-foreground">
+                  {user.username || user.fullName}
                 </p>
-                {user.rating && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <span className="material-symbols-outlined text-xs text-amber-500">
-                      star
-                    </span>
-                    <span className="text-xs text-slate-600 dark:text-slate-400">
-                      {user.rating.toFixed(1)}
-                    </span>
-                  </div>
-                )}
+                <p className="text-sm text-muted-foreground">{user.email}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {showFollowButton && (
-                <button
-                  onClick={() => handleFollow(user.id)}
-                  disabled={loadingUserId === user.id}
-                  className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              {showFollowButton && onFollow && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onFollow(user.id)}
                 >
-                  {loadingUserId === user.id ? (
-                    <span className="material-symbols-outlined text-sm animate-spin">
-                      refresh
-                    </span>
-                  ) : (
-                    "Follow"
-                  )}
-                </button>
+                  Follow
+                </Button>
               )}
 
-              {showUnfollowButton && (
-                <button
-                  onClick={() => handleUnfollow(user.id)}
-                  disabled={loadingUserId === user.id}
-                  className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              {showUnfollowButton && onUnfollow && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onUnfollow(user.id)}
                 >
-                  {loadingUserId === user.id ? (
-                    <span className="material-symbols-outlined text-sm animate-spin">
-                      refresh
-                    </span>
-                  ) : (
-                    "Unfollow"
-                  )}
-                </button>
+                  Unfollow
+                </Button>
               )}
 
-              {showBlockButton && (
-                <button
-                  onClick={() => handleBlock(user.id)}
-                  disabled={loadingUserId === user.id}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              {showBlockButton && onBlock && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => onBlock(user.id)}
                 >
-                  {loadingUserId === user.id ? (
-                    <span className="material-symbols-outlined text-sm animate-spin">
-                      refresh
-                    </span>
-                  ) : (
-                    "Block"
-                  )}
-                </button>
+                  Block
+                </Button>
               )}
 
-              {showUnblockButton && (
-                <button
-                  onClick={() => handleUnblock(user.id)}
-                  disabled={loadingUserId === user.id}
-                  className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              {showUnblockButton && onUnblock && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onUnblock(user.id)}
                 >
-                  {loadingUserId === user.id ? (
-                    <span className="material-symbols-outlined text-sm animate-spin">
-                      refresh
-                    </span>
-                  ) : (
-                    "Unblock"
-                  )}
-                </button>
+                  Unblock
+                </Button>
               )}
             </div>
           </div>
-        ))}
-      </div>
+        </Card>
+      ))}
     </div>
   );
 }
+
+export default UserList;

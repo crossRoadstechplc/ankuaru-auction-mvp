@@ -259,7 +259,10 @@ export class GraphQLClient {
       // More defensive error message extraction
       let errorMessage: string;
       try {
-        if (error instanceof Error && error.message) {
+        // Handle null/undefined errors first
+        if (!error) {
+          errorMessage = "Network error occurred";
+        } else if (error instanceof Error && error.message) {
           errorMessage = error.message;
         } else if (typeof error === "string") {
           errorMessage = error;
@@ -269,7 +272,8 @@ export class GraphQLClient {
           Object.keys(error).length > 0
         ) {
           // Handle error objects with properties
-          errorMessage = error.message || error.error || String(error);
+          const errorObj = error as any;
+          errorMessage = errorObj.message || errorObj.error || String(error);
         } else {
           // Handle empty objects, null, undefined, etc.
           errorMessage = "Network error occurred";

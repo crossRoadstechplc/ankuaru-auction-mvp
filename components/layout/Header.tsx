@@ -1,10 +1,21 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useMyFollowers } from "../../hooks/useFollowers";
 import { useNotificationsWithRealTime } from "../../hooks/useNotifications";
+import { useMyFollowRequests } from "../../hooks/useProfile";
+import { graphQLApiClient } from "../../lib/graphql-api";
 import { Notification } from "../../lib/types";
 import { useAuthStore } from "../../stores/auth.store";
 import ThemeToggle from "../ui/ThemeToggle";
@@ -13,6 +24,7 @@ export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isFollowersOpen, setIsFollowersOpen] = useState(false);
+  const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
   // React Query hooks
@@ -24,6 +36,11 @@ export default function Header() {
     markAsRead,
     isLoading: isLoadingNotifications,
   } = useNotificationsWithRealTime();
+  const {
+    data: followRequests = [],
+    isLoading: isLoadingRequests,
+    refetch: refetchRequests,
+  } = useMyFollowRequests();
 
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -36,6 +53,26 @@ export default function Header() {
       await markAsRead(n.id);
     }
     // Handle notification navigation logic here
+  };
+
+  const handleApproveRequest = async (requestId: string) => {
+    try {
+      await graphQLApiClient.approveFollowRequest(requestId);
+      toast.success("Follow request approved!");
+      refetchRequests();
+    } catch (error) {
+      toast.error("Failed to approve follow request");
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      await graphQLApiClient.rejectFollowRequest(requestId);
+      toast.success("Follow request rejected!");
+      refetchRequests();
+    } catch (error) {
+      toast.error("Failed to reject follow request");
+    }
   };
 
   const changePage = () => {
@@ -69,6 +106,7 @@ export default function Header() {
     setIsNotificationsOpen(false);
     setIsProfileOpen(false);
     setIsFollowersOpen(false);
+    setIsRequestsOpen(false);
     window.location.href = "/login";
   };
 
@@ -91,337 +129,358 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-coffee-bean/10 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 md:px-10 lg:px-40 py-3">
-      <div className="mx-auto flex max-w-[1200px] items-center justify-between relative">
-        {/* Logo */}
-        <Link href="/feed" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
-            <span className="material-symbols-outlined text-2xl">coffee</span>
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-xl font-extrabold leading-none tracking-tight text-coffee-bean dark:text-slate-100">
-              Ankuaru
-            </h1>
-          </div>
-        </Link>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <Link href="/feed" className="flex items-center space-x-3 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white shadow-sm group-hover:shadow-md transition-shadow">
+              <span className="material-symbols-outlined text-lg">coffee</span>
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-lg font-bold leading-none tracking-tight text-foreground group-hover:text-primary transition-colors">
+                Ankuaru
+              </h1>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                B2B Auctions
+              </span>
+            </div>
+          </Link>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-4">
-          {isAuthenticated ? (
-            <>
-              <button
-                onClick={changePage}
-                className="relative flex h-10 px-4 items-center justify-center gap-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200"
-                title={pathname === "/feed" ? "Go to Dashboard" : "Go to Feed"}
-              >
-                <span className="material-symbols-outlined">
-                  {pathname === "/feed" ? "space_dashboard" : "dynamic_feed"}
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center space-x-1">
+            <Button
+              variant={pathname === "/feed" ? "secondary" : "ghost"}
+              size="sm"
+              asChild
+            >
+              <Link href="/feed" className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">
+                  storefront
                 </span>
-                <span className="text-sm font-semibold hidden sm:block">
-                  {pathname === "/feed" ? "Dashboard" : "Feed"}
+                Marketplace
+              </Link>
+            </Button>
+            <Button
+              variant={pathname === "/dashboard" ? "secondary" : "ghost"}
+              size="sm"
+              asChild
+            >
+              <Link href="/dashboard" className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">
+                  dashboard
                 </span>
-              </button>
+                Dashboard
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/track" className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">
+                  track_changes
+                </span>
+                Track
+              </Link>
+            </Button>
+          </nav>
 
-              <button
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200"
-                title="Notifications"
-              >
-                <span className="material-symbols-outlined">notifications</span>
-                {unreadCount > 0 && (
-                  <span className="absolute right-2.5 top-2.5 flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
-                  </span>
-                )}
-              </button>
-
-              <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700"></div>
-
-              <div
-                className="flex items-center gap-3 relative"
-                ref={profileRef}
-              >
-                {user && (
-                  <div className="hidden text-right md:block">
-                    <p className="text-sm font-bold leading-none">
-                      {user.username}
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-500">
-                      Master Roaster
-                    </p>
-                  </div>
-                )}
-                <button
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="h-10 w-10 rounded-full border-2 border-white dark:border-slate-700 bg-coffee-cream shadow-sm overflow-hidden hover:opacity-80 transition-opacity"
+          {/* Right Actions */}
+          <div className="flex items-center space-x-2">
+            <ThemeToggle />
+            {isAuthenticated ? (
+              <>
+                {/* Notifications */}
+                <DropdownMenu
+                  open={isNotificationsOpen}
+                  onOpenChange={setIsNotificationsOpen}
                 >
-                  <img
-                    alt="Avatar"
-                    className="h-full w-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYzTLgf9Glq2aTVTcK4XYI5sjPBX-ADGt3SDQVQphrpXikLgiGDgQ4BBKFZ3Mv_BRjChOVtU2n69B24rghLJNgdDs5lYM0qgauupN1jDoxI0Udv6lZi9QafFa4R67fljtUcVAiOVlUC1ZtSO7HNsPHJLvklrDcchEy6IjHACP6jjtInyJecVWe5Oy41QTBrjHHXKB60oIksw7KpsjeAcU-wPWrcLn7dBqUYBXBX_H7O4WJkYVPMwXK57I4duHDV86iNTXFW3f1ys4"
-                  />
-                </button>
-                {isProfileOpen && (
-                  <div className="absolute right-0 top-12 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 z-[100]">
-                    <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-                      {/* <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                        {user?.username || "Account"}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Signed in
-                      </p> */}
-
-                      {/* User ID Section */}
-                      {user?.id && (
-                        <div className="mt-3 flex items-center justify-between rounded-md bg-slate-50 dark:bg-slate-800/80 p-2 border border-slate-200 dark:border-slate-700">
-                          <div className="flex flex-col overflow-hidden">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-0.5">
-                              User ID
-                            </span>
-                            <p
-                              className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate"
-                              title={user.id}
-                            >
-                              {user.id}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(user.id);
-                              setIsCopied(true);
-                              setTimeout(() => setIsCopied(false), 2000);
-                            }}
-                            className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ml-2 transition-colors ${
-                              isCopied
-                                ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                                : "bg-white text-slate-500 hover:text-primary hover:bg-primary/10 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                            }`}
-                            title="Copy ID"
+                  <DropdownMenuTrigger className="relative h-9 w-9 rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+                    <span className="material-symbols-outlined">
+                      notifications
+                    </span>
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                      >
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <div className="flex items-center justify-between p-4">
+                      <h3 className="font-semibold">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {unreadCount} new
+                        </Badge>
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="max-h-96 overflow-y-auto">
+                      {isLoadingNotifications ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Loading notifications...
+                        </div>
+                      ) : notifications && notifications.length > 0 ? (
+                        notifications.slice(0, 5).map((n) => (
+                          <DropdownMenuItem
+                            key={n.id}
+                            onClick={() => handleNotificationClick(n)}
+                            className="flex flex-col items-start p-4 cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-[14px]">
-                              {isCopied ? "check" : "content_copy"}
-                            </span>
-                          </button>
+                            <div className="flex w-full items-start gap-3">
+                              <span
+                                className={`material-symbols-outlined text-sm mt-0.5 ${
+                                  n.type === "AUCTION_WON" ||
+                                  n.type === "success"
+                                    ? "text-green-600"
+                                    : n.type === "fail"
+                                      ? "text-red-600"
+                                      : "text-amber-600"
+                                }`}
+                              >
+                                {n.type === "AUCTION_WON" ||
+                                n.type === "success"
+                                  ? "check_circle"
+                                  : n.type === "fail"
+                                    ? "error"
+                                    : "notifications"}
+                              </span>
+                              <div className="flex flex-col gap-1 flex-1">
+                                <p
+                                  className={`text-sm ${!n.is_read ? "font-semibold" : "font-medium"} text-foreground`}
+                                >
+                                  {n.title || n.message || (n as any).text}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(n.created_at).toLocaleTimeString()}
+                                </p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No notifications yet.
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center justify-between px-4 py-3">
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Theme
-                      </p>
-                      <ThemeToggle />
+                    {notifications && notifications.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="p-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            asChild
+                          >
+                            <Link href="/notifications">
+                              View all notifications
+                            </Link>
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Follow Requests */}
+                <DropdownMenu
+                  open={isRequestsOpen}
+                  onOpenChange={setIsRequestsOpen}
+                >
+                  <DropdownMenuTrigger className="relative h-9 w-9 rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+                    <span className="material-symbols-outlined">group_add</span>
+                    {followRequests.length > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                      >
+                        {followRequests.length}
+                      </Badge>
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <div className="flex items-center justify-between p-4">
+                      <h3 className="font-semibold">Follow Requests</h3>
+                      {followRequests.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {followRequests.length} pending
+                        </Badge>
+                      )}
                     </div>
-                    <button
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        router.push("/track");
-                      }}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 border-b border-slate-100 dark:border-slate-800"
+                    <Separator />
+                    <div className="max-h-96 overflow-y-auto">
+                      {isLoadingRequests ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Loading requests...
+                        </div>
+                      ) : followRequests && followRequests.length > 0 ? (
+                        followRequests.slice(0, 5).map((request) => (
+                          <div
+                            key={request.id}
+                            className="flex flex-col items-start p-4"
+                          >
+                            <div className="flex w-full items-start gap-3">
+                              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                                {request.requester?.avatar ? (
+                                  <img
+                                    src={request.requester?.avatar}
+                                    alt={
+                                      request.requester?.fullName ||
+                                      request.requester?.username
+                                    }
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="material-symbols-outlined text-sm">
+                                    person
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-1 flex-1">
+                                <p className="text-sm font-medium text-foreground">
+                                  {request.requester?.fullName ||
+                                    request.requester?.username}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  @{request.requester?.username}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(
+                                    request.createdAt,
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={() => handleApproveRequest(request.id)}
+                                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg font-medium transition-colors"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectRequest(request.id)}
+                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded-lg font-medium transition-colors"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No follow requests.
+                        </div>
+                      )}
+                    </div>
+                    {followRequests && followRequests.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="p-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                              setIsRequestsOpen(false);
+                              router.push("/profile?tab=requests");
+                            }}
+                          >
+                            View all requests
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Profile Dropdown */}
+                <DropdownMenu
+                  open={isProfileOpen}
+                  onOpenChange={setIsProfileOpen}
+                >
+                  <DropdownMenuTrigger className="h-8 w-8 rounded-full border border-border bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 overflow-hidden">
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.username || "Profile"}
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                        {user?.username?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="flex items-center justify-start gap-2 p-2">
+                      <div className="flex flex-col space-y-1 leading-none">
+                        <p className="font-medium">{user?.username}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {user?.email}
+                        </p>
+                      </div>
+                    </div>
+                    <Separator />
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => router.push("/profile")}
                     >
-                      <span className="material-symbols-outlined text-base">
-                        visibility
-                      </span>
-                      Track Auction
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsProfileOpen(false);
-                        router.push("/profile");
-                      }}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50"
-                    >
-                      <span className="material-symbols-outlined text-base">
+                      <span className="material-symbols-outlined text-sm">
                         person
                       </span>
                       My Profile
-                    </button>
-                    <button
-                      onClick={handleFollowersClick}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50"
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => router.push("/track")}
                     >
-                      <span className="material-symbols-outlined text-base">
-                        group
+                      <span className="material-symbols-outlined text-sm">
+                        track_changes
                       </span>
-                      Followers
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                      Track Auction
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        navigator.clipboard.writeText(user?.id || "");
+                        setIsCopied(true);
+                        setTimeout(() => setIsCopied(false), 2000);
+                      }}
+                      className="flex items-center gap-2"
                     >
-                      <span className="material-symbols-outlined text-base">
+                      <span className="material-symbols-outlined text-sm">
+                        {isCopied ? "check" : "copy_all"}
+                      </span>
+                      Copy User ID
+                    </DropdownMenuItem>
+                    <Separator />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 text-red-600 focus:text-red-600"
+                    >
+                      <span className="material-symbols-outlined text-sm">
                         logout
                       </span>
                       Logout
-                    </button>
-                  </div>
-                )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/login">Sign In</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link href="/register">Get Started</Link>
+                </Button>
               </div>
-            </>
-          ) : (
-            <>
-              {/* <Link
-                href="/login"
-                className="bg-primary hover:bg-primary-dark active:scale-[0.98] text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined">login</span>
-                Login
-              </Link>
-              <Link
-                href="/register"
-                className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg px-6 py-2.5 font-semibold transition-all flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined">how_to_reg</span>
-                Register
-              </Link> */}
-            </>
-          )}
+            )}
+          </div>
         </div>
-
-        {/* Notifications Modal */}
-        {isNotificationsOpen && (
-          <div className="absolute top-16 right-0 w-[90vw] md:w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 z-[100]">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-              <h3 className="font-bold text-slate-900 dark:text-white">
-                Notifications
-              </h3>
-              <button
-                onClick={() => setIsNotificationsOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {isLoadingNotifications ? (
-                <div className="p-6 text-center text-sm text-slate-500">
-                  Loading notifications...
-                </div>
-              ) : notifications && notifications.length > 0 ? (
-                notifications.slice(0, 3).map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => handleNotificationClick(n)}
-                    className={`p-4 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer ${
-                      !n.is_read ? "bg-slate-50 dark:bg-slate-800/50" : ""
-                    }`}
-                  >
-                    <div className="flex gap-3">
-                      <span
-                        className={`material-symbols-outlined text-xl ${
-                          n.type === "AUCTION_WON" || n.type === "success"
-                            ? "text-primary"
-                            : n.type === "fail"
-                              ? "text-red-500"
-                              : "text-amber-500"
-                        }`}
-                      >
-                        {n.type === "AUCTION_WON" || n.type === "success"
-                          ? "check_circle"
-                          : n.type === "fail"
-                            ? "error"
-                            : "notifications"}
-                      </span>
-                      <div className="flex flex-col gap-1 w-full justify-center">
-                        <p
-                          className={`text-xs ${!n.is_read ? "font-bold" : "font-medium"} text-slate-800 dark:text-slate-200 leading-normal`}
-                        >
-                          {n.title || n.message || (n as any).text}
-                        </p>
-                        {n.winner_agreement_file_url && (
-                          <div className="mt-1">
-                            <a
-                              href={n.winner_agreement_file_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleNotificationClick(n);
-                              }}
-                            >
-                              <span className="material-symbols-outlined text-[14px]">
-                                picture_as_pdf
-                              </span>
-                              View PDF
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-6 text-center text-sm text-slate-500">
-                  No notifications yet.
-                </div>
-              )}
-            </div>
-            <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-              <Link
-                href="/notifications"
-                onClick={() => {
-                  sessionStorage.setItem("returnUrl", window.location.pathname);
-                  setIsNotificationsOpen(false);
-                }}
-                className="block w-full text-center text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
-              >
-                View All Notifications
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Followers Modal */}
-        {isFollowersOpen && (
-          <div className="absolute top-16 right-0 w-[90vw] md:w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-4 z-[100]">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-              <h3 className="font-bold text-slate-900 dark:text-white">
-                My Followers
-              </h3>
-              <button
-                onClick={() => setIsFollowersOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-            <div className="max-h-96 overflow-y-auto p-4">
-              {isLoadingFollowers ? (
-                <div className="flex justify-center p-4">
-                  <span className="material-symbols-outlined animate-spin text-primary">
-                    autorenew
-                  </span>
-                </div>
-              ) : followers && followers.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {followers.map((f) => (
-                    <div key={f.id} className="flex justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm font-bold uppercase">
-                          {f.username?.[0] || "?"}
-                        </div>
-                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                          {f.username}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleUnfollow(f.id)}
-                        className="text-sm font-medium text-slate-800 dark:text-slate-200 px-2 py-1 cursor-pointer rounded-md bg-red-200 dark:bg-red-200"
-                      >
-                        Unfollow
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
-                  No followers yet.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

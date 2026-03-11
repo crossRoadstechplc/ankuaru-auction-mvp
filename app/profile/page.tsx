@@ -1,7 +1,15 @@
 "use client";
 
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageSection } from "@/components/layout/page-section";
+import { PageShell } from "@/components/layout/page-shell";
+import { PanelCard } from "@/components/layout/panel-card";
+import { Button } from "@/components/ui/button";
+import { ProfileSummaryCard } from "@/src/components/domain/profile/profile-summary-card";
+import { LoadingState } from "@/src/components/ui/loading-state";
 import { useState } from "react";
-import StatsCard from "../../components/dashboard/StatsCard";
+import { toast } from "sonner";
 import {
     useMyBlockedUsers,
     useMyFollowers,
@@ -9,19 +17,20 @@ import {
     useMyFollowRequests,
     useMyProfile,
     useMyRatingSummary,
+    useRemoveMyProfileImage,
     useUpdateMyProfile,
 } from "../../hooks/useProfile";
 import { useAuthStore } from "../../stores/auth.store";
 import EditProfileModal from "./components/EditProfileModal";
-import ProfileHeader from "./components/ProfileHeader";
+import ProfileSettingsModal from "./components/ProfileSettingsModal";
 import ProfileTabs from "./components/ProfileTabs";
 
 export default function ProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const { isAuthenticated } = useAuthStore();
 
-  // React Query hooks for data fetching
   const { data: profile, isLoading: profileLoading } = useMyProfile();
   const { data: followers = [], isLoading: followersLoading } =
     useMyFollowers();
@@ -35,113 +44,183 @@ export default function ProfilePage() {
     useMyRatingSummary();
 
   const updateProfileMutation = useUpdateMyProfile();
+  const removeProfileImageMutation = useRemoveMyProfileImage();
+  const completionItems = [
+    Boolean(profile?.fullName),
+    Boolean(profile?.bio),
+    Boolean(profile?.avatar || profile?.profileImageUrl),
+    Boolean(profile?.email),
+  ];
+  const completionPercent = Math.round(
+    (completionItems.filter(Boolean).length / completionItems.length) * 100,
+  );
 
   if (!isAuthenticated) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-            Please Login
-          </h2>
-          <p className="text-slate-600 dark:text-slate-400">
-            You need to be logged in to view your profile.
-          </p>
-        </div>
-      </div>
+      <PageShell>
+        <PageContainer className="flex h-[50vh] items-center justify-center text-center">
+          <div>
+            <h2 className="mb-2 text-2xl font-bold">Please Login</h2>
+            <p className="text-muted-foreground">
+              You need to be logged in to view your profile.
+            </p>
+          </div>
+        </PageContainer>
+      </PageShell>
     );
   }
 
   if (profileLoading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-      </div>
+      <PageShell>
+        <PageContainer className="py-8">
+          <LoadingState type="card" count={1} className="mb-8" />
+          <LoadingState type="list" count={3} />
+        </PageContainer>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <div className="container mx-auto max-w-6xl px-4 py-8">
-        {/* Back to Home Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => (window.location.href = "/")}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-            Back to Home
-          </button>
-        </div>
-        {/* Profile Header */}
-        <ProfileHeader
-          profile={profile!}
-          onEditProfile={() => setIsEditModalOpen(true)}
-          followersCount={followers.length}
-          followingCount={following.length}
-          rating={
-            ratingSummary?.user?.averageRating
-              ? parseFloat(ratingSummary.user.averageRating)
-              : 0
+    <PageShell>
+      <PageContainer className="space-y-8 py-8 md:py-10">
+        <PageHeader
+          title="My Profile"
+          description="Manage your account details, followers, and privacy settings."
+          actions={
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                window.location.href = "/";
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">
+                arrow_back
+              </span>
+              Back to Home
+            </Button>
           }
         />
 
-        {/* Profile Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <StatsCard
-            label="Followers"
-            value={followersLoading ? "..." : followers.length.toString()}
-            icon="people"
-          />
-          <StatsCard
-            label="Following"
-            value={followingLoading ? "..." : following.length.toString()}
-            icon="person_add"
-          />
-          <StatsCard
-            label="Rating"
-            value={
-              ratingLoading
-                ? "..."
-                : ratingSummary?.user?.averageRating
-                  ? parseFloat(ratingSummary.user.averageRating).toFixed(1)
-                  : "0.0"
-            }
-            icon="star"
-          />
-          <StatsCard
-            label="Reviews"
-            value={
-              ratingLoading
-                ? "..."
-                : ratingSummary?.user?.ratingsCount?.toString() || "0"
-            }
-            icon="review"
-          />
-        </div>
+        <PageSection>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <ProfileSummaryCard
+              className="xl:col-span-8"
+              username={profile?.username || ""}
+              displayName={profile?.fullName}
+              bio={profile?.bio}
+              avatarUrl={profile?.avatar}
+              followersCount={followers.length}
+              followingCount={following.length}
+              joinedAt={profile?.createdAt}
+              isVerified={false}
+              actions={
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 justify-start gap-2"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditModalOpen(true)}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      edit
+                    </span>
+                    Edit Profile
+                  </Button>
+                  <Button
+                    className="flex-1 justify-start gap-2"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab("settings")}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      settings
+                    </span>
+                    Settings
+                  </Button>
+                  <Button
+                    className="flex-1 justify-start gap-2"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab("requests")}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      group_add
+                    </span>
+                    Requests
+                  </Button>
+                </div>
+              }
+            />
 
-        {/* Profile Tabs */}
-        <ProfileTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          followers={followers}
-          following={following}
-          followRequests={followRequests}
-          blockedUsers={blockedUsers}
-          profile={profile}
-          ratingSummary={{
-            averageRating: ratingSummary?.user?.averageRating
-              ? parseFloat(ratingSummary.user.averageRating)
-              : 0,
-            totalRatings: ratingSummary?.user?.ratingsCount || 0,
-            ratingDistribution: {},
-            recentReviews: [],
-          }}
-        />
+            <div className="space-y-6 xl:col-span-4">
+              <PanelCard
+                title="Account Health"
+                description="Recommended updates for a stronger profile."
+                bodyClassName="space-y-3"
+              >
+                <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      Profile Completion
+                    </span>
+                    <span className="text-sm font-bold text-foreground">
+                      {completionPercent}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${completionPercent}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Bio Added</span>
+                    <span className="font-medium text-foreground">
+                      {profile?.bio ? "Complete" : "Missing"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Avatar Added</span>
+                    <span className="font-medium text-foreground">
+                      {profile?.avatar || profile?.profileImageUrl
+                        ? "Complete"
+                        : "Missing"}
+                    </span>
+                  </div>
+                </div>
+              </PanelCard>
+            </div>
+          </div>
+        </PageSection>
 
-        {/* Edit Profile Modal */}
-        {isEditModalOpen && (
-          <EditProfileModal
+        <PageSection>
+          <ProfileTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            followers={followers}
+            following={following}
+            followRequests={followRequests}
+            blockedUsers={blockedUsers}
             profile={profile!}
+            isLoadingSummary={ratingLoading}
+            ratingSummary={{
+              averageRating: ratingSummary?.user?.averageRating
+                ? parseFloat(ratingSummary.user.averageRating)
+                : 0,
+              totalRatings: ratingSummary?.user?.ratingsCount || 0,
+              ratingDistribution: {},
+              recentReviews: [],
+            }}
+          />
+        </PageSection>
+
+        {isEditModalOpen && profile ? (
+          <EditProfileModal
+            profile={profile}
             onClose={() => setIsEditModalOpen(false)}
             onSave={async (data) => {
               try {
@@ -149,11 +228,53 @@ export default function ProfilePage() {
                 setIsEditModalOpen(false);
               } catch (error) {
                 console.error("Failed to update profile:", error);
+                toast.error("Failed to update profile. Please try again.");
+              }
+            }}
+            onRemoveImage={async () => {
+              try {
+                await removeProfileImageMutation.mutateAsync();
+              } catch (error) {
+                console.error("Failed to remove profile image:", error);
+                toast.error(
+                  "Failed to remove profile image. Please try again.",
+                );
               }
             }}
           />
-        )}
-      </div>
-    </div>
+        ) : null}
+
+        {isSettingsModalOpen && profile ? (
+          <ProfileSettingsModal
+            profile={profile}
+            onClose={() => setIsSettingsModalOpen(false)}
+            onEditProfile={() => {
+              setIsSettingsModalOpen(false);
+              setIsEditModalOpen(true);
+            }}
+            onRemoveImage={async () => {
+              try {
+                await removeProfileImageMutation.mutateAsync();
+              } catch (error) {
+                console.error("Failed to remove profile image:", error);
+              }
+            }}
+            onTogglePrivacy={async () => {
+              try {
+                await updateProfileMutation.mutateAsync({
+                  isPrivate: !profile.isPrivate,
+                });
+              } catch (error) {
+                console.error("Failed to toggle privacy:", error);
+              }
+            }}
+            onDeactivateAccount={async () => {
+              // This would need to be implemented in the backend
+              console.log("Account deactivation not implemented yet");
+            }}
+          />
+        ) : null}
+      </PageContainer>
+    </PageShell>
   );
 }

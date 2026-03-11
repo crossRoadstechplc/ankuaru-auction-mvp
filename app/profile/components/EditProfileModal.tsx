@@ -1,6 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { User } from "../../../lib/types";
 
@@ -13,33 +23,96 @@ interface EditProfileModalProps {
     profileImageUrl?: string;
     isPrivate?: boolean;
   }) => Promise<void>;
+  onRemoveImage?: () => Promise<void>;
 }
 
 export default function EditProfileModal({
   profile,
   onClose,
   onSave,
+  onRemoveImage,
 }: EditProfileModalProps) {
   const [formData, setFormData] = useState({
     fullName: profile.fullName || "",
     bio: profile.bio || "",
-    profileImageUrl: profile.profileImageUrl || "",
+    profileImageUrl: profile.profileImageUrl || profile.avatar || "",
     isPrivate: profile.isPrivate || false,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemovingImage, setIsRemovingImage] = useState(false);
+  const [previewImage, setPreviewImage] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Update preview when image URL changes
+  useEffect(() => {
+    if (formData.profileImageUrl && formData.profileImageUrl !== previewImage) {
+      setPreviewImage(formData.profileImageUrl);
+    }
+  }, [formData.profileImageUrl, previewImage]);
+
+  // Character limits
+  const MAX_BIO_LENGTH = 500;
+  const MAX_FULL_NAME_LENGTH = 100;
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (formData.fullName && formData.fullName.length > MAX_FULL_NAME_LENGTH) {
+      newErrors.fullName = `Full name must be less than ${MAX_FULL_NAME_LENGTH} characters`;
+    }
+
+    if (formData.bio && formData.bio.length > MAX_BIO_LENGTH) {
+      newErrors.bio = `Bio must be less than ${MAX_BIO_LENGTH} characters`;
+    }
+
+    if (formData.profileImageUrl) {
+      try {
+        new URL(formData.profileImageUrl);
+      } catch {
+        newErrors.profileImageUrl = "Please enter a valid URL";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      toast.error("Please fix the errors in the form");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       await onSave(formData);
-      toast.success("Profile updated successfully!");
+      // Success toast will be handled by the mutation hook
       onClose();
     } catch (error) {
-      toast.error("Failed to update profile");
+      console.error("Profile update error:", error);
+      toast.error("Failed to update profile. Please try again.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (!onRemoveImage) return;
+
+    setIsRemovingImage(true);
+    try {
+      await onRemoveImage();
+      setFormData((prev) => ({ ...prev, profileImageUrl: "" }));
+      setPreviewImage("");
+      // Success toast will be handled by the mutation hook
+    } catch (error) {
+      console.error("Image removal error:", error);
+      toast.error("Failed to remove profile image");
+    } finally {
+      setIsRemovingImage(false);
     }
   };
 
@@ -55,124 +128,216 @@ export default function EditProfileModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-lg">edit</span>
             Edit Profile
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Profile Image Section */}
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold">Profile Image</label>
+            <div className="flex items-center gap-4">
+              {/* Avatar Preview */}
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full bg-muted border-2 border-border overflow-hidden">
+                  {previewImage ? (
+                    <img
+                      src={previewImage}
+                      alt="Profile preview"
+                      className="h-full w-full object-cover"
+                      onError={() => setPreviewImage("")}
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center">
+                      <span className="material-symbols-outlined text-2xl text-muted-foreground">
+                        person
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {previewImage && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    disabled={isRemovingImage}
+                    className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                  >
+                    {isRemovingImage ? (
+                      <span className="material-symbols-outlined text-xs animate-spin">
+                        refresh
+                      </span>
+                    ) : (
+                      <span className="material-symbols-outlined text-xs">
+                        close
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Image URL Input */}
+              <div className="flex-1">
+                <Input
+                  type="url"
+                  name="profileImageUrl"
+                  value={formData.profileImageUrl}
+                  onChange={handleChange}
+                  placeholder="https://example.com/image.jpg"
+                  className={errors.profileImageUrl ? "border-destructive" : ""}
+                />
+                {errors.profileImageUrl && (
+                  <p className="text-xs text-destructive mt-1">
+                    {errors.profileImageUrl}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Separator />
           {/* Full Name */}
-          <div>
-            <label
-              htmlFor="fullName"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >
+          <div className="space-y-2">
+            <label htmlFor="fullName" className="block text-sm font-semibold">
               Full Name
+              <span className="text-muted-foreground font-normal ml-1">
+                ({formData.fullName.length}/{MAX_FULL_NAME_LENGTH})
+              </span>
             </label>
-            <input
+            <Input
               type="text"
               id="fullName"
               name="fullName"
               value={formData.fullName}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Enter your full name"
+              className={errors.fullName ? "border-destructive" : ""}
             />
+            {errors.fullName && (
+              <p className="text-xs text-destructive">{errors.fullName}</p>
+            )}
           </div>
 
           {/* Bio */}
-          <div>
-            <label
-              htmlFor="bio"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >
+          <div className="space-y-2">
+            <label htmlFor="bio" className="block text-sm font-semibold">
               Bio
+              <span className="text-muted-foreground font-normal ml-1">
+                ({formData.bio.length}/{MAX_BIO_LENGTH})
+              </span>
             </label>
             <textarea
               id="bio"
               name="bio"
               value={formData.bio}
               onChange={handleChange}
-              rows={3}
-              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-              placeholder="Tell us about yourself"
+              rows={4}
+              className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none ${
+                errors.bio ? "border-destructive" : "border-border"
+              }`}
+              placeholder="Tell us about yourself, your interests, and what you're looking for..."
             />
+            {errors.bio && (
+              <p className="text-xs text-destructive">{errors.bio}</p>
+            )}
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                {formData.bio.length > 0 ? "Good" : "Add a bio"}
+              </Badge>
+              {formData.bio.length > 200 && (
+                <Badge variant="outline" className="text-xs">
+                  Detailed bio
+                </Badge>
+              )}
+            </div>
           </div>
 
-          {/* Profile Image URL */}
-          <div>
-            <label
-              htmlFor="profileImageUrl"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-            >
-              Profile Image URL
+          {/* Profile Image URL - Hidden (moved to top) */}
+          <input
+            type="hidden"
+            name="profileImageUrl"
+            value={formData.profileImageUrl}
+          />
+
+          {/* Privacy Settings */}
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold">
+              Privacy Settings
             </label>
-            <input
-              type="url"
-              id="profileImageUrl"
-              name="profileImageUrl"
-              value={formData.profileImageUrl}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="https://example.com/image.jpg"
-            />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="isPrivate"
+                    name="isPrivate"
+                    checked={formData.isPrivate}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
+                  />
+                  <div>
+                    <label
+                      htmlFor="isPrivate"
+                      className="block text-sm font-medium cursor-pointer"
+                    >
+                      Private Profile
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Only approved followers can see your content
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  variant={formData.isPrivate ? "default" : "secondary"}
+                  className="text-xs"
+                >
+                  {formData.isPrivate ? "Private" : "Public"}
+                </Badge>
+              </div>
+            </div>
           </div>
 
-          {/* Privacy Setting */}
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isPrivate"
-              name="isPrivate"
-              checked={formData.isPrivate}
-              onChange={handleChange}
-              className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded"
-            />
-            <label
-              htmlFor="isPrivate"
-              className="ml-2 block text-sm text-slate-700 dark:text-slate-300"
-            >
-              Private Profile
-            </label>
-          </div>
+          <Separator />
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
-            <button
+          <div className="flex gap-3 pt-2">
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              className="flex-1"
+              disabled={isSaving || isRemovingImage}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={isSaving}
-              className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSaving || isRemovingImage}
+              className="flex-1"
             >
               {isSaving ? (
                 <>
-                  <span className="material-symbols-outlined text-sm animate-spin">
+                  <span className="material-symbols-outlined text-sm animate-spin mr-2">
                     refresh
                   </span>
                   Saving...
                 </>
               ) : (
-                "Save Changes"
+                <>
+                  <span className="material-symbols-outlined text-sm mr-2">
+                    save
+                  </span>
+                  Save Changes
+                </>
               )}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

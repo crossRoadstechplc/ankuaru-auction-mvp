@@ -1,13 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { useState } from "react";
 import { toast } from "sonner";
-import {
-  useCloseAuction,
-  useMyBid,
-  usePlaceBid,
-  useRevealBid,
-} from "../../../../hooks/useAuctions";
+import { usePlaceBid, useRevealBid } from "../../../../hooks/useAuctions";
+import { useBiddingState } from "../../../../hooks/useBiddingState";
+import { useCountdownTimer } from "../../../../hooks/useCountdownTimer";
 import { useAuthStore } from "../../../../stores/auth.store";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
@@ -36,109 +34,6 @@ interface BiddingSidebarProps {
   onAuctionUpdate?: () => void;
 }
 
-// Helper function to generate SHA256 hash
-async function generateSHA256Hash(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return hashHex;
-}
-
-// Helper to calculate time remaining and determine auction status
-function getTimeRemaining(
-  startAt: string,
-  endAt: string,
-  status: string,
-): {
-  days: number;
-  hours: number;
-  minutes: number;
-  seconds: number;
-  isClosed: boolean;
-  shouldReveal: boolean;
-  isScheduled: boolean;
-  timeUntilStart?: {
-    days: number;
-    hours: number;
-    minutes: number;
-    seconds: number;
-  };
-} {
-  const now = new Date().getTime();
-  const start = new Date(startAt).getTime();
-  const end = new Date(endAt).getTime();
-
-  // If auction is SCHEDULED, calculate time until start
-  if (status === "SCHEDULED") {
-    const startDiff = start - now;
-
-    if (startDiff <= 0) {
-      // Should transition to OPEN, but still return as scheduled for safety
-      return {
-        days: 0,
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
-        isClosed: false,
-        shouldReveal: false,
-        isScheduled: true,
-        timeUntilStart: { days: 0, hours: 0, minutes: 0, seconds: 0 },
-      };
-    }
-
-    const days = Math.floor(startDiff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor(
-      (startDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-    );
-    const minutes = Math.floor((startDiff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((startDiff % (1000 * 60)) / 1000);
-
-    return {
-      days: 0, // Not relevant for scheduled
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      isClosed: false,
-      shouldReveal: false,
-      isScheduled: true,
-      timeUntilStart: { days, hours, minutes, seconds },
-    };
-  }
-
-  // For OPEN, REVEAL, CLOSED status, calculate time until end
-  const diff = end - now;
-
-  if (diff <= 0) {
-    return {
-      days: 0,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      isClosed: true,
-      shouldReveal: true,
-      isScheduled: false,
-    };
-  }
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-  return {
-    days,
-    hours,
-    minutes,
-    seconds,
-    isClosed: false,
-    shouldReveal: false,
-    isScheduled: false,
-  };
-}
-
 export function BiddingSidebar({
   data,
   isCreator: isCreatorProp,
@@ -148,108 +43,32 @@ export function BiddingSidebar({
   const { user } = useAuthStore();
   const isCreator = isCreatorProp || user?.id === data.createdBy;
 
-  // --- Live countdown timer ---
-  const [timeLeft, setTimeLeft] = useState(() =>
-    getTimeRemaining(data.startAt, data.endAt, data.status),
-  );
-
-  useEffect(() => {
-    // Only tick for OPEN (countdown to end) or SCHEDULED (countdown to start)
-    if (data.status !== "OPEN" && data.status !== "SCHEDULED") return;
-    // Also stop if already resolved
-    if (timeLeft.isClosed) return;
-
-    const timer = setInterval(() => {
-      const remaining = getTimeRemaining(data.startAt, data.endAt, data.status);
-      setTimeLeft(remaining);
-      if (remaining.isClosed) {
-        clearInterval(timer);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [data.startAt, data.endAt, data.status]);
-
+  // --- Custom hooks for state management ---
+  const timeLeft = useCountdownTimer(data.startAt, data.endAt, data.status);
+  const biddingState = useBiddingState(data.id);
   const {
-    days,
-    hours,
-    minutes,
-    seconds,
-    isClosed,
-    shouldReveal,
-    timeUntilStart,
-  } = timeLeft;
+    bidAmount,
+    setBidAmount,
+    localBid,
+    hasPlacedBid,
+    setHasPlacedBid,
+    saveBidLocally,
+    loadBidLocally,
+    refetchMyBid,
+    myBid,
+  } = biddingState;
 
-  const [bidAmount, setBidAmount] = useState("");
-  const [localBid, setLocalBid] = useState<{
-    amount: string;
-    nonce: string;
-  } | null>(null);
-  const [hasPlacedBid, setHasPlacedBid] = useState(false);
+  // --- Modal states ---
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showRevealBidsModal, setShowRevealBidsModal] = useState(false);
 
-  // React Query hooks
-  const { data: myBid, refetch: refetchMyBid } = useMyBid(data.id);
+  // --- React Query hooks ---
   const placeBidMutation = usePlaceBid();
   const revealBidMutation = useRevealBid();
-  const closeAuctionMutation = useCloseAuction();
 
-  // Helper to save bid details
-  const saveBidLocally = (amount: string, nonce: string) => {
-    if (typeof window !== "undefined" && user?.id) {
-      const storageKey = `bid_${data.id}_${user.id}`;
-      localStorage.setItem(storageKey, JSON.stringify({ amount, nonce }));
-    }
-  };
-
-  // Helper to load bid details
-  const loadBidLocally = useCallback(() => {
-    if (typeof window !== "undefined" && user?.id) {
-      const storageKey = `bid_${data.id}_${user.id}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error("Failed to parse saved bid:", e);
-          return null;
-        }
-      }
-    }
-    return null;
-  }, [data.id, user?.id]);
-
-  // Check for local bid on mount or when user changes
-  useEffect(() => {
-    if (user?.id) {
-      const saved = loadBidLocally();
-      setLocalBid(saved);
-
-      // Also check if we have a placed bid flag in localStorage
-      const placedBidKey = `placedBid_${data.id}_${user.id}`;
-      const hasPlaced = localStorage.getItem(placedBidKey) === "true";
-      if (hasPlaced) {
-        setHasPlacedBid(true);
-      }
-    }
-  }, [user?.id, data.id, loadBidLocally]);
-
-  // Save hasPlacedBid to localStorage when it changes
-  useEffect(() => {
-    if (user?.id) {
-      const placedBidKey = `placedBid_${data.id}_${user.id}`;
-      localStorage.setItem(placedBidKey, hasPlacedBid.toString());
-    }
-  }, [hasPlacedBid, user?.id, data.id]);
-
-  // Sync hasPlacedBid with server data, but don't override if we already have it set
-  useEffect(() => {
-    if (myBid && !hasPlacedBid) {
-      setHasPlacedBid(true);
-    }
-  }, [myBid, hasPlacedBid]);
+  const { days, hours, minutes, seconds, shouldReveal, timeUntilStart } =
+    timeLeft;
 
   // Determine actual auction status based on time and backend status
   const actualStatus =
@@ -262,8 +81,7 @@ export function BiddingSidebar({
   const isRevealPhase = actualStatus === "REVEAL";
   const isClosedPhase = actualStatus === "CLOSED";
 
-  const handleBidSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleBidSubmit = async () => {
     console.log("Placing bid:", bidAmount);
     console.log("Current myBid:", myBid);
     console.log("Current hasPlacedBid:", hasPlacedBid);
@@ -301,14 +119,13 @@ export function BiddingSidebar({
       // Save bid details locally for immediate display
       const nonce = Math.random().toString(36).substring(2, 15); // Generate random nonce
       saveBidLocally(bidAmount, nonce);
-      setLocalBid({ amount: bidAmount, nonce });
 
       setBidAmount("");
 
       // Refresh my bid status
       await refetchMyBid();
-    } catch (error) {
-      console.error("Bid submission failed:", error);
+    } catch {
+      console.error("Bid submission failed");
       setHasPlacedBid(false); // Reset state on error
       // Error is already handled by the mutation's error handling
     }
@@ -337,7 +154,7 @@ export function BiddingSidebar({
         });
         toast.success("Bid revealed successfully!");
         await refetchMyBid();
-      } catch (error) {
+      } catch {
         // Error is already handled by the mutation
       }
       return;
@@ -351,8 +168,8 @@ export function BiddingSidebar({
       });
       toast.success("Bid revealed successfully!");
       await refetchMyBid();
-    } catch (error) {
-      console.error("Bid reveal failed:", error);
+    } catch {
+      console.error("Bid reveal failed");
       // Error is already handled by the mutation
     }
   };
@@ -550,7 +367,7 @@ export function BiddingSidebar({
       </div>
 
       {!isCreator ? (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+        <Card className="p-8">
           {isScheduledPhase ? (
             <div className="text-center py-4">
               <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -785,7 +602,7 @@ export function BiddingSidebar({
               )}
             </>
           )}
-        </div>
+        </Card>
       ) : (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
           <div className="mb-6 p-4 bg-primary/5 rounded-xl border border-primary/10">

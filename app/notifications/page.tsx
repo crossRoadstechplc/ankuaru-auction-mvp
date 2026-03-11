@@ -1,12 +1,32 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { graphQLApiClient } from "../../lib/graphql-api";
-import { useAuthStore } from "../../stores/auth.store";
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { graphQLApiClient } from "../../lib/graphql-api"
+import { useAuthStore } from "../../stores/auth.store"
+import { PageShell } from "@/components/layout/page-shell"
+import { PageContainer } from "@/components/layout/page-container"
+import { PageHeader } from "@/components/layout/page-header"
+import { PageSection } from "@/components/layout/page-section"
+import { NotificationsList } from "@/src/components/domain/notification/notifications-list"
+import { LoadingState } from "@/src/components/ui/loading-state"
+import { Button } from "@/components/ui/button"
+
+interface ApiNotification {
+  id: string;
+  type: string;
+  title?: string;
+  message?: string;
+  text?: string;
+  body?: string;
+  is_read: boolean;
+  created_at: string;
+  winner_agreement_file_url?: string;
+  auctionId?: string;
+}
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<ApiNotification[]>([])
   const [isLoading, setIsLoading] = useState(true);
   const [returnUrl, setReturnUrl] = useState("/feed");
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -44,9 +64,9 @@ export default function NotificationsPage() {
     if (typeof sessionStorage !== "undefined") {
       setReturnUrl(sessionStorage.getItem("returnUrl") || "/feed");
     }
-  }, [isAuthenticated, isAuthLoading, router]);
+  }, [isAuthenticated, isAuthLoading, router])
 
-  const handleNotificationClick = async (n: Notification) => {
+  const handleNotificationClick = async (n: ApiNotification) => {
     if (!n.is_read) {
       try {
         await graphQLApiClient.markNotificationRead(n.id);
@@ -79,134 +99,59 @@ export default function NotificationsPage() {
 
   if (isAuthLoading || isLoading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-      </div>
-    );
+      <PageShell>
+        <PageContainer className="py-8">
+          <LoadingState type="list" count={5} />
+        </PageContainer>
+      </PageShell>
+    )
   }
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push(returnUrl)}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Go back"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
-          <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-              Notifications
-            </h1>
-            <p className="mt-2 text-slate-600 dark:text-slate-400">
-              Stay updated with your latest bids and auctions
-            </p>
-          </div>
+    <PageShell>
+      <PageContainer className="py-8">
+        <div className="mb-6">
+          <Button variant="ghost" className="gap-2" onClick={() => router.push(returnUrl)}>
+            <span className="material-symbols-outlined text-sm">arrow_back</span>
+            Back
+          </Button>
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            className="rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
-          >
-            Mark all as read
-          </button>
-        )}
-      </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        {notifications.length > 0 ? (
-          <div className="flex flex-col">
-            {notifications.map((n) => (
-              <div
-                key={n.id}
-                onClick={() => handleNotificationClick(n)}
-                className={`flex cursor-pointer items-start gap-4 border-b border-slate-100 p-6 transition-colors last:border-b-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50 ${
-                  !n.is_read ? "bg-slate-50 dark:bg-slate-800/30" : ""
-                }`}
-              >
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                  <span
-                    className={`material-symbols-outlined text-2xl ${
-                      n.type === "AUCTION_WON" || n.type === "success"
-                        ? "text-primary"
-                        : n.type === "fail"
-                          ? "text-red-500"
-                          : "text-amber-500"
-                    }`}
-                  >
-                    {n.type === "AUCTION_WON" || n.type === "success"
-                      ? "check_circle"
-                      : n.type === "fail"
-                        ? "error"
-                        : "notifications"}
-                  </span>
-                </div>
+        <PageHeader 
+          title="Notifications"
+          description="Stay updated with your latest bids and auctions"
+          actions={
+            unreadCount > 0 ? (
+              <Button onClick={markAllAsRead} variant="outline" size="sm">
+                Mark all as read
+              </Button>
+            ) : undefined
+          }
+        />
 
-                <div className="flex w-full flex-col gap-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 pr-4">
-                      <p
-                        className={`text-base flex-1 ${!n.is_read ? "font-bold text-slate-900 dark:text-white" : "font-medium text-slate-700 dark:text-slate-300"} leading-relaxed`}
-                      >
-                        {n.title || n.message || (n as any).text}
-                      </p>
-                      {n.winner_agreement_file_url && (
-                        <div className="mt-2">
-                          <a
-                            href={n.winner_agreement_file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNotificationClick(n);
-                            }}
-                          >
-                            <span className="material-symbols-outlined text-base">
-                              picture_as_pdf
-                            </span>
-                            View Agreement PDF
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                    {!n.is_read && (
-                      <span className="mt-1 flex h-2.5 w-2.5 flex-shrink-0 rounded-full bg-primary" />
-                    )}
-                  </div>
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {new Date(n.created_at).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-              <span className="material-symbols-outlined text-3xl text-slate-400">
-                notifications_off
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              No notifications yet
-            </h3>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              When you get bids or updates on your auctions, they'll show up
-              here.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+        <PageSection className="mt-8">
+          <NotificationsList 
+            notifications={notifications.map(n => ({
+              id: n.id,
+              title: n.title || n.message || n.text || "Notification",
+              description: n.body || "",
+              is_read: n.is_read,
+              created_at: n.created_at,
+              icon_name: n.type === "AUCTION_WON" || n.type === "success" 
+                ? "check_circle" 
+                : n.type === "fail" ? "error" : "notifications"
+            }))}
+            onNotificationClick={async (id) => {
+              const notif = notifications.find(n => n.id === id)
+              if (notif) {
+                await handleNotificationClick(notif)
+              }
+            }}
+          />
+        </PageSection>
+      </PageContainer>
+    </PageShell>
+  )
 }

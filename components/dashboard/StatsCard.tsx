@@ -16,8 +16,10 @@ export default function StatsCard({
   iconTextColor = "text-primary",
 }: StatsCardProps) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconBgColor} ${iconTextColor}`}>
+    <div className="flex items-center gap-4 rounded-2xl border border-border/70 bg-card/95 p-5 shadow-sm transition-colors hover:bg-muted/20">
+      <div
+        className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconBgColor} ${iconTextColor}`}
+      >
         {typeof icon === "string" ? (
           <span className="material-symbols-outlined">{icon}</span>
         ) : (
@@ -25,7 +27,9 @@ export default function StatsCard({
         )}
       </div>
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
         <p className="text-xl font-extrabold">{value}</p>
       </div>
     </div>

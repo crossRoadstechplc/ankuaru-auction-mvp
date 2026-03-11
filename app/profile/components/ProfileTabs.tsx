@@ -1,10 +1,16 @@
 "use client";
 
+import { PanelCard } from "@/components/layout/panel-card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    FollowersList,
+    FollowingList,
+} from "@/src/components/domain/follow/follow-lists";
 import { FollowRequest, RatingSummary, User } from "../../../lib/types";
 import BlockedUsersTab from "./BlockedUsersTab";
 import FollowRequestsTab from "./FollowRequestsTab";
 import ProfileSettingsTab from "./ProfileSettingsTab";
-import UserList from "./UserList";
 
 interface ProfileTabsProps {
   activeTab: string;
@@ -14,7 +20,8 @@ interface ProfileTabsProps {
   followRequests: FollowRequest[];
   blockedUsers: User[];
   ratingSummary: RatingSummary;
-  profile?: User; // Add profile prop
+  profile?: User;
+  isLoadingSummary?: boolean;
 }
 
 export default function ProfileTabs({
@@ -25,144 +32,146 @@ export default function ProfileTabs({
   followRequests,
   blockedUsers,
   ratingSummary,
-  profile, // Add profile parameter
+  profile,
+  isLoadingSummary,
 }: ProfileTabsProps) {
   const tabs = [
     { id: "overview", label: "Overview", icon: "dashboard" },
     { id: "followers", label: "Followers", count: followers.length },
     { id: "following", label: "Following", count: following.length },
-    { id: "requests", label: "Follow Requests", count: followRequests.length },
-    { id: "blocked", label: "Blocked Users", count: blockedUsers.length },
+    { id: "requests", label: "Requests", count: followRequests.length },
+    { id: "blocked", label: "Blocked", count: blockedUsers.length },
     { id: "settings", label: "Settings", icon: "settings" },
   ];
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-      {/* Tab Navigation */}
-      <div className="border-b border-slate-200 dark:border-slate-800">
-        <nav className="flex overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap relative ${
-                activeTab === tab.id
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              <span className="material-symbols-outlined text-lg">
-                {tab.icon || "person"}
+    <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+      <TabsList className="mb-6 h-auto w-full justify-start gap-2 overflow-x-auto rounded-2xl border border-border/70 bg-card p-2">
+        {tabs.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            {tab.icon ? (
+              <span className="material-symbols-outlined text-base">
+                {tab.icon}
               </span>
-              <span>{tab.label}</span>
-              {tab.count !== undefined && tab.count > 0 && (
-                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-2 py-1 rounded-full">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+            ) : null}
+            <span>{tab.label}</span>
+            {tab.count !== undefined && tab.count > 0 ? (
+              <Badge
+                variant="secondary"
+                className="ml-1 px-1.5 py-0 text-[10px] data-[state=active]:text-primary"
+              >
+                {tab.count}
+              </Badge>
+            ) : null}
+          </TabsTrigger>
+        ))}
+      </TabsList>
 
-      {/* Tab Content */}
-      <div className="p-6">
-        {activeTab === "overview" && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                Profile Overview
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-6">
-                  <h4 className="font-medium text-slate-900 dark:text-white mb-2">
-                    Account Information
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Username
-                      </span>
-                      <span className="text-slate-900 dark:text-white font-medium">
-                        @{profile?.username || "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Email
-                      </span>
-                      <span className="text-slate-900 dark:text-white font-medium">
-                        {profile?.email || "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Member Since
-                      </span>
-                      <span className="text-slate-900 dark:text-white font-medium">
-                        {profile?.createdAt
-                          ? new Date(profile.createdAt).toLocaleDateString()
-                          : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-6">
-                  <h4 className="font-medium text-slate-900 dark:text-white mb-2">
-                    Rating Summary
-                  </h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Average Rating
-                      </span>
-                      <span className="text-slate-900 dark:text-white font-medium">
-                        ⭐ {ratingSummary.averageRating.toFixed(1)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        Total Reviews
-                      </span>
-                      <span className="text-slate-900 dark:text-white font-medium">
-                        {ratingSummary.totalRatings}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <TabsContent value="overview" className="mt-0">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <PanelCard
+            title="Account Information"
+            description="Basic account details and membership info."
+            bodyClassName="space-y-4"
+          >
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Username</span>
+              <span className="font-medium text-foreground">
+                @{profile?.username || "N/A"}
+              </span>
             </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Email</span>
+              <span className="font-medium text-foreground">
+                {profile?.email || "N/A"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Member Since</span>
+              <span className="font-medium text-foreground">
+                {profile?.createdAt
+                  ? new Date(profile.createdAt).toLocaleDateString()
+                  : "N/A"}
+              </span>
+            </div>
+          </PanelCard>
+
+          <PanelCard
+            title="Rating Summary"
+            description="Your marketplace trust score at a glance."
+            bodyClassName="space-y-4"
+          >
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Average Rating</span>
+              <span className="font-medium text-foreground">
+                {isLoadingSummary
+                  ? "..."
+                  : `Rating ${ratingSummary.averageRating.toFixed(1)}`}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Total Reviews</span>
+              <span className="font-medium text-foreground">
+                {isLoadingSummary ? "..." : ratingSummary.totalRatings}
+              </span>
+            </div>
+          </PanelCard>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="followers" className="mt-0">
+        <PanelCard
+          title="Followers"
+          description="People who follow your activity."
+          bodyClassName="p-0"
+        >
+          <div className="p-6">
+            <FollowersList
+              followers={followers.map((f) => ({
+                userId: f.id,
+                username: f.username,
+                displayName: f.fullName,
+                avatarUrl: f.avatar,
+              }))}
+            />
           </div>
-        )}
+        </PanelCard>
+      </TabsContent>
 
-        {activeTab === "followers" && (
-          <UserList
-            users={followers}
-            title="Followers"
-            emptyMessage="You don't have any followers yet."
-            showFollowButton={false}
-            showUnfollowButton={true}
-          />
-        )}
+      <TabsContent value="following" className="mt-0">
+        <PanelCard
+          title="Following"
+          description="Accounts you currently follow."
+          bodyClassName="p-0"
+        >
+          <div className="p-6">
+            <FollowingList
+              following={following.map((f) => ({
+                userId: f.id,
+                username: f.username,
+                displayName: f.fullName,
+                avatarUrl: f.avatar,
+              }))}
+            />
+          </div>
+        </PanelCard>
+      </TabsContent>
 
-        {activeTab === "following" && (
-          <UserList
-            users={following}
-            title="Following"
-            emptyMessage="You're not following anyone yet."
-            showFollowButton={false}
-            showUnfollowButton={true}
-          />
-        )}
+      <TabsContent value="requests" className="mt-0">
+        <FollowRequestsTab requests={followRequests} />
+      </TabsContent>
 
-        {activeTab === "requests" && (
-          <FollowRequestsTab requests={followRequests} />
-        )}
+      <TabsContent value="blocked" className="mt-0">
+        <BlockedUsersTab users={blockedUsers} />
+      </TabsContent>
 
-        {activeTab === "blocked" && <BlockedUsersTab users={blockedUsers} />}
-
-        {activeTab === "settings" && <ProfileSettingsTab />}
-      </div>
-    </div>
+      <TabsContent value="settings" className="mt-0">
+        <ProfileSettingsTab />
+      </TabsContent>
+    </Tabs>
   );
 }
