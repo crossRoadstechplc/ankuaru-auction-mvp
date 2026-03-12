@@ -1,6 +1,8 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
+import Link from "next/link";
 
 interface FeedSearchBarProps {
   searchTerm: string;
@@ -15,43 +17,53 @@ export function FeedSearchBar({
   resultCount,
   isLoading,
 }: FeedSearchBarProps) {
+  // We keep a stable layout to avoid "jumping" when users interact with the search
+  // This provides the "consistency" requested.
   return (
-    <div className="mb-6">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        {/* Search Input */}
-        <div className="flex-1 w-full sm:max-w-md">
-          <div className="relative group">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-300 group-focus-within:text-primary group-focus-within:scale-110">
-              search
-            </span>
-            <Input
-              type="text"
-              placeholder="Search auctions, products, or categories"
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 pr-4 h-11 transition-all duration-300 focus:scale-[1.02] focus:shadow-lg focus:shadow-primary/10 border-border/50 focus:border-primary"
-              // TODO: Add debounced search for better performance
-            />
-          </div>
+    <div className="mb-8">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+        {/* Stable Search Input with integrated Search Action button */}
+        <div className="flex-1 transition-all duration-300">
+          <SearchInput
+            placeholder="Search auctions, brands, categories..."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onClear={() => onSearchChange("")}
+            isLoading={isLoading}
+            showSearchButton={true} // Always show the search action button for "clik" consistency
+            onSearch={(val) => console.log("Searching for:", val)}
+            className="h-11 shadow-sm"
+          />
         </div>
 
-        {/* Results Summary */}
-        {resultCount !== undefined && !isLoading && (
-          <div className="text-sm text-muted-foreground animate-in fade-in duration-300">
-            {resultCount === 0 ? (
-              <span className="text-destructive/80">No auctions found</span>
-            ) : (
-              <span className="font-medium">
-                {resultCount} auction{resultCount !== 1 ? "s" : ""} found
+        {/* Stable "Post New" Action - Always visible to ensure layout consistency */}
+        <div className="shrink-0">
+          <Link href="/auction/new">
+            <Button 
+              className="h-11 gap-2 rounded-full font-bold bg-primary px-6 shadow-md shadow-primary/10 transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-95"
+            >
+              <span className="material-symbols-outlined fill-1 text-[20px]">add_circle</span>
+              <span className="whitespace-nowrap text-sm">Post New Auction</span>
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Results HUD - Stable positioning */}
+      <div className="h-6 mt-3">
+        {searchTerm && resultCount !== undefined && !isLoading && (
+          <div className="px-1 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-500">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground/60">
+              <div className="h-[2px] w-6 bg-primary/30 rounded-full" />
+              {resultCount} {resultCount === 1 ? "match" : "matches"} found
+            </div>
+            
+            {resultCount === 0 && (
+              <span className="text-[10px] font-bold text-destructive/70 flex items-center gap-1">
+                 <span className="material-symbols-outlined text-sm">info</span>
+                 Try a different keyword
               </span>
             )}
-          </div>
-        )}
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="text-sm text-muted-foreground animate-pulse">
-            Searching...
           </div>
         )}
       </div>

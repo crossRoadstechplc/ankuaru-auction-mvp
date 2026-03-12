@@ -44,20 +44,45 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
+    VariantProps<typeof buttonVariants> {
+  /** Merge props onto the immediate child element instead of rendering a <button> */
+  asChild?: boolean;
+}
 
 function Button({
   className,
   variant = "default",
   size = "default",
+  asChild = false,
+  children,
   ...props
 }: ButtonProps) {
+  const mergedClass = cn(buttonVariants({ variant, size, className }));
+
+  if (asChild && React.isValidElement(children)) {
+    // Forward all button props + merged className onto the child element
+    return React.cloneElement(
+      children as React.ReactElement<React.HTMLAttributes<HTMLElement>>,
+      {
+        ...props,
+        className: cn(
+          mergedClass,
+          (children as React.ReactElement<React.HTMLAttributes<HTMLElement>>)
+            .props.className,
+        ),
+        "data-slot": "button",
+      } as React.HTMLAttributes<HTMLElement>,
+    );
+  }
+
   return (
     <button
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={mergedClass}
       {...props}
-    />
+    >
+      {children}
+    </button>
   );
 }
 
