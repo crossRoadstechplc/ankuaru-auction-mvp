@@ -60,7 +60,6 @@ export function NotificationsList({
               description={n.description}
               timestamp={n.created_at}
               isRead={false}
-              iconName={n.icon_name}
               icon={n.icon}
               onClick={() => onNotificationClick?.(n.id, n)}
             />
@@ -82,7 +81,6 @@ export function NotificationsList({
               description={n.description}
               timestamp={n.created_at}
               isRead={true}
-              iconName={n.icon_name}
               icon={n.icon}
               onClick={() => onNotificationClick?.(n.id, n)}
             />

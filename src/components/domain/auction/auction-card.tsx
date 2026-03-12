@@ -37,7 +37,7 @@ export function AuctionCard({
   isHighlighted = false,
 }: AuctionCardProps) {
   const endDate = new Date(endAt)
-  const isClosingSoon = endDate.getTime() - Date.now() < 24 * 60 * 60 * 1000 && status === "OPEN"
+  const isClosingSoon = status === "OPEN"
   const formattedEndTime = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -45,7 +45,7 @@ export function AuctionCard({
     minute: "2-digit",
   }).format(endDate)
 
-  const coverImage = images && images.length > 0 ? images[0] : null
+  const coverImage = images && images.length > 0 ? images[0] : undefined
 
   return (
     <Link href={`/auction/${id}`} className="block h-full outline-none">

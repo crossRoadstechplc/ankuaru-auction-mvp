@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import {
+  loadBidDraftFromUiStorage,
+  loadPlacedBidFlagFromUiStorage,
+  saveBidDraftToUiStorage,
+  savePlacedBidFlagToUiStorage,
+} from "@/src/features/bids/ui/bid-local-persistence";
+import { useMyBidQuery } from "@/src/features/bids/queries/hooks";
 import { useAuthStore } from "../stores/auth.store";
-import { useMyBid } from "./useAuctions";
 
 interface BidData {
   amount: string;
@@ -9,66 +15,95 @@ interface BidData {
 
 export function useBiddingState(auctionId: string) {
   const { user } = useAuthStore();
-  const { data: myBid, refetch: refetchMyBid } = useMyBid(auctionId);
+  const userId = user?.id ?? null;
+  const { data: myBid, refetch: refetchMyBid } = useMyBidQuery(auctionId);
 
   const [bidAmount, setBidAmount] = useState("");
-  const [localBid, setLocalBid] = useState<BidData | null>(null);
-  const [hasPlacedBid, setHasPlacedBid] = useState(false);
+  const [bidDraftOverrides, setBidDraftOverrides] = useState<
+    Record<string, BidData>
+  >({});
+  const [placedBidOverrides, setPlacedBidOverrides] = useState<
+    Record<string, boolean>
+  >({});
+
+  const identityKey = userId ? `${auctionId}:${userId}` : "";
 
   // Helper to save bid details
-  const saveBidLocally = (amount: string, nonce: string) => {
-    if (typeof window !== "undefined" && user?.id) {
-      const storageKey = `bid_${auctionId}_${user.id}`;
-      localStorage.setItem(storageKey, JSON.stringify({ amount, nonce }));
-    }
-  };
+  const saveBidLocally = useCallback(
+    (amount: string, nonce: string) => {
+      if (!userId) return;
+
+      saveBidDraftToUiStorage(
+        {
+          auctionId,
+          userId,
+        },
+        { amount, nonce },
+      );
+      setBidDraftOverrides((previous) => ({
+        ...previous,
+        [identityKey]: { amount, nonce },
+      }));
+    },
+    [auctionId, identityKey, userId],
+  );
 
   // Helper to load bid details
   const loadBidLocally = useCallback(() => {
-    if (typeof window !== "undefined" && user?.id) {
-      const storageKey = `bid_${auctionId}_${user.id}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error("Failed to parse saved bid:", e);
-          return null;
-        }
-      }
+    if (!userId) {
+      return null;
     }
-    return null;
-  }, [auctionId, user?.id]);
 
-  // Check for local bid on mount or when user changes
-  useEffect(() => {
-    if (user?.id) {
-      const saved = loadBidLocally();
-      setLocalBid(saved);
+    return loadBidDraftFromUiStorage({
+      auctionId,
+      userId,
+    });
+  }, [auctionId, userId]);
 
-      // Also check if we have a placed bid flag in localStorage
-      const placedBidKey = `placedBid_${auctionId}_${user.id}`;
-      const hasPlaced = localStorage.getItem(placedBidKey) === "true";
-      if (hasPlaced) {
-        setHasPlacedBid(true);
-      }
+  const persistedLocalBid = useMemo(() => {
+    return loadBidLocally();
+  }, [loadBidLocally]);
+
+  const localBid = identityKey
+    ? (bidDraftOverrides[identityKey] ?? persistedLocalBid)
+    : null;
+
+  const persistedHasPlacedBid = useMemo(() => {
+    if (!userId) {
+      return false;
     }
-  }, [user?.id, auctionId, loadBidLocally]);
 
-  // Save hasPlacedBid to localStorage when it changes
-  useEffect(() => {
-    if (user?.id) {
-      const placedBidKey = `placedBid_${auctionId}_${user.id}`;
-      localStorage.setItem(placedBidKey, hasPlacedBid.toString());
-    }
-  }, [hasPlacedBid, user?.id, auctionId]);
+    return loadPlacedBidFlagFromUiStorage({
+      auctionId,
+      userId,
+    });
+  }, [auctionId, userId]);
 
-  // Sync hasPlacedBid with server data, but don't override if we already have it set
-  useEffect(() => {
-    if (myBid && !hasPlacedBid) {
-      setHasPlacedBid(true);
-    }
-  }, [myBid, hasPlacedBid]);
+  const overriddenHasPlacedBid = identityKey
+    ? placedBidOverrides[identityKey]
+    : undefined;
+
+  const hasPlacedBid =
+    !!myBid || (overriddenHasPlacedBid ?? persistedHasPlacedBid);
+
+  const setHasPlacedBid = useCallback(
+    (value: boolean) => {
+      if (!userId || !identityKey) return;
+
+      savePlacedBidFlagToUiStorage(
+        {
+          auctionId,
+          userId,
+        },
+        value,
+      );
+      setPlacedBidOverrides((previous) => ({
+        ...previous,
+        [identityKey]: value,
+      }));
+    },
+    [auctionId, identityKey, userId],
+  );
 
   return {
     bidAmount,

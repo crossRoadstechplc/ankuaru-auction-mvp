@@ -1,8 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-import { graphQLApiClient } from "../../lib/graphql-api"
+import { useEffect, useMemo, useState } from "react"
+import {
+  useMarkAllNotificationsReadMutation,
+  useMarkNotificationReadMutation,
+  useMyNotificationsQuery,
+} from "@/src/features/notifications/queries/hooks"
+import { Notification } from "../../lib/types"
 import { useAuthStore } from "../../stores/auth.store"
 import { PageShell } from "@/components/layout/page-shell"
 import { PageContainer } from "@/components/layout/page-container"
@@ -12,69 +17,43 @@ import { NotificationsList } from "@/src/components/domain/notification/notifica
 import { LoadingState } from "@/src/components/ui/loading-state"
 import { Button } from "@/components/ui/button"
 
-interface ApiNotification {
-  id: string;
-  type: string;
-  title?: string;
-  message?: string;
-  text?: string;
-  body?: string;
-  is_read: boolean;
-  created_at: string;
-  winner_agreement_file_url?: string;
-  auctionId?: string;
-}
-
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<ApiNotification[]>([])
-  const [isLoading, setIsLoading] = useState(true);
-  const [returnUrl, setReturnUrl] = useState("/feed");
+  const [returnUrl] = useState(() => {
+    if (typeof sessionStorage === "undefined") {
+      return "/feed";
+    }
+
+    return sessionStorage.getItem("returnUrl") || "/feed";
+  });
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const {
+    data: notificationsData = [],
+    isLoading: isNotificationsLoading,
+  } = useMyNotificationsQuery();
+  const markNotificationRead = useMarkNotificationReadMutation();
+  const markAllNotificationsRead = useMarkAllNotificationsReadMutation();
   const router = useRouter();
+
+  const notifications = useMemo(() => {
+    const normalized = Array.isArray(notificationsData) ? notificationsData : [];
+    return [...normalized].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [notificationsData]);
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
       router.push("/login");
       return;
     }
-
-    const fetchNotifications = async () => {
-      try {
-        const data = await graphQLApiClient.getMyNotifications();
-        const parsedData = Array.isArray(data)
-          ? data
-          : (data as any).notifications || [];
-        parsedData.sort(
-          (a: any, b: any) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        );
-        setNotifications(parsedData);
-      } catch (error) {
-        console.error("Failed to fetch notifications", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      fetchNotifications();
-    }
-
-    if (typeof sessionStorage !== "undefined") {
-      setReturnUrl(sessionStorage.getItem("returnUrl") || "/feed");
-    }
   }, [isAuthenticated, isAuthLoading, router])
 
-  const handleNotificationClick = async (n: ApiNotification) => {
+  const handleNotificationClick = async (n: Notification) => {
     if (!n.is_read) {
       try {
-        await graphQLApiClient.markNotificationRead(n.id);
-        setNotifications((prev) =>
-          prev.map((notif) =>
-            notif.id === n.id ? { ...notif, is_read: true } : notif,
-          ),
-        );
+        await markNotificationRead.mutateAsync(n.id);
       } catch (error) {
         console.error("Failed to mark notification as read", error);
       }
@@ -82,22 +61,14 @@ export default function NotificationsPage() {
   };
 
   const markAllAsRead = async () => {
-    const unreadNotifications = notifications.filter((n) => !n.is_read);
-
-    for (const n of unreadNotifications) {
-      try {
-        await graphQLApiClient.markNotificationRead(n.id);
-      } catch (error) {
-        console.error(`Failed to mark notification ${n.id} as read`, error);
-      }
+    try {
+      await markAllNotificationsRead.mutateAsync();
+    } catch (error) {
+      console.error("Failed to mark all notifications as read", error);
     }
-
-    setNotifications((prev) =>
-      prev.map((notif) => ({ ...notif, is_read: true })),
-    );
   };
 
-  if (isAuthLoading || isLoading) {
+  if (isAuthLoading || isNotificationsLoading) {
     return (
       <PageShell>
         <PageContainer className="py-8">
@@ -133,16 +104,30 @@ export default function NotificationsPage() {
 
         <PageSection className="mt-8">
           <NotificationsList 
-            notifications={notifications.map(n => ({
-              id: n.id,
-              title: n.title || n.message || n.text || "Notification",
-              description: n.body || "",
-              is_read: n.is_read,
-              created_at: n.created_at,
-              icon_name: n.type === "AUCTION_WON" || n.type === "success" 
-                ? "check_circle" 
-                : n.type === "fail" ? "error" : "notifications"
-            }))}
+            notifications={notifications.map((n) => {
+              const legacyNotification = n as Notification & {
+                text?: string;
+                body?: string;
+              };
+
+              return {
+                id: n.id,
+                title:
+                  n.title ||
+                  n.message ||
+                  legacyNotification.text ||
+                  "Notification",
+                description: legacyNotification.body || "",
+                is_read: n.is_read,
+                created_at: n.created_at,
+                icon_name:
+                  n.type === "AUCTION_WON" || n.type === "success"
+                    ? "check_circle"
+                    : n.type === "fail"
+                      ? "error"
+                      : "notifications",
+              };
+            })}
             onNotificationClick={async (id) => {
               const notif = notifications.find(n => n.id === id)
               if (notif) {

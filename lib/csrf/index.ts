@@ -4,6 +4,8 @@
  * Central exports for all CSRF protection functionality
  */
 
+import { initializeCSRF } from "./csrf-manager";
+
 // Export main classes and utilities
 export {
   CSRFManager,

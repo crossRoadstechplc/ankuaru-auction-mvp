@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-export interface PageSectionProps extends React.HTMLAttributes<HTMLElement> {}
+export type PageSectionProps = React.HTMLAttributes<HTMLElement>
 
 const PageSection = React.forwardRef<HTMLElement, PageSectionProps>(
   ({ className, children, ...props }, ref) => {

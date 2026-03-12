@@ -1,10 +1,12 @@
 "use client";
 
 import Header from "@/components/layout/Header";
+import { useAuctionQuery } from "@/src/features/auctions/queries/hooks";
+import { useAuctionBidsQuery } from "@/src/features/bids/queries/hooks";
+import { useUserInfoQuery } from "@/src/features/profile/queries/hooks";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { useAuction, useAuctionBids } from "../../../hooks/useAuctions";
 import { UserRating } from "../../../lib/types";
 import { useAuthStore } from "../../../stores/auth.store";
 import { AuctionDetailsCard } from "./_components/AuctionDetailsCard";
@@ -12,11 +14,23 @@ import { BidActivity } from "./_components/BidActivity";
 import { BiddingSidebar } from "./_components/BiddingSidebar";
 
 function AuctionDetailContent() {
-  const searchParams = useSearchParams();
   const params = useParams();
   const id = params.id as string;
-  const isCreator = searchParams.get("view") === "creator";
   const { isAuthenticated, user } = useAuthStore();
+  const [isTabVisible, setIsTabVisible] = useState(
+    typeof document === "undefined" ? true : document.visibilityState === "visible",
+  );
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(document.visibilityState === "visible");
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   // React Query hooks
   const {
@@ -24,61 +38,56 @@ function AuctionDetailContent() {
     isLoading: auctionLoading,
     error: auctionError,
     refetch: refetchAuction,
-  } = useAuction(id);
-  const { data: bids = [], refetch: refetchBids } = useAuctionBids(id);
-
-  const [creatorRating, setCreatorRating] = useState<UserRating | null>(null);
-  const [creatorInfo, setCreatorInfo] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const isOwner = isCreator || (!!user?.id && user?.id === auction?.createdBy);
-
-  useEffect(() => {
-    const fetchCreatorInfo = async () => {
-      if (!auction?.createdBy) return;
-
-      try {
-        // Import GraphQL API client
-        const { default: graphQLApiClient } =
-          await import("../../../lib/graphql-api");
-
-        // Fetch creator information
-        const userInfo = await graphQLApiClient.getUserInfo(auction.createdBy);
-        setCreatorInfo(userInfo);
-
-        console.log("Creator info fetched:", userInfo);
-      } catch (err) {
-        console.warn("Failed to fetch creator info:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (auction && !auctionLoading) {
-      fetchCreatorInfo();
-    }
-  }, [auction, auctionLoading]);
+  } = useAuctionQuery(id, {
+    enabled: !!id,
+    refetchOnWindowFocus: false,
+  });
+  const isOwner = !!user?.id && user.id === auction?.createdBy;
+  const shouldLoadBids = !!id && isOwner;
+  const { data: bids = [], refetch: refetchBids } = useAuctionBidsQuery(id, {
+    enabled: shouldLoadBids,
+    refetchOnWindowFocus: false,
+  });
+  const creatorRating: UserRating | null = null;
+  const { data: creatorInfo, isLoading: isCreatorInfoLoading } = useUserInfoQuery(
+    auction?.createdBy || "",
+    !!auction?.createdBy,
+  );
+  const isLoading = auctionLoading || isCreatorInfoLoading;
 
   // Polling for bids and updates (only for owners)
   useEffect(() => {
-    if (!id || !isOwner || auction?.status === "CLOSED") return;
+    const shouldPoll =
+      !!id &&
+      isOwner &&
+      isTabVisible &&
+      (auction?.status === "OPEN" || auction?.status === "REVEAL");
+
+    if (!shouldPoll) {
+      return;
+    }
 
     const pollInterval = setInterval(async () => {
       try {
-        await Promise.all([refetchAuction(), refetchBids()]);
+        await Promise.all([
+          refetchAuction(),
+          shouldLoadBids ? refetchBids() : Promise.resolve(),
+        ]);
       } catch (err) {
         console.warn("Polling error:", err);
       }
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [id, isOwner, auction?.status, refetchAuction, refetchBids]);
-
-  // Initial bids fetch for owners
-  useEffect(() => {
-    if (!id || !isOwner) return;
-    refetchBids();
-  }, [id, isOwner, refetchBids]);
+  }, [
+    id,
+    isOwner,
+    isTabVisible,
+    auction?.status,
+    shouldLoadBids,
+    refetchAuction,
+    refetchBids,
+  ]);
 
   if (!isAuthenticated) {
     return (
@@ -206,7 +215,10 @@ function AuctionDetailContent() {
               isCreator={isOwner}
               onAuctionUpdate={async () => {
                 try {
-                  await refetchAuction();
+                  await Promise.all([
+                    refetchAuction(),
+                    shouldLoadBids ? refetchBids() : Promise.resolve(),
+                  ]);
                 } catch (err) {
                   console.warn("Failed to refresh auction:", err);
                 }

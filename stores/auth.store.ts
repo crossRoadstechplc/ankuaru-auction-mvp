@@ -2,9 +2,10 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import graphQLApiClient from "../lib/graphql-api";
-import { queryClient } from "../lib/query-client";
 import { LoginData, RegisterData, User } from "../lib/types";
+import { authApi } from "../src/features/auth/api/auth.api";
+import { useSessionStore } from "../src/features/auth/session/session.store";
+import { clearAuthSensitiveQueries } from "../src/shared/query/auth-cache";
 
 type AuthState = {
   user: User | null;
@@ -20,7 +21,10 @@ type AuthState = {
   clearError: () => void;
 };
 
-const initialState = {
+const initialState: Omit<
+  AuthState,
+  "login" | "register" | "logout" | "hydrate" | "clearError"
+> = {
   user: null,
   token: null,
   isAuthenticated: false,
@@ -29,6 +33,38 @@ const initialState = {
   hasHydrated: false,
 };
 
+type SessionSnapshot = Pick<
+  ReturnType<typeof useSessionStore.getState>,
+  "token" | "status" | "hasHydrated" | "authError"
+>;
+
+function getSessionSnapshot(): SessionSnapshot {
+  const { token, status, hasHydrated, authError } = useSessionStore.getState();
+  return { token, status, hasHydrated, authError };
+}
+
+function projectSessionToAuthState(
+  session: SessionSnapshot,
+  current: AuthState,
+): Partial<AuthState> {
+  const isAuthenticated =
+    session.status === "authenticated" && !!session.token;
+
+  return {
+    token: session.token,
+    isAuthenticated,
+    hasHydrated: session.hasHydrated,
+    isLoading: !session.hasHydrated,
+    error:
+      session.authError !== null
+        ? session.authError
+        : isAuthenticated
+          ? null
+          : current.error,
+    user: isAuthenticated ? current.user : null,
+  };
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -36,20 +72,19 @@ export const useAuthStore = create<AuthState>()(
       login: async (data) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await graphQLApiClient.login(data);
-          graphQLApiClient.setToken(response.token);
+          const response = await authApi.login(data);
+          useSessionStore.getState().setToken(response.token);
           set({
             user: response.user,
             token: response.token,
             isAuthenticated: true,
             isLoading: false,
             error: null,
+            hasHydrated: true,
           });
-          // Clear any cached data on login
-          queryClient.clear();
+          await clearAuthSensitiveQueries();
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Login failed";
+          const message = error instanceof Error ? error.message : "Login failed";
           set({
             isLoading: false,
             error: message,
@@ -57,22 +92,23 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
           });
+          throw error;
         }
       },
       register: async (data) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await graphQLApiClient.register(data);
-          graphQLApiClient.setToken(response.token);
+          const response = await authApi.register(data);
+          useSessionStore.getState().setToken(response.token);
           set({
             user: response.user,
             token: response.token,
             isAuthenticated: true,
             isLoading: false,
             error: null,
+            hasHydrated: true,
           });
-          // Clear any cached data on register
-          queryClient.clear();
+          await clearAuthSensitiveQueries();
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "Registration failed";
@@ -83,131 +119,75 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
           });
+          throw error;
         }
       },
       logout: async () => {
         try {
-          graphQLApiClient.logout();
+          useSessionStore.getState().clearSession();
           set({
             user: null,
             token: null,
             isAuthenticated: false,
             isLoading: false,
             error: null,
+            hasHydrated: true,
           });
-          // Clear all cached data on logout
-          queryClient.clear();
+          await clearAuthSensitiveQueries();
         } catch (error) {
           console.error("Logout error:", error);
-          // Force logout even on error
           set({
             user: null,
             token: null,
             isAuthenticated: false,
             isLoading: false,
             error: null,
+            hasHydrated: true,
           });
-          queryClient.clear();
+          await clearAuthSensitiveQueries();
         }
       },
       hydrate: () => {
-        const token = get().token;
-        console.log(
-          "[Auth Debug] Hydration started, token from storage:",
-          token,
-        );
-
-        if (token) {
-          // Simple token validation
-          try {
-            // Basic JWT format check
-            const parts = token.split(".");
-            console.log("[Auth Debug] Token parts:", parts.length, parts);
-
-            if (parts.length === 3) {
-              // Try to decode payload to check expiration
-              const payload = JSON.parse(atob(parts[1]));
-              const now = Math.floor(Date.now() / 1000);
-              console.log("[Auth Debug] Token payload:", {
-                exp: payload.exp,
-                now,
-                timeUntilExpiry: payload.exp - now,
-              });
-
-              // Check if token is expired or will expire within 1 hour
-              if (!payload.exp || payload.exp < now + 3600) {
-                console.warn(
-                  "[Auth] Token expired or will expire soon, clearing auth",
-                );
-                // Clear invalid token from storage
-                set({
-                  user: null,
-                  token: null,
-                  isAuthenticated: false,
-                  isLoading: false,
-                  error: "Authentication token expired",
-                  hasHydrated: true,
-                });
-                return;
-              }
-
-              console.log(
-                "[Auth Debug] Token is valid, setting in GraphQL client",
-              );
-              graphQLApiClient.setToken(token);
-              if (process.env.NODE_ENV !== "production") {
-                console.log(
-                  "[Auth] Token restored from storage:",
-                  token.substring(0, 20) + "...",
-                );
-              }
-            } else {
-              console.warn("[Auth] Invalid token format, clearing auth");
-              set({
-                user: null,
-                token: null,
-                isAuthenticated: false,
-                isLoading: false,
-                error: "Invalid authentication token",
-                hasHydrated: true,
-              });
-              return;
-            }
-          } catch (error) {
-            console.warn("[Auth] Token validation failed:", error);
-            set({
-              user: null,
-              token: null,
-              isAuthenticated: false,
-              isLoading: false,
-              error: "Invalid authentication token",
-              hasHydrated: true,
-            });
-            return;
-          }
-        } else {
-          console.log("[Auth Debug] No token found in storage");
+        if (get().hasHydrated) {
+          return;
         }
 
-        console.log("[Auth Debug] Final auth state:", {
-          hasHydrated: true,
-          isLoading: false,
-        });
-        set({ hasHydrated: true, isLoading: false });
+        set({ isLoading: true });
+        useSessionStore.getState().bootstrap();
       },
       clearError: () => set({ error: null }),
     }),
     {
-      name: "auth-storage",
+      name: "auth-ui-storage",
+      version: 1,
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.hydrate();
-      },
       partialize: (state) => ({
-        token: state.token,
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
       }),
     },
   ),
 );
+
+let sessionSyncInitialized = false;
+
+if (!sessionSyncInitialized) {
+  sessionSyncInitialized = true;
+
+  useSessionStore.subscribe((sessionState) => {
+    useAuthStore.setState((current) =>
+      projectSessionToAuthState(
+        {
+          token: sessionState.token,
+          status: sessionState.status,
+          hasHydrated: sessionState.hasHydrated,
+          authError: sessionState.authError,
+        },
+        current,
+      ),
+    );
+  });
+
+  useAuthStore.setState((current) =>
+    projectSessionToAuthState(getSessionSnapshot(), current),
+  );
+}

@@ -6,11 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import Footer from "../../components/layout/Footer";
 import Header from "../../components/layout/Header";
-import { graphQLApiClient } from "../../lib/graphql-api";
+import {
+  useAuctionQuery,
+  useAuctionsQuery,
+} from "@/src/features/auctions/queries/hooks";
 import { Auction } from "../../lib/types";
 import { useAuthStore } from "../../stores/auth.store";
 
@@ -25,31 +28,99 @@ interface TrackedAuction extends Auction {
   winningBid?: string;
 }
 
+function toTrackedAuction(auction: Auction): TrackedAuction {
+  return {
+    ...auction,
+    creator: auction.createdBy
+      ? {
+          id: auction.createdBy,
+          username: `User_${auction.createdBy.slice(0, 8)}`,
+          email: `user_${auction.createdBy.slice(0, 8)}@example.com`,
+        }
+      : undefined,
+    creatorAuctions: [],
+    winnerId: (auction as TrackedAuction).winnerId ?? auction.winnerId,
+    winningBid: (auction as TrackedAuction).winningBid ?? auction.winningBid,
+  };
+}
+
 export default function TrackAuctionPage() {
   const [activeTab, setActiveTab] = useState<"all" | "single">("all");
-  const [trackedAuctions, setTrackedAuctions] = useState<TrackedAuction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<
     "ALL" | "SCHEDULED" | "OPEN" | "REVEAL" | "CLOSED"
   >("ALL");
-  const [selectedAuction, setSelectedAuction] = useState<TrackedAuction | null>(
-    null,
-  );
 
-  // Single auction tracking state
   const [auctionIdInput, setAuctionIdInput] = useState("");
-  const [singleAuction, setSingleAuction] = useState<TrackedAuction | null>(
-    null,
-  );
-  const [singleLoading, setSingleLoading] = useState(false);
-  const [singleError, setSingleError] = useState<string | null>(null);
+  const [trackedAuctionId, setTrackedAuctionId] = useState("");
+  const [singleInputError, setSingleInputError] = useState<string | null>(null);
+  const lastSuccessIdRef = useRef<string | null>(null);
+  const singleQueryEnabled = activeTab === "single" && !!trackedAuctionId;
 
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
 
-  // Helper function to calculate time remaining
+  const {
+    data: auctions = [],
+    isLoading: isAuctionsLoading,
+    error: auctionsError,
+    refetch: refetchAuctions,
+  } = useAuctionsQuery();
+
+  const {
+    data: singleAuctionData,
+    isLoading: singleLoading,
+    error: singleAuctionError,
+    refetch: refetchSingleAuction,
+  } = useAuctionQuery(trackedAuctionId, {
+    enabled: singleQueryEnabled,
+    refetchOnWindowFocus: false,
+  });
+
+  const trackedAuctions = useMemo(
+    () => auctions.map((auction) => toTrackedAuction(auction)),
+    [auctions],
+  );
+
+  const singleAuction = useMemo(
+    () => (singleAuctionData ? toTrackedAuction(singleAuctionData) : null),
+    [singleAuctionData],
+  );
+
+  const singleError = useMemo(() => {
+    if (singleInputError) {
+      return singleInputError;
+    }
+
+    if (singleQueryEnabled && singleAuctionError instanceof Error) {
+      return singleAuctionError.message;
+    }
+
+    return null;
+  }, [singleInputError, singleQueryEnabled, singleAuctionError]);
+
+  const loading = isAuctionsLoading;
+  const error = auctionsError instanceof Error ? auctionsError.message : null;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (singleAuction && singleAuction.id !== lastSuccessIdRef.current) {
+      lastSuccessIdRef.current = singleAuction.id;
+      toast.success("Auction found successfully!");
+    }
+  }, [singleAuction]);
+
+  useEffect(() => {
+    if (singleQueryEnabled && singleAuctionError instanceof Error) {
+      toast.error(singleAuctionError.message);
+    }
+  }, [singleQueryEnabled, singleAuctionError]);
+
   const getTimeRemaining = (startAt: string, endAt: string, status: string) => {
     const now = new Date().getTime();
     const start = new Date(startAt).getTime();
@@ -63,7 +134,9 @@ export default function TrackAuctionPage() {
         (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
       );
       return `Starts in ${days}d ${hours}h`;
-    } else if (status === "OPEN") {
+    }
+
+    if (status === "OPEN") {
       const diff = end - now;
       if (diff <= 0) return "Ended";
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -72,142 +145,38 @@ export default function TrackAuctionPage() {
       );
       return `${days}d ${hours}h left`;
     }
+
     return "Completed";
   };
 
-  // Fetch single auction by ID
-  const fetchSingleAuction = async (auctionId: string) => {
-    if (!auctionId.trim()) {
-      setSingleError("Please enter an auction ID");
+  const handleTrackSingleAuction = async () => {
+    const trimmed = auctionIdInput.trim();
+    if (!trimmed) {
+      setSingleInputError("Please enter an auction ID");
       return;
     }
 
-    try {
-      setSingleLoading(true);
-      setSingleError(null);
+    setSingleInputError(null);
 
-      const response = await graphQLApiClient.getAuction(auctionId.trim());
-      const auction = (response as { auction?: any }).auction || response;
-
-      let enhancedAuction: TrackedAuction;
-      try {
-        const creatorAuctions = await graphQLApiClient.getUserAuctions(
-          auction.createdBy,
-        );
-        const creator =
-          creatorAuctions.length > 0
-            ? {
-                id: auction.createdBy,
-                username: `User_${auction.createdBy.slice(0, 8)}`,
-                email: `user_${auction.createdBy.slice(0, 8)}@example.com`,
-              }
-            : undefined;
-
-        enhancedAuction = {
-          ...auction,
-          creator,
-          creatorAuctions: creatorAuctions
-            .filter((a) => a.id !== auction.id && a.visibility === "PUBLIC")
-            .slice(0, 3),
-          winnerId: auction.winnerId,
-          winningBid: auction.winningBid,
-        };
-      } catch (err) {
-        enhancedAuction = {
-          ...auction,
-          winnerId: auction.winnerId,
-          winningBid: auction.winningBid,
-        };
-      }
-
-      setSingleAuction(enhancedAuction);
-      toast.success("Auction found successfully!");
-    } catch (err) {
-      console.error("Failed to fetch auction:", err);
-      const errorMsg =
-        err instanceof Error ? err.message : "Failed to load auction";
-      setSingleError(errorMsg);
-      toast.error(errorMsg);
-      setSingleAuction(null);
-    } finally {
-      setSingleLoading(false);
-    }
-  };
-
-  // Fetch tracked auctions
-  const fetchTrackedAuctions = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const auctions = await graphQLApiClient.getAuctions();
-
-      const enhancedAuctions: TrackedAuction[] = await Promise.all(
-        auctions.map(async (auction) => {
-          try {
-            const creatorAuctions = await graphQLApiClient.getUserAuctions(
-              auction.createdBy,
-            );
-            const creator =
-              creatorAuctions.length > 0
-                ? {
-                    id: auction.createdBy,
-                    username: `User_${auction.createdBy.slice(0, 8)}`,
-                    email: `user_${auction.createdBy.slice(0, 8)}@example.com`,
-                  }
-                : undefined;
-
-            return {
-              ...auction,
-              creator,
-              creatorAuctions: creatorAuctions
-                .filter((a) => a.id !== auction.id && a.visibility === "PUBLIC")
-                .slice(0, 3),
-              winnerId: (auction as TrackedAuction).winnerId,
-              winningBid: (auction as TrackedAuction).winningBid,
-            };
-          } catch (err) {
-            return {
-              ...auction,
-              winnerId: (auction as TrackedAuction).winnerId,
-              winningBid: (auction as TrackedAuction).winningBid,
-            };
-          }
-        }),
-      );
-
-      setTrackedAuctions(enhancedAuctions);
-    } catch (err) {
-      console.error("Failed to fetch tracked auctions:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load tracked auctions",
-      );
-      toast.error("Failed to load tracked auctions");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
+    if (trimmed === trackedAuctionId && singleQueryEnabled) {
+      await refetchSingleAuction();
       return;
     }
 
-    fetchTrackedAuctions();
-  }, [isAuthenticated, router]);
+    setTrackedAuctionId(trimmed);
+  };
 
-  // Filter auctions based on search and status
-  const filteredAuctions = trackedAuctions.filter((auction) => {
-    const matchesSearch =
-      auction.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      auction.auctionCategory.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      filterStatus === "ALL" || auction.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredAuctions = useMemo(() => {
+    return trackedAuctions.filter((auction) => {
+      const matchesSearch =
+        auction.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        auction.auctionCategory.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        filterStatus === "ALL" || auction.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [trackedAuctions, searchTerm, filterStatus]);
 
-  // Get status color and icon
   const getStatusInfo = (status: string) => {
     switch (status) {
       case "SCHEDULED":
@@ -266,7 +235,6 @@ export default function TrackAuctionPage() {
       <Header />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Track Auctions
@@ -277,7 +245,6 @@ export default function TrackAuctionPage() {
           </p>
         </div>
 
-        {/* Tab Navigation */}
         <div className="mb-8">
           <div className="inline-flex rounded-lg bg-muted p-1">
             <button
@@ -303,10 +270,8 @@ export default function TrackAuctionPage() {
           </div>
         </div>
 
-        {/* Tab Content */}
         {activeTab === "all" ? (
           <>
-            {/* Search and Filters */}
             <Card className="mb-6">
               <CardContent className="space-y-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -340,7 +305,7 @@ export default function TrackAuctionPage() {
                       <option value="CLOSED">Closed</option>
                     </select>
                     <Button
-                      onClick={fetchTrackedAuctions}
+                      onClick={() => void refetchAuctions()}
                       disabled={loading}
                       variant="outline"
                       size="sm"
@@ -352,7 +317,6 @@ export default function TrackAuctionPage() {
               </CardContent>
             </Card>
 
-            {/* Error State */}
             {error && (
               <Card className="mb-6 border-destructive">
                 <CardContent className="flex items-center gap-3 p-4">
@@ -364,7 +328,6 @@ export default function TrackAuctionPage() {
               </Card>
             )}
 
-            {/* Loading State */}
             {loading && (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
@@ -384,7 +347,6 @@ export default function TrackAuctionPage() {
               </div>
             )}
 
-            {/* Auctions List */}
             {!loading && !error && (
               <>
                 {filteredAuctions.length === 0 ? (
@@ -420,7 +382,6 @@ export default function TrackAuctionPage() {
                         >
                           <CardContent className="p-0">
                             <div className="flex items-start gap-4">
-                              {/* Status Icon */}
                               <div className="flex-shrink-0 mt-1">
                                 <Badge
                                   variant={statusInfo.variant}
@@ -432,7 +393,6 @@ export default function TrackAuctionPage() {
                                 </Badge>
                               </div>
 
-                              {/* Content */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2 mb-2">
                                   <div className="flex-1">
@@ -456,7 +416,6 @@ export default function TrackAuctionPage() {
                                   </div>
                                 </div>
 
-                                {/* Details Grid */}
                                 <div className="grid grid-cols-3 gap-4 mb-3">
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">
@@ -484,7 +443,6 @@ export default function TrackAuctionPage() {
                                   </div>
                                 </div>
 
-                                {/* Winner Info */}
                                 {auction.status === "CLOSED" &&
                                   auction.winnerId && (
                                     <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -507,7 +465,6 @@ export default function TrackAuctionPage() {
                                     </div>
                                   )}
 
-                                {/* Creator Info */}
                                 {auction.creator && (
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <span>by</span>
@@ -518,15 +475,7 @@ export default function TrackAuctionPage() {
                                 )}
                               </div>
 
-                              {/* Actions */}
                               <div className="flex gap-2 mt-3">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setSelectedAuction(auction)}
-                                >
-                                  View Details
-                                </Button>
                                 <Button
                                   size="sm"
                                   onClick={() =>
@@ -547,163 +496,143 @@ export default function TrackAuctionPage() {
             )}
           </>
         ) : (
-          <>
-            {/* Single Auction Tracking */}
-            <Card className="max-w-2xl mx-auto">
-              <CardHeader>
-                <CardTitle>Track Auction by ID</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter auction ID (e.g., 15c0c64c-3941-494e-935a-821a2d0b5540)"
-                    value={auctionIdInput}
-                    onChange={(e) => setAuctionIdInput(e.target.value)}
-                    onKeyPress={(e) =>
-                      e.key === "Enter" && fetchSingleAuction(auctionIdInput)
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle>Track Auction by ID</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter auction ID (e.g., 15c0c64c-3941-494e-935a-821a2d0b5540)"
+                  value={auctionIdInput}
+                  onChange={(e) => setAuctionIdInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      void handleTrackSingleAuction();
                     }
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={() => fetchSingleAuction(auctionIdInput)}
-                    disabled={singleLoading}
-                  >
-                    {singleLoading ? (
-                      <>
-                        <span className="material-symbols-outlined animate-spin">
-                          refresh
-                        </span>
-                        Searching...
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined">
-                          search
-                        </span>
-                        Track
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Error State */}
-                {singleError && (
-                  <div className="rounded-lg border-destructive bg-destructive/10 p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-destructive">
-                        error
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={() => void handleTrackSingleAuction()}
+                  disabled={singleLoading}
+                >
+                  {singleLoading ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin">
+                        refresh
                       </span>
-                      <p className="text-destructive font-medium">
-                        {singleError}
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined">search</span>
+                      Track
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {singleError && (
+                <div className="rounded-lg border-destructive bg-destructive/10 p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-destructive">
+                      error
+                    </span>
+                    <p className="text-destructive font-medium">{singleError}</p>
+                  </div>
+                </div>
+              )}
+
+              {singleAuction && (
+                <Card className="mt-4">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>{singleAuction.title}</CardTitle>
+                      <Badge variant={getStatusInfo(singleAuction.status).variant}>
+                        {getStatusInfo(singleAuction.status).label}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Category</p>
+                        <p className="font-semibold">
+                          {singleAuction.auctionCategory}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Type</p>
+                        <p className="font-semibold">{singleAuction.auctionType}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Min Bid</p>
+                        <p className="font-semibold">ETB {singleAuction.minBid}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Reserve Price
+                        </p>
+                        <p className="font-semibold">
+                          ETB {singleAuction.reservePrice}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        {singleAuction.itemDescription}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Time remaining:{" "}
+                        {getTimeRemaining(
+                          singleAuction.startAt,
+                          singleAuction.endAt,
+                          singleAuction.status,
+                        )}
                       </p>
                     </div>
-                  </div>
-                )}
 
-                {/* Single Auction Result */}
-                {singleAuction && (
-                  <Card className="mt-4">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle>{singleAuction.title}</CardTitle>
-                        <Badge
-                          variant={getStatusInfo(singleAuction.status).variant}
-                        >
-                          {getStatusInfo(singleAuction.status).label}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Category
-                          </p>
-                          <p className="font-semibold">
-                            {singleAuction.auctionCategory}
-                          </p>
+                    {singleAuction.status === "CLOSED" && singleAuction.winnerId && (
+                      <>
+                        <Separator />
+                        <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <span className="material-symbols-outlined text-green-600 dark:text-green-400">
+                            emoji_events
+                          </span>
+                          <div>
+                            <p className="text-sm text-green-600 dark:text-green-400">
+                              Winner
+                            </p>
+                            <p className="font-semibold text-green-900 dark:text-green-100">
+                              {singleAuction.winnerId?.slice(0, 8)}...
+                            </p>
+                            {singleAuction.winningBid && (
+                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                Winning bid: {singleAuction.winningBid}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Type</p>
-                          <p className="font-semibold">
-                            {singleAuction.auctionType}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Min Bid
-                          </p>
-                          <p className="font-semibold">
-                            ETB {singleAuction.minBid}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Reserve Price
-                          </p>
-                          <p className="font-semibold">
-                            ETB {singleAuction.reservePrice}
-                          </p>
-                        </div>
-                      </div>
+                      </>
+                    )}
 
-                      <Separator />
-
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          {singleAuction.itemDescription}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Time remaining:{" "}
-                          {getTimeRemaining(
-                            singleAuction.startAt,
-                            singleAuction.endAt,
-                            singleAuction.status,
-                          )}
-                        </p>
-                      </div>
-
-                      {singleAuction.status === "CLOSED" &&
-                        singleAuction.winnerId && (
-                          <>
-                            <Separator />
-                            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                              <span className="material-symbols-outlined text-green-600 dark:text-green-400">
-                                emoji_events
-                              </span>
-                              <div>
-                                <p className="text-sm text-green-600 dark:text-green-400">
-                                  Winner
-                                </p>
-                                <p className="font-semibold text-green-900 dark:text-green-100">
-                                  {singleAuction.winnerId?.slice(0, 8)}...
-                                </p>
-                                {singleAuction.winningBid && (
-                                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                    Winning bid: {singleAuction.winningBid}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </>
-                        )}
-
-                      <div className="flex gap-2 pt-4">
-                        <Button
-                          variant="outline"
-                          onClick={() =>
-                            router.push(`/auction/${singleAuction.id}`)
-                          }
-                        >
-                          View Full Auction
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </CardContent>
-            </Card>
-          </>
+                    <div className="flex gap-2 pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => router.push(`/auction/${singleAuction.id}`)}
+                      >
+                        View Full Auction
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
         )}
       </main>
 

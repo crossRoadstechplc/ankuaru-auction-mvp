@@ -21,13 +21,11 @@ export default function RegisterPage() {
     email: "",
     password: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const register = useAuthStore((state) => state.register);
+  const { register, isLoading, error: authError } = useAuthStore();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,8 +35,7 @@ export default function RegisterPage() {
       [name]: value,
     }));
 
-    // Clear errors when user starts typing
-    if (error) setError(null);
+    // Clear field errors when user starts typing
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const newErrors = { ...prev };
@@ -69,15 +66,11 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate form with Zod
     if (!validateForm()) {
       return;
     }
 
     try {
-      setIsLoading(true);
-      setError(null);
-
       await register(formData);
       setSuccess(true);
 
@@ -86,9 +79,7 @@ export default function RegisterPage() {
         router.push("/feed");
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
-    } finally {
-      setIsLoading(false);
+      // Error is already captured in the store
     }
   };
 
@@ -124,11 +115,12 @@ export default function RegisterPage() {
     <AuthLayout imagePosition="left">
       <AuthForm
         title="Create Account"
+        subtitle="Join our community of auction enthusiasts"
         onSubmit={handleSubmit}
         submitText="Create Account"
         submitIcon="arrow_forward"
         loading={isLoading}
-        error={error}
+        error={authError}
         footer={
           <>
             <div className="relative my-4">

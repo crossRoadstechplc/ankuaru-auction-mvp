@@ -1,4 +1,5 @@
 import Image from "next/image";
+import type { ComponentProps } from "react";
 import { useState } from "react";
 
 /**
@@ -28,6 +29,13 @@ export function getImageWithFallback(
   return imageUrl;
 }
 
+type SafeImageProps = Omit<ComponentProps<typeof Image>, "src" | "alt"> & {
+  src?: string;
+  alt: string;
+  className?: string;
+  fallback?: string;
+};
+
 /**
  * Image component with built-in fallback handling
  */
@@ -37,13 +45,7 @@ export function SafeImage({
   className,
   fallback = "/static.jpg",
   ...props
-}: {
-  src?: string;
-  alt: string;
-  className?: string;
-  fallback?: string;
-  [key: string]: any;
-}) {
+}: SafeImageProps) {
   const [imgSrc, setImgSrc] = useState(getImageWithFallback(src, fallback));
   const [hasError, setHasError] = useState(false);
 

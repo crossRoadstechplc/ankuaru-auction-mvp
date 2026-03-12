@@ -1,23 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { graphQLApiClient } from "../../../lib/graphql-api";
 import { toast } from "sonner";
+import { useRemoveMyProfileImageMutation } from "@/src/features/profile/queries/hooks";
 
 export default function ProfileSettingsTab() {
-  const [isRemovingImage, setIsRemovingImage] = useState(false);
+  const removeProfileImageMutation = useRemoveMyProfileImageMutation();
+  const isRemovingImage = removeProfileImageMutation.isPending;
 
   const handleRemoveProfileImage = async () => {
     if (!window.confirm("Are you sure you want to remove your profile image?")) return;
 
-    setIsRemovingImage(true);
     try {
-      await graphQLApiClient.removeMyProfileImage();
-      toast.success("Profile image removed successfully!");
-    } catch (error) {
+      await removeProfileImageMutation.mutateAsync();
+    } catch {
       toast.error("Failed to remove profile image");
-    } finally {
-      setIsRemovingImage(false);
     }
   };
 

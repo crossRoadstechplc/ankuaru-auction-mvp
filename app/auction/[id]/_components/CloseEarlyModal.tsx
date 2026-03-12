@@ -1,7 +1,6 @@
 "use client";
 
-import graphQLApiClient from "@/lib/graphql-api";
-import { useState } from "react";
+import { useCloseAuctionMutation } from "@/src/features/auctions/queries/hooks";
 import { toast } from "sonner";
 
 interface CloseEarlyModalProps {
@@ -19,15 +18,14 @@ export function CloseEarlyModal({
   onClose,
   onClosed,
 }: CloseEarlyModalProps) {
-  const [isClosing, setIsClosing] = useState(false);
+  const closeAuctionMutation = useCloseAuctionMutation();
+  const isClosing = closeAuctionMutation.isPending;
 
   const handleCloseEarly = async () => {
     if (!auctionId) return;
 
     try {
-      setIsClosing(true);
-      await graphQLApiClient.closeAuction(auctionId);
-
+      await closeAuctionMutation.mutateAsync(auctionId);
       toast.success("Auction closed successfully!");
       onClosed();
     } catch (error) {
@@ -35,8 +33,6 @@ export function CloseEarlyModal({
       toast.error(
         error instanceof Error ? error.message : "Failed to close auction",
       );
-    } finally {
-      setIsClosing(false);
     }
   };
 

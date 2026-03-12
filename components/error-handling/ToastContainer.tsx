@@ -7,7 +7,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { toastManager, ToastConfig } from '../../lib/error-handler/toast-manager';
-import { ErrorCategory } from '../../lib/error-handler/error-types';
 
 interface ToastItemProps {
   toast: ToastConfig;
@@ -15,13 +14,8 @@ interface ToastItemProps {
 }
 
 const ToastItem: React.FC<ToastItemProps> = ({ toast, onClose }) => {
-  const [isVisible, setIsVisible] = useState(false);
+  const isVisible = true;
   const [isLeaving, setIsLeaving] = useState(false);
-
-  useEffect(() => {
-    // Trigger enter animation
-    setIsVisible(true);
-  }, []);
 
   const handleClose = () => {
     setIsLeaving(true);

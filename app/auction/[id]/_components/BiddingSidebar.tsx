@@ -1,9 +1,12 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import {
+  usePlaceBidMutation,
+  useRevealBidMutation,
+} from "@/src/features/bids/queries/hooks";
 import { useState } from "react";
 import { toast } from "sonner";
-import { usePlaceBid, useRevealBid } from "../../../../hooks/useAuctions";
 import { useBiddingState } from "../../../../hooks/useBiddingState";
 import { useCountdownTimer } from "../../../../hooks/useCountdownTimer";
 import { useAuthStore } from "../../../../stores/auth.store";
@@ -64,8 +67,8 @@ export function BiddingSidebar({
   const [showRevealBidsModal, setShowRevealBidsModal] = useState(false);
 
   // --- React Query hooks ---
-  const placeBidMutation = usePlaceBid();
-  const revealBidMutation = useRevealBid();
+  const placeBidMutation = usePlaceBidMutation();
+  const revealBidMutation = useRevealBidMutation();
 
   const { days, hours, minutes, seconds, shouldReveal, timeUntilStart } =
     timeLeft;

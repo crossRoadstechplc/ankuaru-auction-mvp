@@ -13,12 +13,10 @@ export default function LoginPage() {
     email: "",
     password: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
 
-  const login = useAuthStore((state) => state.login);
+  const { login, isLoading, error: authError } = useAuthStore();
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,8 +26,7 @@ export default function LoginPage() {
       [name]: value,
     }));
 
-    // Clear errors when user starts typing
-    if (error) setError(null);
+    // Clear field errors when user starts typing
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const newErrors = { ...prev };
@@ -60,23 +57,15 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate form with Zod
     if (!validateForm()) {
       return;
     }
 
     try {
-      setIsLoading(true);
-      setError(null);
-
       await login(formData);
-
-      // Redirect to feed after successful login
       router.push("/feed");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setIsLoading(false);
+      // Error is already captured in the store
     }
   };
 
@@ -89,7 +78,7 @@ export default function LoginPage() {
         submitText="Login to Auction"
         submitIcon="arrow_forward"
         loading={isLoading}
-        error={error}
+        error={authError}
         footer={
           <>
             <div className="relative my-4">

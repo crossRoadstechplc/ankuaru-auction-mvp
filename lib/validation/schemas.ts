@@ -334,7 +334,7 @@ export const apiErrorSchema = z.object({
  */
 export const graphQLResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
   z.object({
-    data: z.record(dataSchema).optional(),
+    data: z.record(z.string(), dataSchema).optional(),
     errors: z
       .array(
         z.object({
@@ -348,7 +348,7 @@ export const graphQLResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
             )
             .optional(),
           path: z.array(z.union([z.string(), z.number()])).optional(),
-          extensions: z.record(z.unknown()).optional(),
+          extensions: z.record(z.string(), z.unknown()).optional(),
         }),
       )
       .optional(),
@@ -411,7 +411,7 @@ export function safeParse<T>(
  * Helper function to get human-readable error messages
  */
 export function getValidationMessage(error: z.ZodError): string {
-  const firstError = error.errors[0];
+  const firstError = error.issues[0];
   if (!firstError) return "Validation failed";
 
   return firstError.message;

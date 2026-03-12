@@ -2,11 +2,12 @@
 
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import { useCreateAuctionMutation } from "@/src/features/auctions/queries/hooks";
+import { useMyFollowersQuery } from "@/src/features/profile/queries/hooks";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { graphQLApiClient } from "../../../lib/graphql-api";
 import { CreateAuctionData, User } from "../../../lib/types";
 import { useAuthStore } from "../../../stores/auth.store";
 
@@ -15,13 +16,10 @@ export default function PostAuctionPage() {
   const [selectedVisibility, setSelectedVisibility] = useState<
     "PUBLIC" | "FOLLOWERS" | "SELECTED"
   >("PUBLIC");
-  const [followers, setFollowers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [manualUserId, setManualUserId] = useState("");
   const [manualUserError, setManualUserError] = useState("");
   const [manuallyAddedUsers, setManuallyAddedUsers] = useState<User[]>([]);
-  const [isFollowersLoading, setIsFollowersLoading] = useState(false);
-  const [followersError, setFollowersError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateAuctionData>({
     title: "",
     auctionCategory: "Coffee",
@@ -49,10 +47,18 @@ export default function PostAuctionPage() {
 
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const {
+    data: followers = [],
+    isLoading: isFollowersLoading,
+    error: followersErrorState,
+  } = useMyFollowersQuery();
+  const createAuctionMutation = useCreateAuctionMutation();
 
   const selectedFollowersCount = useMemo(() => {
     return selectedUserIds.length;
   }, [selectedUserIds]);
+  const followersError =
+    followersErrorState instanceof Error ? followersErrorState.message : null;
 
   // Handler for adding user by ID
   const handleAddUserById = () => {
@@ -177,49 +183,6 @@ export default function PostAuctionPage() {
     }
   };
 
-  useEffect(() => {
-    const needsFollowers =
-      selectedVisibility === "FOLLOWERS" || selectedVisibility === "SELECTED";
-
-    if (!needsFollowers) {
-      setFollowersError(null);
-      return;
-    }
-
-    if (followers.length > 0) return;
-
-    let cancelled = false;
-    const fetchFollowers = async () => {
-      try {
-        setIsFollowersLoading(true);
-        setFollowersError(null);
-        console.log("Fetching followers...");
-        const data = await graphQLApiClient.getMyFollowers();
-        console.log("Followers response:", data);
-        if (!cancelled) {
-          const followersArray = Array.isArray(data) ? data : [];
-          console.log("Setting followers:", followersArray);
-          setFollowers(followersArray);
-        }
-      } catch (err) {
-        console.error("Followers fetch error:", err);
-        if (!cancelled) {
-          setFollowersError(
-            err instanceof Error ? err.message : "Failed to load followers",
-          );
-        }
-      } finally {
-        if (!cancelled) setIsFollowersLoading(false);
-      }
-    };
-
-    fetchFollowers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [followers.length, selectedVisibility]);
-
   const fields = [
     {
       id: "title",
@@ -334,7 +297,7 @@ export default function PostAuctionPage() {
       }
 
       console.log("Submitting auction data:", auctionData);
-      await graphQLApiClient.createAuction(auctionData);
+      await createAuctionMutation.mutateAsync(auctionData);
       setSuccess(true);
       toast.success("Auction created successfully!");
 

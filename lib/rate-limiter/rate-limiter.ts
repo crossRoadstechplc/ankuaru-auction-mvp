@@ -182,6 +182,7 @@ export class RateLimiter {
    * Get configuration for a limit (stored for reset purposes)
    */
   private getLimitConfig(key: string): RateLimitConfig | null {
+    void key;
     // This would need to be implemented based on how configs are stored
     // For now, return null to indicate no config is stored
     return null;
@@ -301,6 +302,7 @@ export function formatTimeRemaining(ms: number): string {
  * Utility function to check if rate limit should be enforced
  */
 export function shouldEnforceRateLimit(key: string): boolean {
+  void key;
   // In development, we might want to relax rate limits
   if (process.env.NODE_ENV === "development") {
     return false;
@@ -313,7 +315,7 @@ export function shouldEnforceRateLimit(key: string): boolean {
 /**
  * Create a rate-limited function wrapper
  */
-export function withRateLimit<T extends any[], R>(
+export function withRateLimit<T extends unknown[], R>(
   key: string,
   fn: (...args: T) => Promise<R>,
   options?: {

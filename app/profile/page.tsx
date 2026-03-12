@@ -7,19 +7,19 @@ import { PageShell } from "@/components/layout/page-shell";
 import { PanelCard } from "@/components/layout/panel-card";
 import { Button } from "@/components/ui/button";
 import { ProfileSummaryCard } from "@/src/components/domain/profile/profile-summary-card";
+import {
+  useMyBlockedUsersQuery,
+  useMyFollowersQuery,
+  useMyFollowingQuery,
+  useMyFollowRequestsQuery,
+  useMyProfileQuery,
+  useMyRatingSummaryQuery,
+  useRemoveMyProfileImageMutation,
+  useUpdateMyProfileMutation,
+} from "@/src/features/profile/queries/hooks";
 import { LoadingState } from "@/src/components/ui/loading-state";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-    useMyBlockedUsers,
-    useMyFollowers,
-    useMyFollowing,
-    useMyFollowRequests,
-    useMyProfile,
-    useMyRatingSummary,
-    useRemoveMyProfileImage,
-    useUpdateMyProfile,
-} from "../../hooks/useProfile";
 import { useAuthStore } from "../../stores/auth.store";
 import EditProfileModal from "./components/EditProfileModal";
 import ProfileSettingsModal from "./components/ProfileSettingsModal";
@@ -31,20 +31,20 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const { isAuthenticated } = useAuthStore();
 
-  const { data: profile, isLoading: profileLoading } = useMyProfile();
+  const { data: profile, isLoading: profileLoading } = useMyProfileQuery();
   const { data: followers = [], isLoading: followersLoading } =
-    useMyFollowers();
+    useMyFollowersQuery();
   const { data: following = [], isLoading: followingLoading } =
-    useMyFollowing();
+    useMyFollowingQuery();
   const { data: followRequests = [], isLoading: requestsLoading } =
-    useMyFollowRequests();
+    useMyFollowRequestsQuery();
   const { data: blockedUsers = [], isLoading: blockedLoading } =
-    useMyBlockedUsers();
+    useMyBlockedUsersQuery();
   const { data: ratingSummary, isLoading: ratingLoading } =
-    useMyRatingSummary();
+    useMyRatingSummaryQuery();
 
-  const updateProfileMutation = useUpdateMyProfile();
-  const removeProfileImageMutation = useRemoveMyProfileImage();
+  const updateProfileMutation = useUpdateMyProfileMutation();
+  const removeProfileImageMutation = useRemoveMyProfileImageMutation();
   const completionItems = [
     Boolean(profile?.fullName),
     Boolean(profile?.bio),

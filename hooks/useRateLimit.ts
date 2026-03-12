@@ -52,6 +52,7 @@ export function useRateLimit(options: UseRateLimitOptions): UseRateLimitReturn {
     resetTime: 0,
     isLimited: false,
   });
+  const [clockNow, setClockNow] = useState(0);
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -106,7 +107,7 @@ export function useRateLimit(options: UseRateLimitOptions): UseRateLimitReturn {
   const executeWithLimit = useCallback(
     async <T extends unknown[], R>(
       fn: (...args: T) => Promise<R>,
-      args: T = [] as T,
+      args?: T,
     ): Promise<R> => {
       const result = checkLimit();
 
@@ -119,7 +120,8 @@ export function useRateLimit(options: UseRateLimitOptions): UseRateLimitReturn {
       }
 
       try {
-        const response = await fn(...args);
+        const safeArgs = args ?? ([] as unknown as T);
+        const response = await fn(...safeArgs);
         if (onSuccess) {
           onSuccess();
         }
@@ -134,8 +136,22 @@ export function useRateLimit(options: UseRateLimitOptions): UseRateLimitReturn {
     [checkLimit, onError, onSuccess],
   );
 
+  useEffect(() => {
+    if (!status.isLimited) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setClockNow(Date.now());
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [status.isLimited]);
+
   // Calculate formatted time until reset
-  const timeUntilReset = formatTimeRemaining(status.resetTime - Date.now());
+  const timeUntilReset = formatTimeRemaining(status.resetTime - clockNow);
 
   // Cleanup timeout on unmount
   useEffect(() => {

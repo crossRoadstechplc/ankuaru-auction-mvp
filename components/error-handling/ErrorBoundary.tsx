@@ -246,6 +246,10 @@ export function withErrorBoundary<P extends object>(
 // Hook for handling errors in functional components
 export function useErrorHandler() {
   const errorHandler = ErrorHandler.getInstance();
+  const handleError = (error: unknown, context?: ErrorContext): CentralizedError => {
+    return errorHandler.handleError(error, context);
+  };
+
   const executeWithErrorHandling = async function <T>(
     fn: () => Promise<T>,
     context?: ErrorContext,

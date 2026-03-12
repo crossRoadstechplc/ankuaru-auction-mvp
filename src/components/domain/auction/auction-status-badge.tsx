@@ -14,7 +14,7 @@ export function AuctionStatusBadge({ status, className }: AuctionStatusBadgeProp
 
   // Map status to visual variant
   let variant: "default" | "warning" | "secondary" = "secondary"
-  let label = normalizedStatus
+  const label = normalizedStatus
 
   if (normalizedStatus === "OPEN") {
     variant = "default" // Uses primary green color from globals.css

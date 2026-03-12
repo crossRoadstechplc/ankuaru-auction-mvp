@@ -1,4 +1,4 @@
-export const AUCTION_DETAILS: Record<string, any> = {
+export const AUCTION_DETAILS: Record<string, unknown> = {
   "1": {
     id: "1",
     product_name: "Sidama Bensa G1 Natural",

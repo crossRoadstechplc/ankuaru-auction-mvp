@@ -1,28 +1,22 @@
-/**
- * Enhanced GraphQL Client for Ankuaru Auction Backend
- *
- * Features:
- * - TypeScript generics for type safety
- * - Comprehensive error handling
- * - Development logging
- * - Token management integration
- */
+"use client";
 
-import { ErrorHandler } from "./error-handler/error-handler";
-import { toastManager } from "./error-handler/toast-manager";
-
-/**
- * GraphQL Client with Centralized Error Handling
- */
+import { useSessionStore } from "../src/features/auth/session/session.store";
+import { validateJwtToken } from "../src/features/auth/session/token";
+import { getGraphqlBaseUrl } from "../src/platform/config/env";
+import { TransportError } from "../src/platform/error/transport-errors";
+import { GraphQLTransport } from "../src/platform/graphql/graphql-transport";
+import { clearAuthSensitiveQueries } from "../src/shared/query/auth-cache";
 
 export class GraphQLError extends Error {
   public readonly errors: unknown[];
+  public readonly status?: number;
   public readonly statusCode?: number;
 
   constructor(message: string, errors: unknown[] = [], statusCode?: number) {
     super(message);
     this.name = "GraphQLError";
     this.errors = errors;
+    this.status = statusCode;
     this.statusCode = statusCode;
 
     if (Error.captureStackTrace) {
@@ -33,312 +27,95 @@ export class GraphQLError extends Error {
 
 export class GraphQLClient {
   private readonly baseURL: string;
-  private token: string | null = null;
+  private tokenOverride: string | null = null;
   private readonly isDebug: boolean;
+  private readonly transport: GraphQLTransport;
 
   constructor() {
-    this.baseURL =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://gql.ankuaru.com/graphql";
+    this.baseURL = getGraphqlBaseUrl();
     this.isDebug = process.env.NODE_ENV !== "production";
+    this.transport = new GraphQLTransport({
+      baseUrl: this.baseURL,
+      getAccessToken: () => this.tokenOverride ?? useSessionStore.getState().token,
+      onUnauthorized: () => {
+        this.tokenOverride = null;
+        useSessionStore.getState().clearSession();
+        void clearAuthSensitiveQueries();
+      },
+      isDebug: this.isDebug,
+    });
   }
 
-  /**
-   * Set authentication token for all subsequent requests
-   */
   public setToken(token: string | null): void {
-    this.token = token;
+    this.tokenOverride = token;
+    useSessionStore.getState().setToken(token);
 
     if (this.isDebug) {
       console.log(`[GraphQL] Token ${token ? "set" : "cleared"}`);
     }
   }
 
-  /**
-   * Get current authentication token
-   */
   public getToken(): string | null {
-    return this.token;
+    return this.tokenOverride ?? useSessionStore.getState().token;
   }
 
-  /**
-   * Clear authentication token (logout)
-   */
   public logout(): void {
-    this.token = null;
+    this.setToken(null);
+    void clearAuthSensitiveQueries();
 
     if (this.isDebug) {
       console.log("[GraphQL] Token cleared (logout)");
     }
   }
 
-  /**
-   * Validate token format and basic structure
-   */
   public validateToken(token: string): boolean {
-    if (!token || typeof token !== "string") {
-      return false;
-    }
-
-    // Basic JWT format check (header.payload.signature)
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      return false;
-    }
-
-    try {
-      // Try to decode payload to check expiration
-      const payload = JSON.parse(atob(parts[1]));
-      const now = Math.floor(Date.now() / 1000);
-
-      // Check if token is expired or will expire within 1 hour
-      if (payload.exp && payload.exp < now + 3600) {
-        if (this.isDebug) {
-          console.log("[GraphQL] Token expired or will expire soon");
-        }
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      if (this.isDebug) {
-        console.log("[GraphQL] Token validation failed:", error);
-      }
-      return false;
-    }
+    return validateJwtToken(token, 3600).valid;
   }
 
-  /**
-   * Check if GraphQL endpoint is accessible
-   */
   public async checkGraphQLHealth(): Promise<{
     url: string;
     status: string;
     error?: string;
   }> {
-    try {
-      const response = await fetch(`${this.baseURL}/health`);
-      return {
-        url: this.baseURL,
-        status: response.ok ? "OK" : `Error: ${response.status}`,
-      };
-    } catch (error) {
-      return {
-        url: this.baseURL,
-        status: "Failed",
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
+    return this.transport.checkHealth();
   }
 
-  /**
-   * Execute GraphQL request with comprehensive error handling
-   */
   public async request<T>(
     query: string,
     variables?: Record<string, unknown>,
-    context?: any,
+    context?: Record<string, unknown>,
   ): Promise<T> {
-    const url = `${this.baseURL}/graphql`;
-    const headers = this.buildHeaders();
-    const errorHandler = ErrorHandler.getInstance();
-
-    if (this.isDebug) {
-      console.log(`[GraphQL Request] POST ${url}`, {
-        query: query.trim().split("\n")[0], // Show first line for brevity
-        variables: variables || {},
-      });
-    }
-
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ query, variables }),
+      return await this.transport.request<T>({
+        query,
+        variables,
+        context,
       });
-
-      if (this.isDebug) {
-        console.log(`[GraphQL Response] ${response.status} ${url}`);
-        console.log(
-          `[GraphQL Response Headers]`,
-          Object.fromEntries(response.headers.entries()),
-        );
-      }
-
-      // Handle HTTP errors
-      if (!response.ok) {
-        const errorText = await response.text();
-        const error = new GraphQLError(
-          `HTTP ${response.status}: ${response.statusText} - ${errorText}`,
-          [],
-          response.status,
-        );
-
-        // Handle through centralized error system
-        const centralizedError = errorHandler.handleError(error, {
-          ...context,
-          url,
-          method: "POST",
-          query: query.trim().split("\n")[0],
-          variables,
-        });
-
-        // Show toast for user-facing errors
-        if (centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
-          toastManager.showError(centralizedError, {
-            showRetry: centralizedError.retryable,
-            onRetry: () => this.request<T>(query, variables, context),
-          });
-        }
-
-        throw error;
-      }
-
-      const json = await response.json();
-
-      // Handle GraphQL errors
-      if (json.errors?.length) {
-        const primaryError = json.errors[0];
-        const message = this.extractErrorMessage(primaryError);
-        const error = new GraphQLError(message, json.errors, response.status);
-
-        // Handle through centralized error system
-        const centralizedError = errorHandler.handleError(error, {
-          ...context,
-          url,
-          method: "POST",
-          query: query.trim().split("\n")[0],
-          variables,
-          graphqlErrors: json.errors,
-        });
-
-        // Show toast for user-facing errors
-        if (centralizedError.category !== "BUSINESS_LOGIC_ERROR") {
-          toastManager.showError(centralizedError, {
-            showRetry: centralizedError.retryable,
-            onRetry: () => this.request<T>(query, variables, context),
-          });
-        }
-
-        throw error;
-      }
-
-      // Return data with proper typing
-      return json.data as T;
     } catch (error) {
-      // Re-throw GraphQL errors (already handled above)
       if (error instanceof GraphQLError) {
         throw error;
       }
 
-      // Handle network/parsing errors through centralized system
-      const centralizedError = errorHandler.handleError(error, {
-        ...context,
-        url,
-        method: "POST",
-        query: query.trim().split("\n")[0],
-        variables,
-      });
+      if (error instanceof TransportError) {
+        const graphqlErrors =
+          (error.details?.graphqlErrors as unknown[] | undefined) ?? [];
+        const message = error.statusCode
+          ? error.message.includes(`${error.statusCode}`)
+            ? error.message
+            : `HTTP ${error.statusCode}: ${error.message}`
+          : error.message;
 
-      // Show toast for network errors
-      toastManager.showError(centralizedError, {
-        showRetry: centralizedError.retryable,
-        onRetry: () => this.request<T>(query, variables, context),
-      });
-
-      // Debug: Log the error to understand its structure
-      if (this.isDebug) {
-        console.error("[GraphQL Debug] Network error structure:", {
-          error,
-          errorType: typeof error,
-          isError: error instanceof Error,
-          errorMessage: error instanceof Error ? error.message : "not an Error",
-          errorString: String(error),
-        });
+        throw new GraphQLError(message, graphqlErrors, error.statusCode);
       }
 
-      // More defensive error message extraction
-      let errorMessage: string;
-      try {
-        // Handle null/undefined errors first
-        if (!error) {
-          errorMessage = "Network error occurred";
-        } else if (error instanceof Error && error.message) {
-          errorMessage = error.message;
-        } else if (typeof error === "string") {
-          errorMessage = error;
-        } else if (
-          error &&
-          typeof error === "object" &&
-          Object.keys(error).length > 0
-        ) {
-          // Handle error objects with properties
-          const errorObj = error as any;
-          errorMessage = errorObj.message || errorObj.error || String(error);
-        } else {
-          // Handle empty objects, null, undefined, etc.
-          errorMessage = "Network error occurred";
-        }
-      } catch (e) {
-        errorMessage = "Network error occurred";
+      if (error instanceof Error) {
+        throw new GraphQLError(error.message);
       }
 
-      // Final fallback to ensure errorMessage is never undefined
-      if (
-        !errorMessage ||
-        errorMessage === "undefined" ||
-        errorMessage === "null" ||
-        errorMessage === "[object Object]"
-      ) {
-        errorMessage = "Network error occurred";
-      }
-
-      const networkError = new GraphQLError(errorMessage, [], undefined);
-
-      if (this.isDebug) {
-        console.error(`[Network Error] ${url}`, networkError);
-        console.error(`[Network Error Details]`, {
-          url,
-          message: errorMessage,
-          error,
-        });
-      }
-
-      throw networkError;
+      throw new GraphQLError("Unknown GraphQL transport error");
     }
-  }
-
-  /**
-   * Build request headers with authentication
-   */
-  private buildHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
-    if (this.token) {
-      headers["Authorization"] = `Bearer ${this.token}`;
-    }
-
-    return headers;
-  }
-
-  /**
-   * Extract meaningful error message from GraphQL error
-   */
-  private extractErrorMessage(error: any): string {
-    if (typeof error === "string") return error;
-    if (!error) return "Unknown GraphQL error";
-
-    // Try common error message fields
-    return (
-      error.message ||
-      error.extensions?.message ||
-      error.extensions?.code ||
-      "GraphQL operation failed"
-    );
   }
 }
 
-// Export singleton instance
 export const graphqlClient = new GraphQLClient();
 export default graphqlClient;

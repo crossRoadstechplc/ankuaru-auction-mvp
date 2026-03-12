@@ -32,6 +32,16 @@ export interface RetryOptions {
   shouldRetry?: (error: CentralizedError) => boolean;
 }
 
+type GraphQLErrorLike = {
+  errors?: Array<{
+    message?: string;
+    extensions?: {
+      code?: string;
+    };
+  }>;
+  status?: number;
+};
+
 export class ErrorHandler {
   private static instance: ErrorHandler;
   private config: ErrorHandlerConfig;
@@ -160,13 +170,13 @@ export class ErrorHandler {
     error: unknown,
     context?: ErrorContext,
   ): CentralizedError {
-    const gqlError = error as any;
+    const gqlError = error as GraphQLErrorLike;
 
-    if (!gqlError.errors || !Array.isArray(gqlError.errors)) {
+    if (!gqlError.errors || !Array.isArray(gqlError.errors) || gqlError.errors.length === 0) {
       return createUnknownError(error, context);
     }
 
-    const primaryError = gqlError.errors[0];
+    const primaryError = gqlError.errors[0] || {};
     const message = primaryError.message || "GraphQL error occurred";
     const extensions = primaryError.extensions || {};
     const code = extensions.code;
@@ -214,8 +224,59 @@ export class ErrorHandler {
       }
     }
 
+    // Specific business logic error detection (KISS principle)
+    const lowerMessage = message.toLowerCase();
+    if (
+      lowerMessage.includes("email") &&
+      lowerMessage.includes("username") &&
+      lowerMessage.includes("exists")
+    ) {
+      return createBusinessLogicError(
+        message,
+        "It looks like either that email or username is already in use. Please check your details or try a different one.",
+        context,
+        409,
+      );
+    }
+
+    if (
+      lowerMessage.includes("username") &&
+      (lowerMessage.includes("taken") || lowerMessage.includes("exists"))
+    ) {
+      return createBusinessLogicError(
+        message,
+        "This username is already taken. Please choose another one.",
+        context,
+        400,
+      );
+    }
+
+    if (
+      lowerMessage.includes("email") &&
+      (lowerMessage.includes("taken") || lowerMessage.includes("exists"))
+    ) {
+      return createBusinessLogicError(
+        message,
+        "This email is already registered. Please use another one or log in.",
+        context,
+        400,
+      );
+    }
+
+    if (
+      lowerMessage.includes("invalid") &&
+      (lowerMessage.includes("credential") || lowerMessage.includes("password"))
+    ) {
+      return createBusinessLogicError(
+        message,
+        "Invalid email or password. Please check your credentials.",
+        context,
+        401,
+      );
+    }
+
     // Server errors
-    if (statusCode >= 500) {
+    if (typeof statusCode === "number" && statusCode >= 500) {
       return createServerError(
         message,
         "Server error occurred. Please try again later",
@@ -225,7 +286,12 @@ export class ErrorHandler {
     }
 
     // Default GraphQL error
-    return createUnknownError(error, context);
+    return createUnknownError(error, {
+      ...context,
+      extensions,
+      statusCode,
+      code,
+    });
   }
 
   /**
@@ -357,8 +423,8 @@ export class ErrorHandler {
    * Check if error is a GraphQL error
    */
   private isGraphQLError(error: Error | unknown): boolean {
-    const gqlError = error as any;
-    return gqlError.errors && Array.isArray(gqlError.errors);
+    const gqlError = error as GraphQLErrorLike;
+    return Array.isArray(gqlError.errors);
   }
 
   /**

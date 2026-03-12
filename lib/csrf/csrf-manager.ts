@@ -25,6 +25,19 @@ export interface CSRFValidationResult {
   token?: string;
 }
 
+type ExpressLikeRequest = {
+  method: string;
+  headers: Headers | Record<string, string | string[] | undefined>;
+};
+
+type ExpressLikeResponse = {
+  status: (code: number) => {
+    json: (body: unknown) => unknown;
+  };
+};
+
+type NextFn = () => void;
+
 /**
  * CSRF Token Manager
  *
@@ -358,14 +371,18 @@ export class CSRFManager {
    * Middleware for Express.js (if needed)
    */
   expressMiddleware() {
-    return (req: any, res: any, next: any) => {
+    return (req: ExpressLikeRequest, res: ExpressLikeResponse, next: NextFn) => {
       // For GET requests, no CSRF protection needed
       if (req.method === "GET") {
         return next();
       }
 
       // Validate CSRF token
-      const result = this.validateRequestToken(req.headers);
+      const headers =
+        req.headers instanceof Headers
+          ? req.headers
+          : new Headers(req.headers as Record<string, string>);
+      const result = this.validateRequestToken(headers);
 
       if (!result.isValid) {
         return res.status(403).json({

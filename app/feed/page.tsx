@@ -7,8 +7,8 @@ import { PageSection } from "@/components/layout/page-section";
 import { PageShell } from "@/components/layout/page-shell";
 import { getImageWithFallback } from "@/lib/imageUtils";
 import { Auction } from "@/lib/types";
+import { useAuctionsQuery } from "@/src/features/auctions/queries/hooks";
 import { useState } from "react";
-import { useAuctions } from "../../hooks/useAuctions";
 import { useAuthStore } from "../../stores/auth.store";
 import { FeedAuctionGrid } from "./components/FeedAuctionGrid";
 import { FeedFiltersSidebar } from "./components/FeedFiltersSidebar";
@@ -22,7 +22,7 @@ export default function FeedPage() {
   const user = useAuthStore((state) => state.user);
 
   // React Query hook for fetching auctions
-  const { data: auctions = [], isLoading, error } = useAuctions();
+  const { data: auctions = [], isLoading, error } = useAuctionsQuery();
 
   // Filter auctions based on category, status, search, and user ownership
   const filteredAuctions = Array.isArray(auctions)

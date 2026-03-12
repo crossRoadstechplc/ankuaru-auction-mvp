@@ -1,10 +1,21 @@
 "use client";
 
-import graphQLApiClient from "@/lib/graphql-api";
+import { useCloseAuctionMutation } from "@/src/features/auctions/queries/hooks";
+import { useAuctionBidsQuery } from "@/src/features/bids/queries/hooks";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Bid } from "../../../../lib/types";
+
+type CloseAuctionResult = {
+  winnerId?: string;
+  winningBid?: string;
+  bidCount?: number;
+  closedAt?: string;
+  title?: string;
+  auctionCategory?: string;
+  reservePrice?: string;
+  minBid?: string;
+};
 
 interface RevealBidsModalProps {
   auction: {
@@ -30,45 +41,52 @@ export function RevealBidsModal({
   isOpen,
   onClose,
 }: RevealBidsModalProps) {
-  const router = useRouter();
-  const [bids, setBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isClosing, setIsClosing] = useState(false);
-  const [closeResult, setCloseResult] = useState<any | null>(null);
+  const toCloseResult = (value: unknown): CloseAuctionResult => {
+    if (!value || typeof value !== "object") {
+      return {};
+    }
 
-  useEffect(() => {
-    if (!isOpen || !auction.id) return;
-
-    const fetchBids = async () => {
-      try {
-        setLoading(true);
-        const fetchedBids = await graphQLApiClient.getAuctionBids(auction.id);
-        console.log("fetchedBids", fetchedBids);
-        setBids(fetchedBids);
-      } catch (error) {
-        console.error("Failed to fetch auction bids:", error);
-        toast.error("Failed to load bids");
-      } finally {
-        setLoading(false);
-      }
+    const raw = value as Record<string, unknown>;
+    return {
+      winnerId: typeof raw.winnerId === "string" ? raw.winnerId : undefined,
+      winningBid:
+        typeof raw.winningBid === "string" ? raw.winningBid : undefined,
+      bidCount: typeof raw.bidCount === "number" ? raw.bidCount : undefined,
+      closedAt: typeof raw.closedAt === "string" ? raw.closedAt : undefined,
+      title: typeof raw.title === "string" ? raw.title : undefined,
+      auctionCategory:
+        typeof raw.auctionCategory === "string"
+          ? raw.auctionCategory
+          : undefined,
+      reservePrice:
+        typeof raw.reservePrice === "string" ? raw.reservePrice : undefined,
+      minBid: typeof raw.minBid === "string" ? raw.minBid : undefined,
     };
+  };
 
-    fetchBids();
-  }, [isOpen, auction.id]);
+  const router = useRouter();
+  const {
+    data: bids = [],
+    isLoading: isBidsLoading,
+  } = useAuctionBidsQuery(auction.id, {
+    enabled: isOpen && !!auction.id,
+  });
+  const closeAuctionMutation = useCloseAuctionMutation();
+  const [closeResult, setCloseResult] = useState<CloseAuctionResult | null>(
+    null,
+  );
+  const isClosing = closeAuctionMutation.isPending;
 
   const handleCloseAuction = async () => {
     try {
-      setIsClosing(true);
-      const result = await graphQLApiClient.closeAuction(auction.id);
-      setCloseResult(result);
+      const result = await closeAuctionMutation.mutateAsync(auction.id);
+      setCloseResult(toCloseResult(result));
       toast.success("Auction closed successfully!");
     } catch (error) {
       console.error("Failed to close auction:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to close auction",
       );
-    } finally {
-      setIsClosing(false);
     }
   };
 
@@ -131,7 +149,7 @@ export function RevealBidsModal({
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[65vh]">
-          {loading ? (
+          {isBidsLoading ? (
             <div className="flex flex-col items-center justify-center py-16">
               <span className="material-symbols-outlined animate-spin text-4xl text-primary mb-4">
                 refresh

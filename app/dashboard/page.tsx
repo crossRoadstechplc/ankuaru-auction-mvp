@@ -10,17 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getImageWithFallback } from "@/lib/imageUtils";
 import { AuctionCard } from "@/src/components/domain/auction/auction-card";
+import { useAuctionsQuery } from "@/src/features/auctions/queries/hooks";
+import { useMyBidsQuery } from "@/src/features/bids/queries/hooks";
+import {
+  useMyFollowersQuery,
+  useMyFollowingQuery,
+  useMyRatingSummaryQuery,
+} from "@/src/features/profile/queries/hooks";
 import { Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
-import {
-  useAuctions,
-  useMyBids,
-  useMyFollowers,
-  useMyFollowing,
-} from "../../hooks/useAuctions";
-import { useMyRatingSummary } from "../../hooks/useProfile";
 import { useAuthStore } from "../../stores/auth.store";
 
 function formatRelativeTime(dateString: string) {
@@ -46,12 +45,12 @@ function formatRelativeTime(dateString: string) {
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
 
-  const { data: auctions = [] } = useAuctions();
-  const { data: myBids = [], isLoading: isLoadingBids } = useMyBids();
-  const { data: followers = [] } = useMyFollowers();
-  const { data: following = [] } = useMyFollowing();
+  const { data: auctions = [] } = useAuctionsQuery();
+  const { data: myBids = [], isLoading: isLoadingBids } = useMyBidsQuery();
+  const { data: followers = [] } = useMyFollowersQuery();
+  const { data: following = [] } = useMyFollowingQuery();
   const { data: ratingSummary, isLoading: isLoadingRating } =
-    useMyRatingSummary();
+    useMyRatingSummaryQuery();
 
   const myAuctions = user
     ? auctions.filter((auction) => auction.createdBy === user.id)

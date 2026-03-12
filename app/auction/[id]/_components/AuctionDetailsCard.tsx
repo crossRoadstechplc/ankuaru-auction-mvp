@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useMyBid } from "../../../../hooks/useAuctions";
 import {
-    useFollowUser,
-    useMyFollowing,
-    useUnfollowUser,
-} from "../../../../hooks/useFollowers";
-import { UserRating } from "../../../../lib/types";
-import { useAuthStore } from "../../../../stores/auth.store";
+  useMyBidQuery,
+} from "@/src/features/bids/queries/hooks";
+import {
+  useFollowUserMutation,
+  useMyFollowingQuery,
+  useUnfollowUserMutation,
+} from "@/src/features/profile/queries/hooks";
+import { User, UserRating } from "../../../../lib/types";
 
 interface AuctionDetailsCardProps {
   data: {
@@ -30,7 +31,7 @@ interface AuctionDetailsCardProps {
     winningBid?: string;
   };
   creatorRating?: UserRating | null;
-  creatorInfo?: any;
+  creatorInfo?: Pick<User, "id" | "username" | "fullName" | "avatar"> | null;
   isCreator: boolean;
 }
 
@@ -40,17 +41,18 @@ export function AuctionDetailsCard({
   creatorInfo,
   isCreator,
 }: AuctionDetailsCardProps) {
-  const { user } = useAuthStore();
   const [idCopied, setIdCopied] = useState(false);
 
   // React Query hooks
-  const { data: myBid } = useMyBid(data.id);
-  const { data: following = [] } = useMyFollowing();
-  const followMutation = useFollowUser();
-  const unfollowMutation = useUnfollowUser();
+  const { data: myBid } = useMyBidQuery(data.id);
+  const { data: following = [] } = useMyFollowingQuery();
+  const followMutation = useFollowUserMutation();
+  const unfollowMutation = useUnfollowUserMutation();
 
   // Check if creator is already being followed
-  const isFollowing = following.some((u: any) => u.id === data.createdBy);
+  const isFollowing = following.some((followedUser) => {
+    return followedUser.id === data.createdBy;
+  });
   const isFollowLoading =
     followMutation.isPending || unfollowMutation.isPending;
 

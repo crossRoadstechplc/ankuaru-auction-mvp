@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { FollowRequest } from "../../../lib/types";
-import { graphQLApiClient } from "../../../lib/graphql-api";
 import { toast } from "sonner";
+import {
+  useApproveFollowRequestMutation,
+  useRejectFollowRequestMutation,
+} from "@/src/features/profile/queries/hooks";
 
 interface FollowRequestsTabProps {
   requests: FollowRequest[];
@@ -11,13 +14,15 @@ interface FollowRequestsTabProps {
 
 export default function FollowRequestsTab({ requests }: FollowRequestsTabProps) {
   const [loadingRequestId, setLoadingRequestId] = useState<string | null>(null);
+  const approveFollowRequestMutation = useApproveFollowRequestMutation();
+  const rejectFollowRequestMutation = useRejectFollowRequestMutation();
 
   const handleApprove = async (requestId: string) => {
     setLoadingRequestId(requestId);
     try {
-      await graphQLApiClient.approveFollowRequest(requestId);
+      await approveFollowRequestMutation.mutateAsync(requestId);
       toast.success("Follow request approved!");
-    } catch (error) {
+    } catch {
       toast.error("Failed to approve follow request");
     } finally {
       setLoadingRequestId(null);
@@ -27,9 +32,9 @@ export default function FollowRequestsTab({ requests }: FollowRequestsTabProps) 
   const handleReject = async (requestId: string) => {
     setLoadingRequestId(requestId);
     try {
-      await graphQLApiClient.rejectFollowRequest(requestId);
+      await rejectFollowRequestMutation.mutateAsync(requestId);
       toast.success("Follow request rejected!");
-    } catch (error) {
+    } catch {
       toast.error("Failed to reject follow request");
     } finally {
       setLoadingRequestId(null);
@@ -48,7 +53,7 @@ export default function FollowRequestsTab({ requests }: FollowRequestsTabProps) 
           No Follow Requests
         </h3>
         <p className="text-slate-600 dark:text-slate-400">
-          You don't have any pending follow requests.
+          You do not have any pending follow requests.
         </p>
       </div>
     );

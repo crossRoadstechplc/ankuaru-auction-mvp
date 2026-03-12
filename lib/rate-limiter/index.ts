@@ -4,6 +4,8 @@
  * Central exports for all rate limiting functionality
  */
 
+import { initializeRateLimiter } from "./rate-limiter";
+
 // Export main classes and utilities
 export {
   RateLimiter,

@@ -27,58 +27,19 @@ export const LOGIN_MUTATION = `
 
 export const UPDATE_MY_PROFILE_MUTATION = `
   mutation UpdateMyProfile($input: UpdateProfileInput!) {
-    updateMyProfile(input: $input) {
-      id
-      username
-      email
-      fullName
-      bio
-      profileImageUrl
-      isPrivate
-      avatar
-      rating
-      isFollowing
-      createdAt
-      updatedAt
-    }
+    updateMyProfile(input: $input)
   }
 `;
 
 export const UPDATE_MY_ACCOUNT_MUTATION = `
   mutation UpdateMyAccount($input: UpdateAccountInput!) {
-    updateMyAccount(input: $input) {
-      id
-      username
-      email
-      fullName
-      bio
-      profileImageUrl
-      isPrivate
-      avatar
-      rating
-      isFollowing
-      createdAt
-      updatedAt
-    }
+    updateMyAccount(input: $input)
   }
 `;
 
 export const REMOVE_MY_PROFILE_IMAGE_MUTATION = `
   mutation RemoveMyProfileImage {
-    removeMyProfileImage {
-      id
-      username
-      email
-      fullName
-      bio
-      profileImageUrl
-      isPrivate
-      avatar
-      rating
-      isFollowing
-      createdAt
-      updatedAt
-    }
+    removeMyProfileImage
   }
 `;
 

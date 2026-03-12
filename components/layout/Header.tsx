@@ -9,13 +9,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { useNotificationsWithRealTimeQuery } from "@/src/features/notifications/queries/hooks";
+import {
+  useApproveFollowRequestMutation,
+  useMyFollowRequestsQuery,
+  useRejectFollowRequestMutation,
+} from "@/src/features/profile/queries/hooks";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useMyFollowers } from "../../hooks/useFollowers";
-import { useNotificationsWithRealTime } from "../../hooks/useNotifications";
-import { useMyFollowRequests } from "../../hooks/useProfile";
-import { graphQLApiClient } from "../../lib/graphql-api";
+import { toast } from "sonner";
 import { Notification } from "../../lib/types";
 import { useAuthStore } from "../../stores/auth.store";
 import ThemeToggle from "../ui/ThemeToggle";
@@ -23,24 +26,22 @@ import ThemeToggle from "../ui/ThemeToggle";
 export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isFollowersOpen, setIsFollowersOpen] = useState(false);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
   // React Query hooks
-  const { data: followers = [], isLoading: isLoadingFollowers } =
-    useMyFollowers();
   const {
     notifications,
     unreadCount,
     markAsRead,
     isLoading: isLoadingNotifications,
-  } = useNotificationsWithRealTime();
+  } = useNotificationsWithRealTimeQuery();
   const {
     data: followRequests = [],
     isLoading: isLoadingRequests,
-    refetch: refetchRequests,
-  } = useMyFollowRequests();
+  } = useMyFollowRequestsQuery();
+  const approveFollowRequestMutation = useApproveFollowRequestMutation();
+  const rejectFollowRequestMutation = useRejectFollowRequestMutation();
 
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -55,48 +56,31 @@ export default function Header() {
     // Handle notification navigation logic here
   };
 
+  const getNotificationText = (notification: Notification) => {
+    const legacyNotification = notification as Notification & { text?: string };
+    return (
+      notification.title ||
+      notification.message ||
+      legacyNotification.text ||
+      "Notification"
+    );
+  };
+
   const handleApproveRequest = async (requestId: string) => {
     try {
-      await graphQLApiClient.approveFollowRequest(requestId);
+      await approveFollowRequestMutation.mutateAsync(requestId);
       toast.success("Follow request approved!");
-      refetchRequests();
-    } catch (error) {
+    } catch {
       toast.error("Failed to approve follow request");
     }
   };
 
   const handleRejectRequest = async (requestId: string) => {
     try {
-      await graphQLApiClient.rejectFollowRequest(requestId);
+      await rejectFollowRequestMutation.mutateAsync(requestId);
       toast.success("Follow request rejected!");
-      refetchRequests();
-    } catch (error) {
+    } catch {
       toast.error("Failed to reject follow request");
-    }
-  };
-
-  const changePage = () => {
-    if (pathname === "/feed") {
-      router.push("/dashboard");
-    } else {
-      router.push("/feed");
-    }
-  };
-
-  const handleFollowersClick = () => {
-    setIsProfileOpen(false);
-    setIsFollowersOpen(true);
-  };
-
-  const handleUnfollow = async (id: string) => {
-    if (!id) return;
-    if (!window.confirm("Are you sure you want to unfollow this user?")) return;
-
-    try {
-      await graphQLApiClient.unfollowUser(id);
-      // React Query will automatically refetch followers
-    } catch (error) {
-      console.error("Failed to unfollow user", error);
     }
   };
 
@@ -105,7 +89,6 @@ export default function Header() {
     // Close any open dropdowns
     setIsNotificationsOpen(false);
     setIsProfileOpen(false);
-    setIsFollowersOpen(false);
     setIsRequestsOpen(false);
     window.location.href = "/login";
   };
@@ -250,7 +233,7 @@ export default function Header() {
                                 <p
                                   className={`text-sm ${!n.is_read ? "font-semibold" : "font-medium"} text-foreground`}
                                 >
-                                  {n.title || n.message || (n as any).text}
+                                  {getNotificationText(n)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {new Date(n.created_at).toLocaleTimeString()}
