@@ -91,12 +91,14 @@ export class GraphQLTransport {
   ): Promise<TData> {
     const operationName =
       request.operationName || extractOperationName(request.query);
+    const skipAuth = request.context?.skipAuth === true;
 
     if (this.isDebug) {
       console.log("[GraphQLTransport] Request", {
         endpoint: this.graphqlEndpoint,
         operationName,
         variables: request.variables || {},
+        skipAuth,
       });
     }
 
@@ -104,7 +106,7 @@ export class GraphQLTransport {
       "Content-Type": "application/json",
     };
 
-    const token = this.getAccessToken();
+    const token = skipAuth ? null : this.getAccessToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }

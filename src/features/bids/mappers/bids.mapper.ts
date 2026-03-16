@@ -1,4 +1,10 @@
-import { Auction, Bid, BidResponse, BidWithAuction } from "@/lib/types";
+import {
+  Auction,
+  Bid,
+  BidAccessRequest,
+  BidResponse,
+  BidWithAuction,
+} from "@/lib/types";
 import {
   parseJsonScalar,
   toJsonArray,
@@ -10,18 +16,26 @@ import {
 
 function mapBidDto(value: unknown): Bid {
   const dto = toJsonObject(value) ?? {};
+  const normalizedAmount = toOptionalString(dto.amount ?? dto.revealedAmount);
+  const revealedAt = toOptionalString(dto.revealedAt);
+  const revealedAmount = toOptionalString(dto.revealedAmount ?? dto.amount);
+  const revealedFlag = toOptionalBoolean(dto.revealed ?? dto.isRevealed);
 
   return {
     id: toStringOr(dto.id),
     auctionId: toStringOr(dto.auctionId),
     bidderId: toStringOr(dto.bidderId),
     commitHash: toOptionalString(dto.commitHash),
-    amount: toOptionalString(dto.amount),
-    revealed: toOptionalBoolean(dto.revealed ?? dto.isRevealed),
+    amount: normalizedAmount,
+    revealed:
+      revealedFlag ??
+      (revealedAmount !== undefined || revealedAt !== undefined
+        ? true
+        : undefined),
     bidderUsername: toOptionalString(dto.bidderUsername),
     bidderEmail: toOptionalString(dto.bidderEmail),
-    revealedAmount: toOptionalString(dto.revealedAmount),
-    revealedAt: toOptionalString(dto.revealedAt),
+    revealedAmount,
+    revealedAt,
     isValid: toOptionalBoolean(dto.isValid),
     invalidReason: toOptionalString(dto.invalidReason) ?? null,
     createdAt: toStringOr(dto.createdAt, new Date().toISOString()),
@@ -66,6 +80,81 @@ export function mapMyBidsPayload(value: unknown): Bid[] {
     : toJsonArray(parsed);
 
   return list.map((entry) => mapBidDto(entry));
+}
+
+function mapBidAccessRequestUser(
+  userValue: unknown,
+  fallback: {
+    id?: unknown;
+    username?: unknown;
+    fullName?: unknown;
+    avatar?: unknown;
+  },
+): BidAccessRequest["requester"] {
+  const dto = toJsonObject(userValue) ?? {};
+  const id = toStringOr(dto.id ?? fallback.id);
+  const username =
+    toOptionalString(dto.username ?? fallback.username) ??
+    (id ? `User ${id.slice(0, 8)}...` : "Unknown requester");
+
+  return {
+    id,
+    username,
+    fullName: toOptionalString(dto.fullName ?? fallback.fullName),
+    avatar: toOptionalString(dto.avatar ?? fallback.avatar),
+  };
+}
+
+function mapBidAccessRequestDto(value: unknown): BidAccessRequest {
+  const raw = toJsonObject(value) ?? {};
+  const auction = toJsonObject(raw.auction);
+  const requester =
+    raw.requester ?? raw.requesterUser ?? raw.bidder ?? raw.bidderUser ?? raw.user;
+
+  return {
+    id: toStringOr(raw.id),
+    auctionId: toStringOr(raw.auctionId ?? raw.auction_id ?? auction?.id),
+    auctionTitle: toOptionalString(raw.auctionTitle ?? auction?.title),
+    status: toStringOr(raw.status, "PENDING"),
+    createdAt: toStringOr(raw.createdAt, new Date().toISOString()),
+    requester: mapBidAccessRequestUser(requester, {
+      id: raw.requesterId ?? raw.bidderId ?? raw.userId,
+      username: raw.requesterUsername ?? raw.bidderUsername ?? raw.username,
+      fullName: raw.requesterFullName ?? raw.bidderFullName ?? raw.fullName,
+      avatar: raw.requesterAvatar ?? raw.bidderAvatar ?? raw.avatar,
+    }),
+  };
+}
+
+export function mapBidAccessRequestsPayload(value: unknown): BidAccessRequest[] {
+  const parsed = parseJsonScalar(value);
+  const envelope = toJsonObject(parsed);
+
+  const list = envelope
+    ? toJsonArray(
+        envelope.bidRequests ??
+          envelope.myBidRequests ??
+          envelope.auctionBidRequests ??
+          envelope.requests ??
+          parsed,
+      )
+    : toJsonArray(parsed);
+
+  return list.map((entry) => mapBidAccessRequestDto(entry));
+}
+
+export function mapBidRequestMutationPayload(value: unknown): boolean {
+  const parsed = parseJsonScalar(value);
+
+  if (typeof parsed === "boolean") {
+    return parsed;
+  }
+
+  if (typeof parsed === "string") {
+    return parsed.trim().length > 0;
+  }
+
+  return parsed !== null && parsed !== undefined;
 }
 
 export function mapSubmitBidPayload(value: unknown): BidResponse {

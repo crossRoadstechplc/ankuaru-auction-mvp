@@ -15,6 +15,14 @@ export interface User {
   updatedAt: string;
 }
 
+export interface UserProfileDetails extends User {
+  followers: User[];
+  following: User[];
+  followersCount: number;
+  followingCount: number;
+  ratingsCount: number;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;
@@ -35,6 +43,17 @@ export interface Auction {
   id: string;
   title: string;
   auctionCategory: string;
+  productName?: string;
+  region?: string;
+  commodityType?: string;
+  grade?: string;
+  process?: string;
+  transaction?: string;
+  commodityClass?: string;
+  commoditySize?: string;
+  commodityBrand?: string;
+  quantity?: string;
+  quantityUnit?: string;
   itemDescription: string;
   reservePrice: string;
   minBid: string;
@@ -50,6 +69,8 @@ export interface Auction {
   winnerId?: string;
   winningBid?: string;
   closedAt?: string;
+  canBid?: boolean;
+  hasRequestedBidAccess?: boolean;
   // Creator information (populated from GraphQL)
   creator?: {
     id: string;
@@ -88,17 +109,66 @@ export interface AuctionCloseResponse {
   };
 }
 
+export interface CloseAuctionResult {
+  auctionId: string;
+  title: string;
+  auctionCategory: string;
+  reservePrice: string;
+  minBid: string;
+  bidCount: number;
+  winnerId?: string;
+  winningBid?: string;
+  closedAt?: string;
+}
+
 export interface CreateAuctionData {
   title: string;
   auctionCategory: string;
+  productName?: string;
+  region?: string;
+  commodityType?: string;
+  grade?: string;
+  process?: string;
+  transaction?: string;
+  commodityClass?: string;
+  commoditySize?: string;
+  commodityBrand?: string;
+  quantity?: string;
+  quantityUnit?: string;
   itemDescription: string;
   reservePrice: string;
   minBid: string;
   auctionType: "SELL" | "BUY";
   visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
   selectedUserIds?: string[];
+  auctionImageUrl?: File | string | null;
   startAt: string;
   endAt: string;
+}
+
+export interface AuctionSelectOption {
+  value: string;
+  label: string;
+}
+
+export interface AuctionFormOptions {
+  categories: AuctionSelectOption[];
+  productNames: AuctionSelectOption[];
+  regions: AuctionSelectOption[];
+  commodityTypes: AuctionSelectOption[];
+  grades: AuctionSelectOption[];
+  processes: AuctionSelectOption[];
+  transactions: AuctionSelectOption[];
+  commodityClasses: AuctionSelectOption[];
+  commoditySizes: AuctionSelectOption[];
+  commodityBrands: AuctionSelectOption[];
+  quantityUnits: AuctionSelectOption[];
+  requiredFields: string[];
+}
+
+export interface AuctionFormOptionsParams {
+  category?: string;
+  productName?: string;
 }
 
 export interface Bid {
@@ -116,6 +186,22 @@ export interface Bid {
   invalidReason?: string | null;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface BidAccessRequestUser {
+  id: string;
+  username: string;
+  fullName?: string;
+  avatar?: string;
+}
+
+export interface BidAccessRequest {
+  id: string;
+  auctionId: string;
+  auctionTitle?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
+  createdAt: string;
+  requester: BidAccessRequestUser;
 }
 
 export interface BidResponse {

@@ -11,10 +11,14 @@ export interface ProfileSummaryCardProps {
   avatarUrl?: string | null;
   followersCount?: number;
   followingCount?: number;
+  postsCount?: number;
+  ratingValue?: number | null;
   joinedAt?: string | null;
   actions?: React.ReactNode;
   isVerified?: boolean;
   className?: string;
+  onFollowersClick?: () => void;
+  onFollowingClick?: () => void;
 }
 
 export function ProfileSummaryCard({
@@ -24,10 +28,14 @@ export function ProfileSummaryCard({
   avatarUrl,
   followersCount = 0,
   followingCount = 0,
+  postsCount,
+  ratingValue,
   joinedAt,
   actions,
   isVerified,
   className,
+  onFollowersClick,
+  onFollowingClick,
 }: ProfileSummaryCardProps) {
   const joinedDate = joinedAt
     ? new Intl.DateTimeFormat("en-US", {
@@ -35,6 +43,36 @@ export function ProfileSummaryCard({
         year: "numeric",
       }).format(new Date(joinedAt))
     : null;
+  const stats = [
+    {
+      label: "Followers",
+      value: followersCount.toLocaleString(),
+      onClick: onFollowersClick,
+    },
+    {
+      label: "Following",
+      value: followingCount.toLocaleString(),
+      onClick: onFollowingClick,
+    },
+    ...(postsCount !== undefined
+      ? [
+          {
+            label: "Lots",
+            value: postsCount.toLocaleString(),
+            onClick: undefined,
+          },
+        ]
+      : []),
+    ...(ratingValue !== undefined && ratingValue !== null
+      ? [
+          {
+            label: "Rating",
+            value: ratingValue > 0 ? ratingValue.toFixed(1) : "-",
+            onClick: undefined,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <Card className={cn("overflow-hidden", className)}>
@@ -80,38 +118,42 @@ export function ProfileSummaryCard({
         </div>
 
         {/* Stats row */}
-        <div className="mt-3 flex items-center gap-4">
-          <div className="flex flex-col items-center">
-            <span className="text-sm font-black text-foreground">
-              {followersCount}
-            </span>
-            <span className="text-xs text-muted-foreground font-medium">
-              Followers
-            </span>
-          </div>
-          <div className="w-px h-6 bg-border" />
-          <div className="flex flex-col items-center">
-            <span className="text-sm font-black text-foreground">
-              {followingCount}
-            </span>
-            <span className="text-xs text-muted-foreground font-medium">
-              Following
-            </span>
-          </div>
-          {joinedDate && (
-            <>
-              <div className="w-px h-6 bg-border" />
-              <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground font-medium">
-                  Joined
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {stats.map((stat) =>
+            stat.onClick ? (
+              <button
+                key={stat.label}
+                type="button"
+                onClick={stat.onClick}
+                className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-left transition-colors hover:bg-muted/35"
+              >
+                <span className="block text-sm font-black text-foreground">
+                  {stat.value}
                 </span>
-                <span className="text-xs font-semibold text-foreground">
-                  {joinedDate}
+                <span className="block text-xs font-medium text-muted-foreground">
+                  {stat.label}
+                </span>
+              </button>
+            ) : (
+              <div
+                key={stat.label}
+                className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2"
+              >
+                <span className="block text-sm font-black text-foreground">
+                  {stat.value}
+                </span>
+                <span className="block text-xs font-medium text-muted-foreground">
+                  {stat.label}
                 </span>
               </div>
-            </>
+            ),
           )}
         </div>
+        {joinedDate ? (
+          <p className="mt-3 text-xs font-medium text-muted-foreground">
+            Joined {joinedDate}
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -12,6 +12,7 @@ export default function ProfileSettingsTab() {
 
     try {
       await removeProfileImageMutation.mutateAsync();
+      toast.success("Profile image removed successfully!");
     } catch {
       toast.error("Failed to remove profile image");
     }

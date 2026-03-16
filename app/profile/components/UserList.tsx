@@ -19,6 +19,7 @@ export interface UserListProps {
   onUnblock?: (userId: string) => void;
   className?: string;
   isLoading?: boolean;
+  loadingIds?: string[];
 }
 
 export function UserList({
@@ -35,6 +36,7 @@ export function UserList({
   onUnblock,
   className,
   isLoading = false,
+  loadingIds = [],
 }: UserListProps) {
   if (isLoading)
     return <LoadingState type="list" count={4} className={className} />;
@@ -52,7 +54,10 @@ export function UserList({
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      {users.map((user) => (
+      {users.map((user) => {
+        const isRowLoading = loadingIds.includes(user.id);
+
+        return (
         <Card key={user.id} className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -72,9 +77,10 @@ export function UserList({
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={isRowLoading}
                   onClick={() => onFollow(user.id)}
                 >
-                  Follow
+                  {isRowLoading ? "..." : "Follow"}
                 </Button>
               )}
 
@@ -82,9 +88,10 @@ export function UserList({
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={isRowLoading}
                   onClick={() => onUnfollow(user.id)}
                 >
-                  Unfollow
+                  {isRowLoading ? "..." : "Unfollow"}
                 </Button>
               )}
 
@@ -92,9 +99,10 @@ export function UserList({
                 <Button
                   variant="destructive"
                   size="sm"
+                  disabled={isRowLoading}
                   onClick={() => onBlock(user.id)}
                 >
-                  Block
+                  {isRowLoading ? "..." : "Block"}
                 </Button>
               )}
 
@@ -102,15 +110,16 @@ export function UserList({
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={isRowLoading}
                   onClick={() => onUnblock(user.id)}
                 >
-                  Unblock
+                  {isRowLoading ? "..." : "Unblock"}
                 </Button>
               )}
             </div>
           </div>
         </Card>
-      ))}
+      )})}
     </div>
   );
 }

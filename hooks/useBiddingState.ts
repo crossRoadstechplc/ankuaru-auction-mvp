@@ -14,8 +14,7 @@ interface BidData {
 }
 
 export function useBiddingState(auctionId: string) {
-  const { user } = useAuthStore();
-  const userId = user?.id ?? null;
+  const userId = useAuthStore((state) => state.userId);
   const { data: myBid, refetch: refetchMyBid } = useMyBidQuery(auctionId);
 
   const [bidAmount, setBidAmount] = useState("");

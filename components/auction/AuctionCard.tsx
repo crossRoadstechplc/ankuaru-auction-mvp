@@ -31,7 +31,7 @@ export default function AuctionCard({
   return (
     <Link
       href={`/auction/${id}`}
-      className="group flex min-w-[300px] flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all hover:shadow-lg"
+      className="group flex min-w-[300px] flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all hover:shadow-lg"
     >
       <div className="relative h-44 w-full overflow-hidden bg-coffee-cream/20">
         <div

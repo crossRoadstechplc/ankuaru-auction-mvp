@@ -2,13 +2,14 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { LoginData, RegisterData, User } from "../lib/types";
+import { LoginData, RegisterData } from "../lib/types";
 import { authApi } from "../src/features/auth/api/auth.api";
 import { useSessionStore } from "../src/features/auth/session/session.store";
+import { extractUserIdFromJwt } from "../src/features/auth/session/token";
 import { clearAuthSensitiveQueries } from "../src/shared/query/auth-cache";
 
 type AuthState = {
-  user: User | null;
+  userId: string | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -25,7 +26,7 @@ const initialState: Omit<
   AuthState,
   "login" | "register" | "logout" | "hydrate" | "clearError"
 > = {
-  user: null,
+  userId: null,
   token: null,
   isAuthenticated: false,
   isLoading: true,
@@ -49,9 +50,13 @@ function projectSessionToAuthState(
 ): Partial<AuthState> {
   const isAuthenticated =
     session.status === "authenticated" && !!session.token;
+  const tokenUserId = extractUserIdFromJwt(session.token);
 
   return {
     token: session.token,
+    userId: isAuthenticated
+      ? (tokenUserId ?? current.userId)
+      : null,
     isAuthenticated,
     hasHydrated: session.hasHydrated,
     isLoading: !session.hasHydrated,
@@ -61,7 +66,6 @@ function projectSessionToAuthState(
         : isAuthenticated
           ? null
           : current.error,
-    user: isAuthenticated ? current.user : null,
   };
 }
 
@@ -75,7 +79,7 @@ export const useAuthStore = create<AuthState>()(
           const response = await authApi.login(data);
           useSessionStore.getState().setToken(response.token);
           set({
-            user: response.user,
+            userId: response.user.id || extractUserIdFromJwt(response.token),
             token: response.token,
             isAuthenticated: true,
             isLoading: false,
@@ -89,7 +93,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: message,
             isAuthenticated: false,
-            user: null,
+            userId: null,
             token: null,
           });
           throw error;
@@ -101,7 +105,7 @@ export const useAuthStore = create<AuthState>()(
           const response = await authApi.register(data);
           useSessionStore.getState().setToken(response.token);
           set({
-            user: response.user,
+            userId: response.user.id || extractUserIdFromJwt(response.token),
             token: response.token,
             isAuthenticated: true,
             isLoading: false,
@@ -116,7 +120,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: message,
             isAuthenticated: false,
-            user: null,
+            userId: null,
             token: null,
           });
           throw error;
@@ -126,7 +130,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           useSessionStore.getState().clearSession();
           set({
-            user: null,
+            userId: null,
             token: null,
             isAuthenticated: false,
             isLoading: false,
@@ -137,7 +141,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error("Logout error:", error);
           set({
-            user: null,
+            userId: null,
             token: null,
             isAuthenticated: false,
             isLoading: false,
@@ -162,7 +166,7 @@ export const useAuthStore = create<AuthState>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        user: state.user,
+        userId: state.userId,
       }),
     },
   ),

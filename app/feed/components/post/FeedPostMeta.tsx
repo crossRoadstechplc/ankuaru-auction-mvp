@@ -1,13 +1,53 @@
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 
 interface FeedPostMetaProps {
   auctionType: "SELL" | "BUY";
   status: string;
   minBid: string;
   reservePrice?: string;
-  endAt: string;
+  quantity?: string;
+  quantityUnit?: string;
   startAt: string;
+  endAt: string;
+}
+
+function formatNumericValue(value?: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value.replace(/,/g, "").trim());
+  if (!Number.isFinite(parsed)) {
+    return value;
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: parsed % 1 === 0 ? 0 : 2,
+  }).format(parsed);
+}
+
+function getStatusBadgeClasses(status: string): string {
+  switch (status) {
+    case "SCHEDULED":
+      return "bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300";
+    case "OPEN":
+      return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300";
+    case "REVEAL":
+      return "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300";
+    case "CLOSED":
+      return "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300";
+    default:
+      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+  }
+}
+
+function getStatusLabel(status: string): string {
+  if (status === "CLOSED") {
+    return "Closed / Expired";
+  }
+
+  return status.charAt(0) + status.slice(1).toLowerCase();
 }
 
 export function FeedPostMeta({
@@ -15,82 +55,99 @@ export function FeedPostMeta({
   status,
   minBid,
   reservePrice,
-  endAt,
+  quantity,
+  quantityUnit,
   startAt,
+  endAt,
 }: FeedPostMetaProps) {
   const isSell = auctionType === "SELL";
+  const quantityDisplay = quantity
+    ? `${formatNumericValue(quantity) || quantity}${quantityUnit ? ` ${quantityUnit}` : ""}`
+    : "Unspecified";
+  const minBidDisplay = formatNumericValue(minBid) || minBid;
+  const reservePriceDisplay = reservePrice
+    ? formatNumericValue(reservePrice) || reservePrice
+    : null;
+  const isClosed = status === "CLOSED";
+  const isScheduled = status === "SCHEDULED";
 
-  // Calculate time remaining
-  const getTimeRemaining = () => {
-    const now = new Date();
-    const endTime = new Date(endAt);
-    const diff = endTime.getTime() - now.getTime();
+  const timingValue = isClosed
+    ? "Ended"
+    : isScheduled
+      ? formatDistanceToNowStrict(new Date(startAt), { addSuffix: true })
+      : formatDistanceToNowStrict(new Date(endAt), { addSuffix: true });
+  const timingHint = isClosed
+    ? `Closed ${format(new Date(endAt), "MMM d, h:mm a")}`
+    : isScheduled
+      ? `Starts ${format(new Date(startAt), "MMM d, h:mm a")}`
+      : `Ends ${format(new Date(endAt), "MMM d, h:mm a")}`;
 
-    if (diff <= 0) return "Ended";
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-    if (days > 0) return `${days}d ${hours}h left`;
-    return `${hours}h left`;
-  };
-
-  const statusColor =
-    status === "OPEN"
-      ? "text-emerald-500"
-      : status === "CLOSED"
-      ? "text-muted-foreground"
-      : "text-amber-500";
+  const metricCards = [
+    {
+      label: "Opening bid",
+      value: `ETB ${minBidDisplay}`,
+      hint: reservePriceDisplay
+        ? `Reserve ETB ${reservePriceDisplay}`
+        : "Reserve not set",
+    },
+    {
+      label: "Quantity",
+      value: quantityDisplay,
+      hint: "Lot volume",
+    },
+    {
+      label: isScheduled ? "Opens" : isClosed ? "Ended" : "Closes",
+      value: timingValue,
+      hint: timingHint,
+    },
+    {
+      label: "Auction mode",
+      value: isSell ? "Seller listing" : "Buyer request",
+      hint: isSell ? "Supply-side auction" : "Demand-side request",
+    },
+  ];
 
   return (
-    <div className="px-4 pb-4">
-      <div className="grid grid-cols-2 gap-px bg-border/40 rounded-xl overflow-hidden shadow-sm ring-1 ring-border/50">
-        {/* Left column: Price Info */}
-        <div className="bg-card dark:bg-muted/10 p-3 flex flex-col justify-center space-y-1">
-          <div className="flex items-center justify-between font-medium">
-             <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
-              Current Bid
-            </span>
-             <Badge
-              variant="outline"
-              className={`text-[10px] font-bold px-1.5 py-0 h-4 border-0 rounded ${
-                isSell
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-                  : "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
-              }`}
-            >
-              {isSell ? "SELL" : "BUY"}
-            </Badge>
-          </div>
-          <p className="text-lg font-bold text-foreground truncate">
-            ETB {minBid}
-          </p>
-          {reservePrice && (
-            <p className="text-xs text-muted-foreground/80 font-medium">
-              Reserve: {reservePrice}
-            </p>
-          )}
-        </div>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant="outline"
+          className={`rounded-full border-0 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${
+            isSell
+              ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          }`}
+        >
+          {isSell ? "Sell auction" : "Buy request"}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={`rounded-full border-0 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${getStatusBadgeClasses(
+            status,
+          )}`}
+        >
+          {getStatusLabel(status)}
+        </Badge>
+      </div>
 
-        {/* Right column: Time/Status Info */}
-        <div className="bg-card dark:bg-muted/10 p-3 flex flex-col justify-center space-y-1">
-          <div className="flex items-center justify-between font-medium">
-            <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
-              Status
-            </span>
-            <span
-              className={`text-[10px] font-bold px-1.5 py-0 rounded flex items-center gap-1 bg-muted/50`}
+      <div className="overflow-hidden rounded-[14px] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
+        <div className="grid gap-px bg-slate-200/70 sm:grid-cols-2 xl:grid-cols-4 dark:bg-slate-800/80">
+          {metricCards.map((metric) => (
+            <div
+              key={metric.label}
+              className="bg-slate-50/90 p-3 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${statusColor === 'text-emerald-500' ? 'bg-emerald-500' : statusColor === 'text-muted-foreground' ? 'bg-muted-foreground' : 'bg-amber-500'} animate-pulse`} />
-              {status}
-            </span>
-          </div>
-          <p className="text-sm font-semibold text-foreground truncate mt-1">
-            {getTimeRemaining()}
-          </p>
-          <p className="text-[10px] text-muted-foreground/80 font-medium truncate">
-            Ends: {format(new Date(endAt), "MMM d, h:mm a")}
-          </p>
+              <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                {metric.label}
+              </div>
+              <div className="mt-2 text-base font-black leading-tight">
+                {metric.value}
+              </div>
+              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                {metric.hint}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

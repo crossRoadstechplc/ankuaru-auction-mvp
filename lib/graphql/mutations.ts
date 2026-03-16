@@ -160,6 +160,24 @@ export const SUBMIT_BID_MUTATION = `
   }
 `;
 
+export const REQUEST_BID_ACCESS_MUTATION = `
+  mutation RequestBidAccess($id: ID!) {
+    requestBidAccess(id: $id)
+  }
+`;
+
+export const APPROVE_BID_REQUEST_MUTATION = `
+  mutation ApproveBidRequest($requestId: ID!) {
+    approveBidRequest(requestId: $requestId)
+  }
+`;
+
+export const REJECT_BID_REQUEST_MUTATION = `
+  mutation RejectBidRequest($requestId: ID!) {
+    rejectBidRequest(requestId: $requestId)
+  }
+`;
+
 // ==========================================
 // 8. Input Type Definitions (for reference)
 // ==========================================

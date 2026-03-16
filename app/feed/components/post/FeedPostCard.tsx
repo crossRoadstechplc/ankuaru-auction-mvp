@@ -11,40 +11,68 @@ import { FeedPostActions } from "./FeedPostActions";
 interface FeedPostCardProps {
   auction: Auction;
   getImageWithFallback?: (image?: string) => string;
+  isFollowingCreator?: boolean;
+  isRequestedCreator?: boolean;
+  onOpenCreatorProfile?: (userId: string) => void;
 }
 
 export function FeedPostCard({
   auction,
   getImageWithFallback,
+  isFollowingCreator,
+  isRequestedCreator,
+  onOpenCreatorProfile,
 }: FeedPostCardProps) {
   return (
-    <Card className="flex flex-col bg-card hover:bg-card/90 transition-colors duration-300 border border-border/50 shadow-sm hover:shadow-md rounded-2xl overflow-hidden mx-auto sm:max-w-2xl w-full">
-      <FeedPostHeader 
-        creator={auction.creator} 
-        createdAt={auction.createdAt} 
+    <Card className="mx-auto w-full overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_36px_120px_-64px_rgba(15,23,42,0.48)] dark:border-slate-800 dark:bg-slate-950">
+      <FeedPostHeader
+        creatorId={auction.createdBy}
+        creator={auction.creator}
+        createdAt={auction.createdAt}
+        isFollowing={isFollowingCreator}
+        isRequested={isRequestedCreator}
+        onOpenProfile={onOpenCreatorProfile}
       />
-      
-      <FeedPostBody
-        title={auction.title}
-        description={auction.itemDescription}
-        category={auction.auctionCategory}
-      />
-      
-      <FeedPostMedia 
-        image={auction.image} 
-        getImageWithFallback={getImageWithFallback} 
-      />
-      
-      <FeedPostMeta
-        auctionType={auction.auctionType}
-        status={auction.status}
-        minBid={auction.minBid}
-        reservePrice={auction.reservePrice}
-        startAt={auction.startAt}
-        endAt={auction.endAt}
-      />
-      
-      <FeedPostActions auctionId={auction.id} />
+
+      <div className="grid gap-4 px-4 pb-4 md:grid-cols-[minmax(0,1fr)_188px] md:px-5 md:pb-5">
+        <div className="space-y-4">
+          <FeedPostBody
+            title={auction.title}
+            description={auction.itemDescription}
+            category={auction.auctionCategory}
+            productName={auction.productName}
+            region={auction.region}
+            commodityType={auction.commodityType}
+            grade={auction.grade}
+            process={auction.process}
+            transaction={auction.transaction}
+            commodityBrand={auction.commodityBrand}
+            commodityClass={auction.commodityClass}
+            commoditySize={auction.commoditySize}
+          />
+
+          <FeedPostMeta
+            auctionType={auction.auctionType}
+            status={auction.status}
+            minBid={auction.minBid}
+            reservePrice={auction.reservePrice}
+            quantity={auction.quantity}
+            quantityUnit={auction.quantityUnit}
+            startAt={auction.startAt}
+            endAt={auction.endAt}
+          />
+        </div>
+
+        <FeedPostMedia
+          image={auction.image}
+          getImageWithFallback={getImageWithFallback}
+          status={auction.status}
+          auctionType={auction.auctionType}
+          category={auction.auctionCategory}
+        />
+      </div>
+
+      <FeedPostActions auctionId={auction.id} status={auction.status} />
     </Card>
   );
 }

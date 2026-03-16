@@ -14,6 +14,10 @@ export type MyFollowRequestsQueryResultDto = {
   myFollowRequests: unknown;
 };
 
+export type MySentFollowRequestsQueryResultDto = {
+  mySentFollowRequests: unknown;
+};
+
 export type MyBlockedUsersQueryResultDto = {
   myBlockedUsers: unknown;
 };

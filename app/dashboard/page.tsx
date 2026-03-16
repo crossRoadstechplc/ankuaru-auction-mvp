@@ -15,6 +15,7 @@ import { useMyBidsQuery } from "@/src/features/bids/queries/hooks";
 import {
   useMyFollowersQuery,
   useMyFollowingQuery,
+  useMyProfileQuery,
   useMyRatingSummaryQuery,
 } from "@/src/features/profile/queries/hooks";
 import { Users } from "lucide-react";
@@ -43,7 +44,8 @@ function formatRelativeTime(dateString: string) {
 }
 
 export default function DashboardPage() {
-  const user = useAuthStore((state) => state.user);
+  const userId = useAuthStore((state) => state.userId);
+  const { data: profile } = useMyProfileQuery();
 
   const { data: auctions = [] } = useAuctionsQuery();
   const { data: myBids = [], isLoading: isLoadingBids } = useMyBidsQuery();
@@ -52,8 +54,8 @@ export default function DashboardPage() {
   const { data: ratingSummary, isLoading: isLoadingRating } =
     useMyRatingSummaryQuery();
 
-  const myAuctions = user
-    ? auctions.filter((auction) => auction.createdBy === user.id)
+  const myAuctions = userId
+    ? auctions.filter((auction) => auction.createdBy === userId)
     : [];
   const isLoadingAuctions = false;
 
@@ -72,7 +74,7 @@ export default function DashboardPage() {
   const activeLiveAuctions = auctions.filter((auction) => {
     const isOpen = auction.status === "OPEN";
     const isPast = new Date(auction.endAt).getTime() <= currentTime.getTime();
-    const isOwner = user ? auction.createdBy === user.id : false;
+    const isOwner = userId ? auction.createdBy === userId : false;
     return isOpen && !isPast && !isOwner;
   });
 
@@ -112,14 +114,14 @@ export default function DashboardPage() {
         />
 
         <PageSection>
-          <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card p-5 shadow-sm md:p-7">
+          <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card p-5 shadow-sm md:p-7">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
                   Workspace Summary
                 </p>
                 <h2 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">
-                  Welcome back{user?.username ? `, ${user.username}` : ""}
+                  Welcome back{profile?.username ? `, ${profile.username}` : ""}
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -465,7 +467,7 @@ export default function DashboardPage() {
                   {[1, 2].map((i) => (
                     <div
                       key={i}
-                      className="h-72 animate-pulse rounded-2xl border border-border bg-muted/40"
+                      className="h-72 animate-pulse rounded-xl border border-border bg-muted/40"
                     />
                   ))}
                 </div>

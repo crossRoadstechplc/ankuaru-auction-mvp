@@ -13,3 +13,23 @@ export type MyBidQueryResultDto = {
 export type MyBidsQueryResultDto = {
   myBids: unknown;
 };
+
+export type MyBidRequestsQueryResultDto = {
+  myBidRequests: unknown;
+};
+
+export type AuctionBidRequestsQueryResultDto = {
+  auctionBidRequests: unknown;
+};
+
+export type RequestBidAccessMutationResultDto = {
+  requestBidAccess: unknown;
+};
+
+export type ApproveBidRequestMutationResultDto = {
+  approveBidRequest: unknown;
+};
+
+export type RejectBidRequestMutationResultDto = {
+  rejectBidRequest: unknown;
+};

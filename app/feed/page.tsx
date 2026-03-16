@@ -8,148 +8,400 @@ import { PageShell } from "@/components/layout/page-shell";
 import { getImageWithFallback } from "@/lib/imageUtils";
 import { Auction } from "@/lib/types";
 import { useAuctionsQuery } from "@/src/features/auctions/queries/hooks";
-import { useState } from "react";
+import {
+  useMyFollowingQuery,
+  useMyProfileQuery,
+  useMySentFollowRequestsQuery,
+} from "@/src/features/profile/queries/hooks";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { useAuthStore } from "../../stores/auth.store";
 import { FeedAuctionGrid } from "./components/FeedAuctionGrid";
-import { FeedFiltersSidebar } from "./components/FeedFiltersSidebar";
-import { FeedSearchBar } from "./components/FeedSearchBar";
+import { FeedComposerBar } from "./components/FeedComposerBar";
+import {
+  FeedFilterOption,
+  FeedFilterSidebar,
+} from "./components/FeedFilterSidebar";
+import PublicUserProfileModal from "../profile/components/PublicUserProfileModal";
+
+const DISPLAY_PAGE_SIZE = 6;
+const STATUS_SORT_ORDER = ["SCHEDULED", "OPEN", "REVEAL", "CLOSED"] as const;
+const STATUS_SORT_PRIORITY: Record<(typeof STATUS_SORT_ORDER)[number], number> = {
+  SCHEDULED: 0,
+  OPEN: 1,
+  REVEAL: 2,
+  CLOSED: 3,
+};
+const QUANTITY_RANGE_DEFINITIONS = [
+  { id: "under-100", label: "Under 100" },
+  { id: "100-499", label: "100 - 499" },
+  { id: "500-999", label: "500 - 999" },
+  { id: "1000-plus", label: "1000+" },
+] as const;
+
+type QuantityRangeId = (typeof QUANTITY_RANGE_DEFINITIONS)[number]["id"];
+
+function parseQuantityValue(quantity?: string): number | null {
+  if (!quantity) {
+    return null;
+  }
+
+  const parsed = Number(quantity.replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getQuantityRangeId(quantity?: string): QuantityRangeId | null {
+  const normalizedQuantity = parseQuantityValue(quantity);
+
+  if (normalizedQuantity === null) {
+    return null;
+  }
+
+  if (normalizedQuantity < 100) {
+    return "under-100";
+  }
+
+  if (normalizedQuantity < 500) {
+    return "100-499";
+  }
+
+  if (normalizedQuantity < 1000) {
+    return "500-999";
+  }
+
+  return "1000-plus";
+}
+
+function buildFilterOptions(
+  entries: Array<{ id: string; label: string }>,
+): FeedFilterOption[] {
+  return entries.map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+    count: 0,
+  }));
+}
+
+function sortAuctionsForBoard(left: Auction, right: Auction): number {
+  const leftPriority =
+    STATUS_SORT_PRIORITY[left.status as keyof typeof STATUS_SORT_PRIORITY] ?? 99;
+  const rightPriority =
+    STATUS_SORT_PRIORITY[right.status as keyof typeof STATUS_SORT_PRIORITY] ?? 99;
+
+  if (leftPriority !== rightPriority) {
+    return leftPriority - rightPriority;
+  }
+
+  const leftTime =
+    left.status === "CLOSED"
+      ? new Date(left.endAt || left.createdAt || 0).getTime()
+      : new Date(left.endAt || left.createdAt || 0).getTime();
+  const rightTime =
+    right.status === "CLOSED"
+      ? new Date(right.endAt || right.createdAt || 0).getTime()
+      : new Date(right.endAt || right.createdAt || 0).getTime();
+
+  if (left.status === "CLOSED" && right.status === "CLOSED") {
+    return rightTime - leftTime;
+  }
+
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+
+  return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+}
+
+function toggleSelection(current: string[], nextValue: string): string[] {
+  return current.includes(nextValue)
+    ? current.filter((entry) => entry !== nextValue)
+    : [...current, nextValue];
+}
 
 export default function FeedPage() {
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [activeStatus, setActiveStatus] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [displayLimit, setDisplayLimit] = useState(6);
-  const user = useAuthStore((state) => state.user);
+  const router = useRouter();
+  const [displayLimit, setDisplayLimit] = useState(DISPLAY_PAGE_SIZE);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedQuantityRanges, setSelectedQuantityRanges] = useState<string[]>(
+    [],
+  );
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(
+    null,
+  );
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const userId = useAuthStore((state) => state.userId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const searchParams = useSearchParams();
+  const searchTerm = searchParams.get("q")?.trim() ?? "";
 
   // React Query hook for fetching auctions
   const { data: auctions = [], isLoading, error } = useAuctionsQuery();
+  const { data: myProfile } = useMyProfileQuery();
+  const { data: following = [] } = useMyFollowingQuery();
+  const { data: sentFollowRequests = [] } = useMySentFollowRequestsQuery();
+  const followingIds = useMemo(() => {
+    if (!userId) {
+      return [];
+    }
 
-  // Filter auctions based on category, status, search, and user ownership
-  const filteredAuctions = Array.isArray(auctions)
-    ? (auctions as Auction[])
-        .filter((auction: Auction) => {
-          // Filter out user's own auctions
-          if (user?.id && auction.createdBy === user.id) {
-            return false;
-          }
+    return following.map((user) => user.id);
+  }, [following, userId]);
+  const requestedIds = useMemo(() => {
+    if (!userId) {
+      return [];
+    }
 
-          // Status filtering
-          if (activeStatus !== "all" && auction.status !== activeStatus) {
-            return false;
-          }
+    return sentFollowRequests
+      .filter((request) => request.status === "PENDING")
+      .map((request) => request.target.id)
+      .filter((requestUserId) => !!requestUserId);
+  }, [sentFollowRequests, userId]);
 
-          // Category filtering (map to visibility levels)
-          const visibilityMap: Record<string, string> = {
-            public: "PUBLIC",
-            followers: "FOLLOWERS",
-            custom: "SELECTED",
-          };
+  const searchMatchingAuctions = useMemo(() => {
+    if (!Array.isArray(auctions)) {
+      return [];
+    }
 
-          if (activeCategory !== "all") {
-            const requiredVisibility = visibilityMap[activeCategory];
-            if (
-              requiredVisibility &&
-              auction.visibility !== requiredVisibility
-            ) {
-              return false;
-            }
-          }
+    const normalizedSearch = searchTerm.trim().toLowerCase();
 
-          // Search filtering (basic client-side search)
-          if (searchTerm.trim()) {
-            const searchLower = searchTerm.toLowerCase();
-            return (
-              auction.title.toLowerCase().includes(searchLower) ||
-              auction.itemDescription.toLowerCase().includes(searchLower) ||
-              auction.auctionCategory.toLowerCase().includes(searchLower)
-            );
-          }
-
+    return [...(auctions as Auction[])]
+      .filter((auction) => {
+        if (!normalizedSearch) {
           return true;
-        })
-        .slice(0, displayLimit)
-    : [];
+        }
 
-  // Calculate auction counts for badges
-  const auctionCounts = Array.isArray(auctions)
-    ? {
-        all: auctions.filter(
-          (a: Auction) => !user?.id || a.createdBy !== user.id,
-        ).length,
-        public: auctions.filter(
-          (a: Auction) =>
-            (!user?.id || a.createdBy !== user.id) && a.visibility === "PUBLIC",
-        ).length,
-        followers: auctions.filter(
-          (a: Auction) =>
-            (!user?.id || a.createdBy !== user.id) &&
-            a.visibility === "FOLLOWERS",
-        ).length,
-        custom: auctions.filter(
-          (a: Auction) =>
-            (!user?.id || a.createdBy !== user.id) &&
-            a.visibility === "SELECTED",
-        ).length,
+        return (
+          auction.title.toLowerCase().includes(normalizedSearch) ||
+          auction.itemDescription.toLowerCase().includes(normalizedSearch) ||
+          auction.auctionCategory.toLowerCase().includes(normalizedSearch) ||
+          (auction.productName || "")
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          (auction.quantity || "").toLowerCase().includes(normalizedSearch) ||
+          (auction.quantityUnit || "")
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          (auction.commodityType || "")
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          (auction.region || "").toLowerCase().includes(normalizedSearch) ||
+          (auction.status || "").toLowerCase().includes(normalizedSearch) ||
+          (auction.creator?.fullName || "")
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          (auction.creator?.username || "")
+            .toLowerCase()
+            .includes(normalizedSearch)
+        );
+      });
+  }, [auctions, searchTerm]);
+  const categoryOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    searchMatchingAuctions.forEach((auction) => {
+      const label = auction.auctionCategory?.trim() || "Uncategorized";
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([label, count]) => ({
+        id: label,
+        label,
+        count,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [searchMatchingAuctions]);
+  const statusOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    searchMatchingAuctions.forEach((auction) => {
+      const status = auction.status || "UNKNOWN";
+      counts.set(status, (counts.get(status) ?? 0) + 1);
+    });
+
+    return buildFilterOptions(
+      STATUS_SORT_ORDER.map((status) => ({
+        id: status,
+        label: status.charAt(0) + status.slice(1).toLowerCase(),
+      })),
+    ).map((option) => ({
+      ...option,
+      count: counts.get(option.id) ?? 0,
+    }));
+  }, [searchMatchingAuctions]);
+  const quantityRangeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    searchMatchingAuctions.forEach((auction) => {
+      const quantityRange = getQuantityRangeId(auction.quantity);
+
+      if (!quantityRange) {
+        return;
       }
-    : { all: 0, public: 0, followers: 0, custom: 0 };
+
+      counts.set(quantityRange, (counts.get(quantityRange) ?? 0) + 1);
+    });
+
+    return QUANTITY_RANGE_DEFINITIONS.map((range) => ({
+      id: range.id,
+      label: range.label,
+      count: counts.get(range.id) ?? 0,
+    }));
+  }, [searchMatchingAuctions]);
+  const filteredAndSortedAuctions = useMemo(() => {
+    return [...searchMatchingAuctions]
+      .filter((auction) => {
+        const categoryLabel = auction.auctionCategory?.trim() || "Uncategorized";
+        const quantityRange = getQuantityRangeId(auction.quantity);
+
+        if (
+          selectedCategories.length > 0 &&
+          !selectedCategories.includes(categoryLabel)
+        ) {
+          return false;
+        }
+
+        if (
+          selectedStatuses.length > 0 &&
+          !selectedStatuses.includes(auction.status)
+        ) {
+          return false;
+        }
+
+        if (
+          selectedQuantityRanges.length > 0 &&
+          (!quantityRange || !selectedQuantityRanges.includes(quantityRange))
+        ) {
+          return false;
+        }
+
+        return true;
+      })
+      .sort(sortAuctionsForBoard);
+  }, [
+    searchMatchingAuctions,
+    selectedCategories,
+    selectedQuantityRanges,
+    selectedStatuses,
+  ]);
+  const filteredAuctions = filteredAndSortedAuctions.slice(0, displayLimit);
+  const activeFilterCount =
+    selectedCategories.length +
+    selectedStatuses.length +
+    selectedQuantityRanges.length;
 
   // Check if there are more auctions to load
-  const hasMore =
-    filteredAuctions.length < displayLimit ||
-    (Array.isArray(auctions) && auctions.length > displayLimit);
+  const hasMore = filteredAndSortedAuctions.length > filteredAuctions.length;
 
   // Handle load more
   const handleLoadMore = () => {
-    setDisplayLimit((prev) => prev + 6);
+    setDisplayLimit((prev) => prev + DISPLAY_PAGE_SIZE);
+  };
+
+  const handleOpenCreatorProfile = (creatorId: string) => {
+    if (!creatorId) {
+      return;
+    }
+
+    if (userId && creatorId === userId) {
+      router.push("/profile");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+
+    setSelectedProfileUserId(creatorId);
+    setIsProfileModalOpen(true);
   };
 
   return (
     <PageShell>
       <Header />
-      <PageContainer>
-        {/* Main Content Layout */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left Sidebar - Filters */}
-          <div className="lg:w-64 shrink-0">
-            <FeedFiltersSidebar
-              activeCategory={activeCategory}
-              activeStatus={activeStatus}
-              onCategoryChange={setActiveCategory}
-              onStatusChange={setActiveStatus}
-              auctionCounts={auctionCounts}
+      <PageContainer className="max-w-[1480px]">
+        <PageSection className="gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+          <div className="space-y-6">
+            <FeedComposerBar
+              searchTerm={searchTerm}
+              displayName={myProfile?.fullName}
+              username={myProfile?.username}
+              avatarUrl={myProfile?.avatar || myProfile?.profileImageUrl}
+              isAuthenticated={isAuthenticated}
+              resultCount={filteredAndSortedAuctions.length}
+              isLoading={isLoading}
+            />
+
+            <FeedAuctionGrid
+              auctions={filteredAuctions}
+              isLoading={isLoading}
+              error={
+                error
+                  ? typeof error === "string"
+                    ? error
+                    : "Failed to load auctions"
+                  : null
+              }
+              getImageWithFallback={getImageWithFallback}
+              followingIds={followingIds}
+              requestedIds={requestedIds}
+              onOpenCreatorProfile={handleOpenCreatorProfile}
+              onLoadMore={handleLoadMore}
+              hasMore={hasMore}
             />
           </div>
 
-          {/* Right Main Content */}
-          <div className="flex-1 min-w-0">
-            <PageSection>
-              {/* Search Bar */}
-              <FeedSearchBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                resultCount={filteredAuctions.length}
-                isLoading={isLoading}
-              />
-
-              {/* Auction Grid */}
-              <FeedAuctionGrid
-                auctions={filteredAuctions}
-                isLoading={isLoading}
-                error={
-                  error
-                    ? typeof error === "string"
-                      ? error
-                      : "Failed to load auctions"
-                    : null
-                }
-                getImageWithFallback={getImageWithFallback}
-                onLoadMore={handleLoadMore}
-                hasMore={hasMore}
-              />
-            </PageSection>
-          </div>
-        </div>
+          <aside className="xl:sticky xl:top-24">
+            <FeedFilterSidebar
+              totalCount={searchMatchingAuctions.length}
+              resultCount={filteredAndSortedAuctions.length}
+              activeFilterCount={activeFilterCount}
+              categories={categoryOptions}
+              statuses={statusOptions}
+              quantityRanges={quantityRangeOptions}
+              selectedCategories={selectedCategories}
+              selectedStatuses={selectedStatuses}
+              selectedQuantityRanges={selectedQuantityRanges}
+              onToggleCategory={(categoryId) => {
+                setDisplayLimit(DISPLAY_PAGE_SIZE);
+                setSelectedCategories((current) =>
+                  toggleSelection(current, categoryId),
+                );
+              }}
+              onToggleStatus={(statusId) => {
+                setDisplayLimit(DISPLAY_PAGE_SIZE);
+                setSelectedStatuses((current) =>
+                  toggleSelection(current, statusId),
+                );
+              }}
+              onToggleQuantityRange={(quantityRangeId) => {
+                setDisplayLimit(DISPLAY_PAGE_SIZE);
+                setSelectedQuantityRanges((current) =>
+                  toggleSelection(current, quantityRangeId),
+                );
+              }}
+              onClearAll={() => {
+                setDisplayLimit(DISPLAY_PAGE_SIZE);
+                setSelectedCategories([]);
+                setSelectedStatuses([]);
+                setSelectedQuantityRanges([]);
+              }}
+            />
+          </aside>
+        </PageSection>
       </PageContainer>
+      <PublicUserProfileModal
+        userId={selectedProfileUserId}
+        open={isProfileModalOpen}
+        onOpenChange={(open) => {
+          setIsProfileModalOpen(open);
+          if (!open) {
+            setSelectedProfileUserId(null);
+          }
+        }}
+      />
       <Footer />
     </PageShell>
   );

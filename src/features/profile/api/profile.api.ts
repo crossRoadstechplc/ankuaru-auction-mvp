@@ -1,7 +1,8 @@
 import * as mutations from "@/lib/graphql/mutations";
 import * as queries from "@/lib/graphql/queries";
-import { graphqlClient } from "@/lib/graphql-client";
-import { FollowRequest, RatingSummaryResponse, User } from "@/lib/types";
+import { GraphQLError, graphqlClient } from "@/lib/graphql-client";
+import { FollowRequest, RatingSummaryResponse, User, UserProfileDetails } from "@/lib/types";
+import { getGraphqlBaseUrl } from "@/src/platform/config/env";
 import {
   ApproveFollowRequestMutationResultDto,
   BlockUserMutationResultDto,
@@ -9,6 +10,7 @@ import {
   MyBlockedUsersQueryResultDto,
   MyFollowersQueryResultDto,
   MyFollowRequestsQueryResultDto,
+  MySentFollowRequestsQueryResultDto,
   MyFollowingQueryResultDto,
   MyProfileQueryResultDto,
   MyRatingSummaryQueryResultDto,
@@ -24,16 +26,17 @@ import {
   createUnknownUserFallback,
   mapFollowRequestsPayload,
   mapProfilePayload,
+  mapUserProfileDetailsPayload,
   mapRatingSummaryPayload,
-  mapUserByIdPayload,
   mapUsersPayload,
 } from "@/src/features/profile/mappers/profile.mapper";
+import { resolveGraphqlEndpoint } from "@/src/platform/graphql/endpoint";
 import { parseJsonScalar } from "@/src/platform/graphql/json-scalar";
 
-type UpdateProfileInput = {
+export type UpdateProfileInput = {
   fullName?: string;
   bio?: string;
-  profileImageUrl?: string;
+  profileImageUrl?: File | string | null;
   isPrivate?: boolean;
 };
 
@@ -72,14 +75,23 @@ async function getMyFollowing(): Promise<User[]> {
   return mapUsersPayload(response.myFollowing, ["myFollowing", "following"]);
 }
 
-async function getUserFollowers(_userId: string): Promise<User[]> {
-  void _userId;
-  return getMyFollowers();
+async function getUserProfileDetails(userId: string): Promise<UserProfileDetails> {
+  const response = await graphqlClient.request<UserByIdQueryResultDto>(
+    queries.USER_BY_ID_QUERY,
+    { userId },
+  );
+
+  return mapUserProfileDetailsPayload(response.userById, userId);
 }
 
-async function getUserFollowing(_userId: string): Promise<User[]> {
-  void _userId;
-  return getMyFollowing();
+async function getUserFollowers(userId: string): Promise<User[]> {
+  const response = await getUserProfileDetails(userId);
+  return response.followers;
+}
+
+async function getUserFollowing(userId: string): Promise<User[]> {
+  const response = await getUserProfileDetails(userId);
+  return response.following;
 }
 
 async function getMyFollowRequests(): Promise<FollowRequest[]> {
@@ -88,6 +100,15 @@ async function getMyFollowRequests(): Promise<FollowRequest[]> {
   );
 
   return mapFollowRequestsPayload(response.myFollowRequests);
+}
+
+async function getMySentFollowRequests(): Promise<FollowRequest[]> {
+  const response =
+    await graphqlClient.request<MySentFollowRequestsQueryResultDto>(
+      queries.MY_SENT_FOLLOW_REQUESTS_QUERY,
+    );
+
+  return mapFollowRequestsPayload(response.mySentFollowRequests);
 }
 
 async function getMyBlockedUsers(): Promise<User[]> {
@@ -165,7 +186,109 @@ async function unblockUser(userId: string): Promise<void> {
   parseJsonScalar(response.unblockUser);
 }
 
+function isProfileImageUpload(
+  value: UpdateProfileInput["profileImageUrl"],
+): value is File {
+  return typeof File !== "undefined" && value instanceof File;
+}
+
+async function updateMyProfileWithImageUpload(
+  input: UpdateProfileInput,
+  file: File,
+): Promise<User> {
+  const token = graphqlClient.getToken();
+  const endpoint = resolveGraphqlEndpoint(getGraphqlBaseUrl());
+  const inputWithoutFile = sanitizeInput({
+    ...input,
+    profileImageUrl: undefined,
+  });
+  const body = new FormData();
+
+  body.append(
+    "operations",
+    JSON.stringify({
+      query: mutations.UPDATE_MY_PROFILE_MUTATION,
+      variables: {
+        input: {
+          ...inputWithoutFile,
+          profileImageUrl: null,
+        },
+      },
+    }),
+  );
+  body.append(
+    "map",
+    JSON.stringify({
+      0: ["variables.input.profileImageUrl"],
+    }),
+  );
+  body.append("0", file);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Apollo-Require-Preflight": "true",
+      ...(token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {}),
+    },
+    body,
+  });
+
+  const responseText = await response.text();
+  const payload = (() => {
+    if (!responseText) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(responseText) as {
+        data?: UpdateMyProfileMutationResultDto;
+        errors?: Array<{ message?: string }>;
+        error?: string;
+        message?: string;
+      };
+    } catch {
+      return null;
+    }
+  })();
+
+  const result = payload?.data;
+  const errorMessage =
+    payload?.errors && payload.errors.length > 0
+      ? payload.errors[0]?.message || "Failed to update profile"
+      : payload?.error ||
+        payload?.message ||
+        responseText.trim() ||
+        null;
+
+  if (result?.updateMyProfile) {
+    return mapProfilePayload(result.updateMyProfile);
+  }
+
+  if (!response.ok || !result?.updateMyProfile) {
+    throw new GraphQLError(
+      errorMessage || `HTTP ${response.status}`,
+      [],
+      response.status || undefined,
+    );
+  }
+
+  throw new GraphQLError(
+    errorMessage || "Profile update response did not include user data",
+    [],
+    response.status || undefined,
+  );
+}
+
 async function updateMyProfile(input: UpdateProfileInput): Promise<User> {
+  if (isProfileImageUpload(input.profileImageUrl)) {
+    return updateMyProfileWithImageUpload(input, input.profileImageUrl);
+  }
+
   const response = await graphqlClient.request<UpdateMyProfileMutationResultDto>(
     mutations.UPDATE_MY_PROFILE_MUTATION,
     { input: sanitizeInput(input) },
@@ -194,12 +317,7 @@ async function removeMyProfileImage(): Promise<User> {
 
 async function getUserById(userId: string): Promise<User> {
   try {
-    const response = await graphqlClient.request<UserByIdQueryResultDto>(
-      queries.USER_BY_ID_QUERY,
-      { userId },
-    );
-
-    return mapUserByIdPayload(response.userById, userId);
+    return await getUserProfileDetails(userId);
   } catch {
     return createUnknownUserFallback(userId);
   }
@@ -209,9 +327,11 @@ export const profileApi = {
   getMyProfile,
   getMyFollowers,
   getMyFollowing,
+  getUserProfileDetails,
   getUserFollowers,
   getUserFollowing,
   getMyFollowRequests,
+  getMySentFollowRequests,
   getMyBlockedUsers,
   getMyRatingSummary,
   followUser,

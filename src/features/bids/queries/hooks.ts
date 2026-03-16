@@ -11,6 +11,13 @@ type AuctionBidsQueryOptions = {
   refetchOnWindowFocus?: boolean;
 };
 
+type BidRequestQueryOptions = {
+  enabled?: boolean;
+  refetchInterval?: number | false;
+  refetchIntervalInBackground?: boolean;
+  refetchOnWindowFocus?: boolean;
+};
+
 export function useAuctionBidsQuery(
   auctionId: string,
   options: AuctionBidsQueryOptions = {},
@@ -74,6 +81,37 @@ export function useMyBidsQuery() {
   });
 }
 
+export function useMyBidRequestsQuery(options: BidRequestQueryOptions = {}) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  return useQuery({
+    queryKey: bidsQueryKeys.myRequests(),
+    queryFn: () => bidsApi.getMyBidRequests(),
+    enabled: isAuthenticated && (options.enabled ?? true),
+    refetchInterval: options.refetchInterval,
+    refetchIntervalInBackground: options.refetchIntervalInBackground,
+    refetchOnWindowFocus: options.refetchOnWindowFocus,
+    staleTime: 1000 * 30,
+    gcTime: 1000 * 60 * 5,
+  });
+}
+
+export function useAuctionBidRequestsQuery(
+  auctionId: string,
+  options: BidRequestQueryOptions = {},
+) {
+  return useQuery({
+    queryKey: bidsQueryKeys.auctionRequests(auctionId),
+    queryFn: () => bidsApi.getAuctionBidRequests(auctionId),
+    enabled: !!auctionId && (options.enabled ?? true),
+    refetchInterval: options.refetchInterval,
+    refetchIntervalInBackground: options.refetchIntervalInBackground,
+    refetchOnWindowFocus: options.refetchOnWindowFocus,
+    staleTime: 1000 * 30,
+    gcTime: 1000 * 60 * 5,
+  });
+}
+
 export function usePlaceBidMutation() {
   const queryClient = useQueryClient();
 
@@ -95,6 +133,67 @@ export function usePlaceBidMutation() {
       queryClient.invalidateQueries({ queryKey: bidsQueryKeys.mine() });
       queryClient.invalidateQueries({
         queryKey: bidsQueryKeys.mineByAuction(variables.auctionId),
+      });
+    },
+  });
+}
+
+export function useRequestBidAccessMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (auctionId: string) => bidsApi.requestBidAccess(auctionId),
+    onSuccess: (_data, auctionId) => {
+      queryClient.invalidateQueries({
+        queryKey: auctionsQueryKeys.detail(auctionId),
+      });
+      queryClient.invalidateQueries({ queryKey: bidsQueryKeys.myRequests() });
+      queryClient.invalidateQueries({
+        queryKey: bidsQueryKeys.auctionRequests(auctionId),
+      });
+    },
+  });
+}
+
+export function useApproveBidRequestMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      requestId,
+    }: {
+      requestId: string;
+      auctionId: string;
+    }) => bidsApi.approveBidRequest(requestId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: bidsQueryKeys.auctionRequests(variables.auctionId),
+      });
+      queryClient.invalidateQueries({ queryKey: bidsQueryKeys.myRequests() });
+      queryClient.invalidateQueries({
+        queryKey: auctionsQueryKeys.detail(variables.auctionId),
+      });
+    },
+  });
+}
+
+export function useRejectBidRequestMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      requestId,
+    }: {
+      requestId: string;
+      auctionId: string;
+    }) => bidsApi.rejectBidRequest(requestId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: bidsQueryKeys.auctionRequests(variables.auctionId),
+      });
+      queryClient.invalidateQueries({ queryKey: bidsQueryKeys.myRequests() });
+      queryClient.invalidateQueries({
+        queryKey: auctionsQueryKeys.detail(variables.auctionId),
       });
     },
   });

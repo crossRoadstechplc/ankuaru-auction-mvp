@@ -187,3 +187,21 @@
     opacity: 0.85;
   }
 }
+
+@keyframes marketTicker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.market-ticker-track {
+  animation: marketTicker 104s linear infinite;
+  will-change: transform;
+}
+
+.market-ticker:hover .market-ticker-track {
+  animation-play-state: paused;
+}

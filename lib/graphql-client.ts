@@ -1,11 +1,24 @@
 "use client";
 
-import { useSessionStore } from "../src/features/auth/session/session.store";
 import { validateJwtToken } from "../src/features/auth/session/token";
 import { getGraphqlBaseUrl } from "../src/platform/config/env";
 import { TransportError } from "../src/platform/error/transport-errors";
 import { GraphQLTransport } from "../src/platform/graphql/graphql-transport";
 import { clearAuthSensitiveQueries } from "../src/shared/query/auth-cache";
+
+type GraphQLAuthAdapter = {
+  getToken: () => string | null;
+  setToken?: (token: string | null) => void;
+  clearSession?: () => void;
+};
+
+let graphQLAuthAdapter: GraphQLAuthAdapter = {
+  getToken: () => null,
+};
+
+export function configureGraphQLAuthAdapter(adapter: GraphQLAuthAdapter): void {
+  graphQLAuthAdapter = adapter;
+}
 
 export class GraphQLError extends Error {
   public readonly errors: unknown[];
@@ -36,10 +49,10 @@ export class GraphQLClient {
     this.isDebug = process.env.NODE_ENV !== "production";
     this.transport = new GraphQLTransport({
       baseUrl: this.baseURL,
-      getAccessToken: () => this.tokenOverride ?? useSessionStore.getState().token,
+      getAccessToken: () => this.tokenOverride ?? graphQLAuthAdapter.getToken(),
       onUnauthorized: () => {
         this.tokenOverride = null;
-        useSessionStore.getState().clearSession();
+        graphQLAuthAdapter.clearSession?.();
         void clearAuthSensitiveQueries();
       },
       isDebug: this.isDebug,
@@ -48,7 +61,7 @@ export class GraphQLClient {
 
   public setToken(token: string | null): void {
     this.tokenOverride = token;
-    useSessionStore.getState().setToken(token);
+    graphQLAuthAdapter.setToken?.(token);
 
     if (this.isDebug) {
       console.log(`[GraphQL] Token ${token ? "set" : "cleared"}`);
@@ -56,7 +69,7 @@ export class GraphQLClient {
   }
 
   public getToken(): string | null {
-    return this.tokenOverride ?? useSessionStore.getState().token;
+    return this.tokenOverride ?? graphQLAuthAdapter.getToken();
   }
 
   public logout(): void {

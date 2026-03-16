@@ -6,19 +6,26 @@ import { useAuctionBidsQuery } from "@/src/features/bids/queries/hooks";
 import { useUserInfoQuery } from "@/src/features/profile/queries/hooks";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { UserRating } from "../../../lib/types";
 import { useAuthStore } from "../../../stores/auth.store";
 import { AuctionDetailsCard } from "./_components/AuctionDetailsCard";
 import { BidActivity } from "./_components/BidActivity";
 import { BiddingSidebar } from "./_components/BiddingSidebar";
 
+const OWNER_POLL_INTERVAL_MS = 5000;
+const PARTICIPANT_ACCESS_POLL_INTERVAL_MS = 10000;
+
 function AuctionDetailContent() {
   const params = useParams();
   const id = params.id as string;
-  const { isAuthenticated, user } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const userId = useAuthStore((state) => state.userId);
+  const pollingInFlightRef = useRef(false);
   const [isTabVisible, setIsTabVisible] = useState(
-    typeof document === "undefined" ? true : document.visibilityState === "visible",
+    typeof document === "undefined"
+      ? true
+      : document.visibilityState === "visible",
   );
 
   useEffect(() => {
@@ -32,7 +39,6 @@ function AuctionDetailContent() {
     };
   }, []);
 
-  // React Query hooks
   const {
     data: auction,
     isLoading: auctionLoading,
@@ -42,32 +48,43 @@ function AuctionDetailContent() {
     enabled: !!id,
     refetchOnWindowFocus: false,
   });
-  const isOwner = !!user?.id && user.id === auction?.createdBy;
+  const isOwner = !!userId && userId === auction?.createdBy;
   const shouldLoadBids = !!id && isOwner;
   const { data: bids = [], refetch: refetchBids } = useAuctionBidsQuery(id, {
     enabled: shouldLoadBids,
     refetchOnWindowFocus: false,
   });
   const creatorRating: UserRating | null = null;
-  const { data: creatorInfo, isLoading: isCreatorInfoLoading } = useUserInfoQuery(
-    auction?.createdBy || "",
-    !!auction?.createdBy,
-  );
+  const { data: creatorInfo, isLoading: isCreatorInfoLoading } =
+    useUserInfoQuery(auction?.createdBy || "", !!auction?.createdBy);
   const isLoading = auctionLoading || isCreatorInfoLoading;
 
-  // Polling for bids and updates (only for owners)
   useEffect(() => {
     const shouldPoll =
       !!id &&
-      isOwner &&
       isTabVisible &&
-      (auction?.status === "OPEN" || auction?.status === "REVEAL");
+      ((isOwner &&
+        (auction?.status === "OPEN" || auction?.status === "REVEAL")) ||
+        (!isOwner &&
+          auction?.status === "OPEN" &&
+          auction?.hasRequestedBidAccess &&
+          auction?.canBid === false));
 
     if (!shouldPoll) {
       return;
     }
 
+    const intervalMs = isOwner
+      ? OWNER_POLL_INTERVAL_MS
+      : PARTICIPANT_ACCESS_POLL_INTERVAL_MS;
+
     const pollInterval = setInterval(async () => {
+      if (pollingInFlightRef.current) {
+        return;
+      }
+
+      pollingInFlightRef.current = true;
+
       try {
         await Promise.all([
           refetchAuction(),
@@ -75,8 +92,10 @@ function AuctionDetailContent() {
         ]);
       } catch (err) {
         console.warn("Polling error:", err);
+      } finally {
+        pollingInFlightRef.current = false;
       }
-    }, 5000);
+    }, intervalMs);
 
     return () => clearInterval(pollInterval);
   }, [
@@ -84,6 +103,8 @@ function AuctionDetailContent() {
     isOwner,
     isTabVisible,
     auction?.status,
+    auction?.hasRequestedBidAccess,
+    auction?.canBid,
     shouldLoadBids,
     refetchAuction,
     refetchBids,
@@ -91,15 +112,15 @@ function AuctionDetailContent() {
 
   if (!isAuthenticated) {
     return (
-      <div className="dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased bg-[#f8f5f0] min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f5f0] text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6">
+          <h2 className="mb-4 text-2xl font-bold">Authentication Required</h2>
+          <p className="mb-6 text-slate-600 dark:text-slate-400">
             Please login to view auction details
           </p>
           <Link
             href="/login"
-            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+            className="rounded-lg bg-primary px-6 py-2 text-white transition-colors hover:bg-primary-dark"
           >
             Login
           </Link>
@@ -110,19 +131,17 @@ function AuctionDetailContent() {
 
   if (isLoading || auctionLoading) {
     return (
-      <div className="dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased bg-[#f8f5f0] min-h-screen">
+      <div className="min-h-screen bg-[linear-gradient(180deg,#f7f4ee_0%,#efe7da_100%)] text-slate-900 antialiased dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] dark:text-slate-100">
         <Header />
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 lg:px-8 py-8">
-          <div className="animate-pulse space-y-8">
-            <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 space-y-8">
-                <div className="h-96 bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
-                <div className="h-64 bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-6">
+          <div className="animate-pulse space-y-5">
+            <div className="h-36 rounded-[18px] bg-slate-200/80 dark:bg-slate-800" />
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
+              <div className="space-y-5">
+                <div className="h-[520px] rounded-[18px] bg-slate-200/80 dark:bg-slate-800" />
+                <div className="h-72 rounded-[18px] bg-slate-200/80 dark:bg-slate-800" />
               </div>
-              <div className="lg:col-span-4">
-                <div className="h-80 bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
-              </div>
+              <div className="h-[520px] rounded-[18px] bg-slate-200/80 dark:bg-slate-800" />
             </div>
           </div>
         </main>
@@ -132,24 +151,24 @@ function AuctionDetailContent() {
 
   if (auctionError || !auction) {
     return (
-      <div className="dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased bg-[#f8f5f0] min-h-screen">
+      <div className="min-h-screen bg-[#f8f5f0] text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
         <Header />
-        <main className="flex-1 max-w-7xl mx-auto w-full px-4 lg:px-8 py-8">
-          <div className="text-center py-16">
-            <span className="material-symbols-outlined text-6xl text-red-500 mb-4">
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-6">
+          <div className="py-16 text-center">
+            <span className="material-symbols-outlined mb-4 text-6xl text-red-500">
               error
             </span>
-            <h2 className="text-2xl font-bold mb-4">Failed to load auction</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">
+            <h2 className="mb-4 text-2xl font-bold">Failed to load auction</h2>
+            <p className="mb-6 text-slate-600 dark:text-slate-400">
               {auctionError instanceof Error
                 ? auctionError.message
                 : "Auction not found"}
             </p>
             <Link
               href="/feed"
-              className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+              className="rounded-lg bg-primary px-6 py-2 text-white transition-colors hover:bg-primary-dark"
             >
-              Back to Auctions
+              Back to feed
             </Link>
           </div>
         </main>
@@ -160,56 +179,84 @@ function AuctionDetailContent() {
   const isSell = auction.auctionType === "SELL";
 
   return (
-    <div className="dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased bg-[#f8f5f0] min-h-screen">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f7f4ee_0%,#efe7da_100%)] text-slate-900 antialiased dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] dark:text-slate-100">
       <Header />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 lg:px-8 py-8">
-        {/* Status Layout Badges */}
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          {isOwner && (
-            <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-widest text-xs bg-primary/10 w-fit px-3 py-1.5 rounded-full border border-primary/20">
-              <span className="material-symbols-outlined text-sm">
-                admin_panel_settings
-              </span>{" "}
-              Creator Control Panel
-            </div>
-          )}
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm ${
-              isSell
-                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm">
-              {isSell ? "sell" : "shopping_cart"}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-6">
+        <div className="mb-6 rounded-[18px] border border-slate-200/80 bg-white/92 p-5 shadow-[0_28px_100px_-64px_rgba(15,23,42,0.42)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/92 md:p-6">
+          <nav className="mb-5 flex items-center gap-2 text-sm font-medium">
+            <Link
+              className="text-slate-400 transition-colors hover:text-primary"
+              href="/feed"
+            >
+              Feed
+            </Link>
+            <span className="material-symbols-outlined text-xs text-slate-300">
+              chevron_right
             </span>
-            {isSell ? "Auction Sale" : "Purchase Request"}
-          </div>
-          {auction.status === "CLOSED" && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border shadow-sm bg-slate-100 text-slate-500 border-slate-200">
-              <span className="material-symbols-outlined text-sm">lock</span>
-              Closed
+            <span className="truncate text-slate-900 dark:text-white">
+              {auction.title}
+            </span>
+          </nav>
+
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                {isOwner ? (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-primary">
+                    <span className="material-symbols-outlined text-sm">
+                      admin_panel_settings
+                    </span>
+                    Creator
+                  </div>
+                ) : null}
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${
+                    isSell
+                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      : "bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    {isSell ? "sell" : "shopping_cart"}
+                  </span>
+                  {isSell ? "Sell auction" : "Buy request"}
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <span className="material-symbols-outlined text-sm">
+                    flag
+                  </span>
+                  {auction.status}
+                </div>
+              </div>
+
+              
             </div>
-          )}
+
+            <Link
+              href="/feed"
+              className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <span className="material-symbols-outlined text-base">
+                arrow_back
+              </span>
+              Back to feed
+            </Link>
+          </div>
         </div>
 
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 mb-8 text-sm font-medium">
-          <Link className="text-slate-400 hover:text-primary" href="/feed">
-            Auctions
-          </Link>
-          <span className="material-symbols-outlined text-xs text-slate-300">
-            chevron_right
-          </span>
-          <span className="text-slate-900 dark:text-white">
-            {auction.title}
-          </span>
-        </nav>
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
+          <div className="order-1 flex flex-col gap-5 xl:order-1">
+            <AuctionDetailsCard
+              data={auction}
+              creatorRating={creatorRating}
+              creatorInfo={creatorInfo}
+              isCreator={isOwner}
+            />
+            <BidActivity data={auction} bids={bids} isCreator={isOwner} />
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-          {/* Sidebar Column — appears first on mobile, right column on desktop */}
-          <div className="order-1 lg:order-2 lg:col-span-4">
+          <div className="order-2 xl:order-2">
             <BiddingSidebar
               data={auction}
               isCreator={isOwner}
@@ -225,23 +272,12 @@ function AuctionDetailContent() {
               }}
             />
           </div>
-
-          {/* Main Content Column — appears second on mobile, left column on desktop */}
-          <div className="order-2 lg:order-1 lg:col-span-8 flex flex-col gap-6 lg:gap-8">
-            <AuctionDetailsCard
-              data={auction}
-              creatorRating={creatorRating}
-              creatorInfo={creatorInfo}
-              isCreator={isOwner}
-            />
-            <BidActivity data={auction} bids={bids} isCreator={isOwner} />
-          </div>
         </div>
       </main>
 
-      <footer className="mt-auto py-10 px-8 border-t border-slate-100 dark:border-slate-800 text-center">
-        <p className="text-slate-400 text-xs font-medium uppercase tracking-widest">
-          © 2026 Ankuaru Specialty Coffee Marketplace
+      <footer className="mt-auto border-t border-slate-100 px-8 py-8 text-center dark:border-slate-800">
+        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
+          Copyright 2026 Ankuaru Specialty Coffee Marketplace
         </p>
       </footer>
     </div>

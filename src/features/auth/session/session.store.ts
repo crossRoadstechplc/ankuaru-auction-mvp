@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { configureGraphQLAuthAdapter } from "@/lib/graphql-client";
 import {
   tokenValidationReasonToMessage,
   validateJwtToken,
@@ -110,3 +111,15 @@ export const useSessionStore = create<SessionState>()(
     },
   ),
 );
+
+let graphQLAdapterConfigured = false;
+
+if (!graphQLAdapterConfigured) {
+  graphQLAdapterConfigured = true;
+
+  configureGraphQLAuthAdapter({
+    getToken: () => useSessionStore.getState().token,
+    setToken: (token) => useSessionStore.getState().setToken(token),
+    clearSession: () => useSessionStore.getState().clearSession(),
+  });
+}

@@ -6,23 +6,31 @@ import { FollowUserRow, FollowUserRowProps } from "./follow-user-row";
 export interface FollowersListProps {
   followers: Omit<
     FollowUserRowProps,
-    "onFollow" | "onUnfollow" | "isFollowing"
+    "onFollow" | "onUnfollow" | "onBlock" | "onUnblock" | "isFollowing" | "isRequested" | "isBlocked"
   >[];
   followingIds?: string[];
+  requestedIds?: string[];
+  blockedIds?: string[];
   loadingIds?: string[];
   isLoading?: boolean;
   onFollow?: (userId: string) => void;
   onUnfollow?: (userId: string) => void;
+  onBlock?: (userId: string) => void;
+  onUnblock?: (userId: string) => void;
   className?: string;
 }
 
 export function FollowersList({
   followers,
   followingIds = [],
+  requestedIds = [],
+  blockedIds = [],
   loadingIds = [],
   isLoading,
   onFollow,
   onUnfollow,
+  onBlock,
+  onUnblock,
   className,
 }: FollowersListProps) {
   if (isLoading)
@@ -46,9 +54,13 @@ export function FollowersList({
           key={f.userId}
           {...f}
           isFollowing={followingIds.includes(f.userId)}
+          isRequested={requestedIds.includes(f.userId)}
+          isBlocked={blockedIds.includes(f.userId)}
           isLoading={loadingIds.includes(f.userId)}
           onFollow={onFollow}
           onUnfollow={onUnfollow}
+          onBlock={onBlock}
+          onUnblock={onUnblock}
         />
       ))}
     </div>
@@ -58,19 +70,25 @@ export function FollowersList({
 export interface FollowingListProps {
   following: Omit<
     FollowUserRowProps,
-    "onFollow" | "onUnfollow" | "isFollowing"
+    "onFollow" | "onUnfollow" | "onBlock" | "onUnblock" | "isFollowing" | "isRequested" | "isBlocked"
   >[];
   isLoading?: boolean;
+  blockedIds?: string[];
   loadingIds?: string[];
   onUnfollow?: (userId: string) => void;
+  onBlock?: (userId: string) => void;
+  onUnblock?: (userId: string) => void;
   className?: string;
 }
 
 export function FollowingList({
   following,
   isLoading,
+  blockedIds = [],
   loadingIds = [],
   onUnfollow,
+  onBlock,
+  onUnblock,
   className,
 }: FollowingListProps) {
   if (isLoading)
@@ -94,8 +112,11 @@ export function FollowingList({
           key={f.userId}
           {...f}
           isFollowing={true}
+          isBlocked={blockedIds.includes(f.userId)}
           isLoading={loadingIds.includes(f.userId)}
           onUnfollow={onUnfollow}
+          onBlock={onBlock}
+          onUnblock={onUnblock}
         />
       ))}
     </div>

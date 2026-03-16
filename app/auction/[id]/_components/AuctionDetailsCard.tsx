@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import {
-  useMyBidQuery,
-} from "@/src/features/bids/queries/hooks";
+import { useMyBidQuery } from "@/src/features/bids/queries/hooks";
 import {
   useFollowUserMutation,
   useMyFollowingQuery,
+  useMySentFollowRequestsQuery,
   useUnfollowUserMutation,
+  useUserInfoQuery,
 } from "@/src/features/profile/queries/hooks";
 import { User, UserRating } from "../../../../lib/types";
 
@@ -16,6 +16,17 @@ interface AuctionDetailsCardProps {
     id: string;
     title: string;
     auctionCategory: string;
+    productName?: string;
+    region?: string;
+    commodityType?: string;
+    grade?: string;
+    process?: string;
+    transaction?: string;
+    commodityBrand?: string;
+    commodityClass?: string;
+    commoditySize?: string;
+    quantity?: string;
+    quantityUnit?: string;
     itemDescription: string;
     reservePrice: string;
     minBid: string;
@@ -35,6 +46,63 @@ interface AuctionDetailsCardProps {
   isCreator: boolean;
 }
 
+function isSyntheticIdentity(value?: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  return /^User\s+[A-Za-z0-9-]{4,}\.\.\.$/.test(value.trim());
+}
+
+function pickReadableIdentity(
+  ...values: Array<string | null | undefined>
+): string | undefined {
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed || isSyntheticIdentity(trimmed)) {
+      continue;
+    }
+
+    return trimmed;
+  }
+
+  return undefined;
+}
+
+function formatCurrency(value?: string | null): string {
+  if (!value) {
+    return "ETB --";
+  }
+
+  return `ETB ${value}`;
+}
+
+function formatShortDateTime(value: string): string {
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatVisibilityLabel(visibility: AuctionDetailsCardProps["data"]["visibility"]): string {
+  if (visibility === "FOLLOWERS") {
+    return "Followers-first bidding";
+  }
+
+  if (visibility === "SELECTED") {
+    return "Selected bidders";
+  }
+
+  return "Open bidding";
+}
+
 export function AuctionDetailsCard({
   data,
   creatorRating,
@@ -42,19 +110,86 @@ export function AuctionDetailsCard({
   isCreator,
 }: AuctionDetailsCardProps) {
   const [idCopied, setIdCopied] = useState(false);
-
-  // React Query hooks
   const { data: myBid } = useMyBidQuery(data.id);
   const { data: following = [] } = useMyFollowingQuery();
+  const { data: sentFollowRequests = [] } = useMySentFollowRequestsQuery();
   const followMutation = useFollowUserMutation();
   const unfollowMutation = useUnfollowUserMutation();
 
-  // Check if creator is already being followed
+  const needsCreatorLookup =
+    !!data.createdBy &&
+    !pickReadableIdentity(
+      creatorInfo?.fullName,
+      creatorInfo?.username,
+      creatorRating?.user?.username,
+    );
+  const { data: resolvedCreatorInfo } = useUserInfoQuery(
+    data.createdBy,
+    needsCreatorLookup,
+  );
+
   const isFollowing = following.some((followedUser) => {
     return followedUser.id === data.createdBy;
   });
+  const isRequested = sentFollowRequests.some((request) => {
+    return request.status === "PENDING" && request.target.id === data.createdBy;
+  });
   const isFollowLoading =
     followMutation.isPending || unfollowMutation.isPending;
+
+  const creatorDisplayName =
+    pickReadableIdentity(
+      creatorInfo?.fullName,
+      resolvedCreatorInfo?.fullName,
+      creatorInfo?.username,
+      resolvedCreatorInfo?.username,
+      creatorRating?.user?.username,
+    ) ?? "Auction Creator";
+  const creatorUsername = pickReadableIdentity(
+    creatorInfo?.username,
+    resolvedCreatorInfo?.username,
+    creatorRating?.user?.username,
+  );
+  const creatorSubtitle =
+    creatorUsername && creatorUsername !== creatorDisplayName
+      ? `@${creatorUsername}`
+      : null;
+  const creatorAvatar =
+    creatorInfo?.avatar ||
+    resolvedCreatorInfo?.avatar ||
+    resolvedCreatorInfo?.profileImageUrl;
+
+  const primaryValue =
+    data.status === "CLOSED"
+      ? formatCurrency(data.winningBid || data.currentBid)
+      : myBid?.amount
+        ? formatCurrency(myBid.amount)
+        : formatCurrency(data.currentBid || data.minBid);
+  const primaryLabel =
+    data.status === "CLOSED"
+      ? "Winning bid"
+      : myBid?.amount
+        ? "My bid"
+        : "Current bid";
+
+  const detailFacts = [
+    { label: "Category", value: data.auctionCategory },
+    { label: "Product", value: data.productName },
+    { label: "Region", value: data.region },
+    { label: "Commodity type", value: data.commodityType },
+    { label: "Grade", value: data.grade ? `Grade ${data.grade}` : undefined },
+    { label: "Process", value: data.process },
+    { label: "Transaction", value: data.transaction },
+    { label: "Brand", value: data.commodityBrand },
+    { label: "Class", value: data.commodityClass },
+    { label: "Size", value: data.commoditySize },
+    {
+      label: "Quantity",
+      value: data.quantity
+        ? `${data.quantity}${data.quantityUnit ? ` ${data.quantityUnit}` : ""}`
+        : undefined,
+    },
+  ].filter((item): item is { label: string; value: string } => !!item.value);
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(data.id).then(() => {
@@ -64,7 +199,10 @@ export function AuctionDetailsCard({
   };
 
   const handleFollow = async () => {
-    if (!data.createdBy || isFollowLoading) return;
+    if (!data.createdBy || isFollowLoading) {
+      return;
+    }
+
     try {
       await followMutation.mutateAsync(data.createdBy);
     } catch (error) {
@@ -73,7 +211,10 @@ export function AuctionDetailsCard({
   };
 
   const handleUnfollow = async () => {
-    if (!data.createdBy || isFollowLoading) return;
+    if (!data.createdBy || isFollowLoading) {
+      return;
+    }
+
     try {
       await unfollowMutation.mutateAsync(data.createdBy);
     } catch (error) {
@@ -82,233 +223,249 @@ export function AuctionDetailsCard({
   };
 
   return (
-    <section className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-      <div className="aspect-video relative overflow-hidden group">
+    <section className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_28px_100px_-60px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900">
+      <div className="relative overflow-hidden border-b border-slate-200/70 dark:border-slate-800">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.04),rgba(15,23,42,0.26))]" />
         <img
           src="/static.jpg"
           alt={data.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-60 w-full object-cover sm:h-72"
         />
-        <div
-          className={`absolute top-4 left-4 ${data.status === "CLOSED" ? "bg-slate-500" : "bg-primary"} text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase`}
-        >
-          {data.status === "CLOSED" ? "Auction Ended" : "Live Auction"}
+        <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur">
+              {data.status}
+            </span>
+            <span className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur">
+              {data.auctionType === "SELL" ? "Sell auction" : "Buy request"}
+            </span>
+            <span className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur">
+              {formatVisibilityLabel(data.visibility)}
+            </span>
+          </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-3xl">
+              <h1 className="text-3xl font-black tracking-tight sm:text-[2.2rem]">
+                {data.title}
+              </h1>
+              <p className="mt-2 text-sm text-white/85 sm:text-base">
+                {data.productName || data.auctionCategory}
+                {data.productName && data.auctionCategory
+                  ? ` in ${data.auctionCategory}`
+                  : ""}
+              </p>
+            </div>
+            <button
+              onClick={handleCopyId}
+              title="Copy full Auction ID"
+              className="inline-flex items-center gap-2 self-start rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+            >
+              <span className="material-symbols-outlined text-base">
+                {idCopied ? "check_circle" : "content_copy"}
+              </span>
+              {idCopied ? "Copied" : `ANK-${data.id ? `${data.id.slice(0, 8)}...` : "000"}`}
+            </button>
+          </div>
         </div>
       </div>
-      <div className="p-8">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">
-              {data.title}
-            </h1>
 
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 pb-6 border-b border-slate-100 dark:border-slate-800 mb-6 font-display">
-              <div className="flex flex-col">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  Starting price
-                </span>
-                <span className="text-lg font-bold text-slate-700 dark:text-slate-300">
-                  ETB {data.minBid}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  {data.status === "CLOSED"
-                    ? "Winning Bid"
-                    : myBid
-                      ? "My Bid"
-                      : "Current Bid"}
-                </span>
-                <span className="text-xl font-black text-primary">
-                  {data.status === "CLOSED"
-                    ? `ETB ${data.winningBid}`
-                    : myBid?.revealed
-                      ? `ETB ${myBid.amount}`
-                      : myBid?.amount
-                        ? `ETB ${myBid.amount}`
-                        : `ETB ${data.currentBid || data.minBid}`}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  Total Bids
-                </span>
-                <span className="text-lg font-bold text-slate-700 dark:text-slate-300">
-                  {data.bidCount || 0}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  Status
-                </span>
-                <span
-                  className={`text-lg font-bold ${data.status === "CLOSED" ? "text-slate-400" : "text-red-500"}`}
+      <div className="space-y-6 p-5 sm:p-6">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Minimum bid
+            </p>
+            <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">
+              {formatCurrency(data.minBid)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              {primaryLabel}
+            </p>
+            <p className="mt-2 text-xl font-black text-primary">{primaryValue}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Reserve price
+            </p>
+            <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">
+              {formatCurrency(data.reservePrice)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Total bids
+            </p>
+            <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">
+              {data.bidCount || 0}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(260px,0.9fr)]">
+          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-lg">
+                inventory_2
+              </span>
+              <h2 className="text-base font-black text-slate-900 dark:text-white">
+                Product snapshot
+              </h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {detailFacts.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
                 >
-                  {data.status}
-                </span>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-lg">
+                schedule
+              </span>
+              <h2 className="text-base font-black text-slate-900 dark:text-white">
+                Timeline
+              </h2>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Starts
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                  {formatShortDateTime(data.startAt)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Ends
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                  {formatShortDateTime(data.endAt)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Access model
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                  {formatVisibilityLabel(data.visibility)}
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Feed stays public. The detail page decides who can place bids.
+                </p>
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-4 text-slate-500 dark:text-slate-400 text-sm">
-              <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-lg text-primary">
-                  category
-                </span>{" "}
-                {data.auctionCategory}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-lg text-primary">
-                  sell
-                </span>{" "}
-                {data.auctionType}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-lg text-primary">
-                  visibility
-                </span>{" "}
-                {data.visibility}
-              </span>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">
-              Auction ID
-            </p>
-            <div className="flex items-center justify-end gap-2">
-              <p
-                className="text-slate-900 dark:text-white font-mono font-bold text-sm"
-                title={data.id}
-              >
-                ANK-{data.id ? `${data.id.slice(0, 8)}…` : "000"}
-              </p>
-              <button
-                onClick={handleCopyId}
-                title="Copy full Auction ID"
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  {idCopied ? "check_circle" : "content_copy"}
-                </span>
-                <span>{idCopied ? "Copied!" : "Copy"}</span>
-              </button>
-            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8">
-          <div className="bg-background-light dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">
-              Category
-            </p>
-            <p className="text-slate-900 dark:text-white font-bold">
-              {data.auctionCategory}
-            </p>
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-lg">
+              notes
+            </span>
+            <h2 className="text-base font-black text-slate-900 dark:text-white">
+              Description
+            </h2>
           </div>
-          <div className="bg-background-light dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">
-              Type
-            </p>
-            <p className="text-slate-900 dark:text-white font-bold">
-              {data.auctionType}
-            </p>
-          </div>
-          <div className="bg-background-light dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">
-              Start Date
-            </p>
-            <p className="text-slate-900 dark:text-white font-bold">
-              {new Date(data.startAt).toLocaleDateString("en-US", {
-                month: "2-digit",
-                day: "2-digit",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-          <div className="bg-background-light dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">
-              End Date
-            </p>
-            <p className="text-slate-900 dark:text-white font-bold">
-              {new Date(data.endAt).toLocaleDateString("en-US", {
-                month: "2-digit",
-                day: "2-digit",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-        </div>
-
-        <div className="prose dark:prose-invert max-w-none mb-8">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
-            Product Description
-          </h3>
-          <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
             {data.itemDescription}
           </p>
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20">
-              <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-xl">
-                  person
-                </span>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-14 w-14 overflow-hidden rounded-lg border border-primary/20 bg-primary/10">
+                {creatorAvatar ? (
+                  <img
+                    src={creatorAvatar}
+                    alt={creatorDisplayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <span className="material-symbols-outlined text-2xl text-primary">
+                      person
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Auction creator
+                </p>
+                <p className="mt-1 text-base font-black text-slate-900 dark:text-white">
+                  {creatorDisplayName}
+                  {creatorRating?.user?.averageRating ? (
+                    <span className="ml-2 text-sm text-amber-500">
+                      * {parseFloat(creatorRating.user.averageRating).toFixed(1)}
+                    </span>
+                  ) : null}
+                </p>
+                {creatorSubtitle ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {creatorSubtitle}
+                  </p>
+                ) : null}
               </div>
             </div>
-            <div>
-              <p className="text-xs text-slate-400 font-bold uppercase">
-                Auction Creator
-              </p>
-              <p className="font-bold text-slate-900 dark:text-white">
-                {creatorInfo?.username ||
-                  creatorRating?.user?.username ||
-                  `User ID: ${data.createdBy}`}
-                {creatorRating?.user?.averageRating && (
-                  <span className="text-yellow-500 ml-1">
-                    ★ {parseFloat(creatorRating.user.averageRating).toFixed(1)}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          {!isCreator && (
-            <div className="flex items-center gap-2">
-              {isFollowing ? (
-                <>
-                  {/* Following badge */}
-                  <span className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
-                    <span className="material-symbols-outlined text-sm">
-                      check
+
+            {!isCreator ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {isFollowing ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-600 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
+                      <span className="material-symbols-outlined text-sm">check</span>
+                      Following
                     </span>
-                    Following
-                  </span>
-                  {/* Unfollow button */}
+                    <button
+                      onClick={handleUnfollow}
+                      disabled={isFollowLoading}
+                      className={`inline-flex items-center gap-1 rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-500 transition-all hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 ${
+                        isFollowLoading ? "cursor-not-allowed opacity-50" : ""
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">person_remove</span>
+                      {isFollowLoading ? "..." : "Unfollow"}
+                    </button>
+                  </>
+                ) : isRequested ? (
                   <button
-                    onClick={handleUnfollow}
-                    disabled={isFollowLoading}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-bold transition-all border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled
+                    className="cursor-default rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
                   >
-                    <span className="material-symbols-outlined text-sm">
-                      person_remove
-                    </span>
-                    {isFollowLoading ? "..." : "Unfollow"}
+                    <span className="material-symbols-outlined mr-1 text-sm">schedule</span>
+                    Requested
                   </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleFollow}
-                  disabled={isFollowLoading}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all border border-primary text-primary hover:bg-primary hover:text-white ${isFollowLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    person_add
-                  </span>
-                  {isFollowLoading ? "Loading..." : "Follow"}
-                </button>
-              )}
-            </div>
-          )}
+                ) : (
+                  <button
+                    onClick={handleFollow}
+                    disabled={isFollowLoading}
+                    className={`inline-flex items-center gap-1 rounded-xl border border-primary px-4 py-2 text-sm font-bold text-primary transition-all hover:bg-primary hover:text-white ${
+                      isFollowLoading ? "cursor-not-allowed opacity-50" : ""
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm">person_add</span>
+                    {isFollowLoading ? "Loading..." : "Follow"}
+                  </button>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </section>

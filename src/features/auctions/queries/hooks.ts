@@ -1,7 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CreateAuctionData } from "@/lib/types";
+import {
+  Auction,
+  AuctionFormOptions,
+  AuctionFormOptionsParams,
+  CreateAuctionData,
+} from "@/lib/types";
 import { auctionsApi } from "@/src/features/auctions/api/auctions.api";
 import { auctionsQueryKeys } from "@/src/features/auctions/queries/queryKeys";
+
+function mergeAuctionIntoCollection(
+  collection: Auction[] | undefined,
+  auction: Auction,
+): Auction[] {
+  if (!Array.isArray(collection) || collection.length === 0) {
+    return [auction];
+  }
+
+  const existingIndex = collection.findIndex((entry) => entry.id === auction.id);
+  if (existingIndex === -1) {
+    return [auction, ...collection];
+  }
+
+  return collection.map((entry) => (entry.id === auction.id ? auction : entry));
+}
 
 export function useAuctionsQuery() {
   return useQuery({
@@ -17,6 +38,10 @@ type AuctionQueryOptions = {
   refetchInterval?: number | false;
   refetchIntervalInBackground?: boolean;
   refetchOnWindowFocus?: boolean;
+};
+
+type AuctionFormOptionsQueryOptions = {
+  enabled?: boolean;
 };
 
 export function useAuctionQuery(id: string, options: AuctionQueryOptions = {}) {
@@ -50,6 +75,30 @@ export function useAuctionQueryWithOptions(
   });
 }
 
+export function useAuctionFormOptionsQuery(
+  params: AuctionFormOptionsParams = {},
+  options: AuctionFormOptionsQueryOptions = {},
+) {
+  return useQuery<AuctionFormOptions>({
+    queryKey: auctionsQueryKeys.formOptions(params),
+    queryFn: () => auctionsApi.getAuctionFormOptions(params),
+    enabled: options.enabled ?? true,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+    retry: (failureCount, error) => {
+      if (
+        error instanceof Error &&
+        (error.message.includes("Failed to fetch") ||
+          error.message.includes("GRAPHQL_VALIDATION_FAILED"))
+      ) {
+        return false;
+      }
+
+      return failureCount < 2;
+    },
+  });
+}
+
 export function useUserAuctionsQuery(userId: string) {
   return useQuery({
     queryKey: auctionsQueryKeys.byUser(userId),
@@ -65,8 +114,21 @@ export function useCreateAuctionMutation() {
 
   return useMutation({
     mutationFn: (data: CreateAuctionData) => auctionsApi.createAuction(data),
-    onSuccess: async () => {
+    onSuccess: async (auction) => {
+      queryClient.setQueryData<Auction[]>(
+        auctionsQueryKeys.list(),
+        (previous) => mergeAuctionIntoCollection(previous, auction),
+      );
+      queryClient.setQueryData<Auction[]>(
+        auctionsQueryKeys.byUser(auction.createdBy),
+        (previous) => mergeAuctionIntoCollection(previous, auction),
+      );
+      queryClient.setQueryData(auctionsQueryKeys.detail(auction.id), auction);
+
       await queryClient.invalidateQueries({ queryKey: auctionsQueryKeys.list() });
+      await queryClient.invalidateQueries({
+        queryKey: auctionsQueryKeys.byUser(auction.createdBy),
+      });
       await queryClient.refetchQueries({
         queryKey: auctionsQueryKeys.list(),
         type: "all",

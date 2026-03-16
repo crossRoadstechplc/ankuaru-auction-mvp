@@ -18,9 +18,9 @@ export function PanelCard({
   ...props
 }: PanelCardProps) {
   return (
-    <section
+      <section
       className={cn(
-        "rounded-2xl border border-border/70 bg-card/95 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-[2px] transition-shadow hover:shadow-md",
+        "rounded-xl border border-border/70 bg-card/95 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-[2px] transition-shadow hover:shadow-md",
         className,
       )}
       {...props}

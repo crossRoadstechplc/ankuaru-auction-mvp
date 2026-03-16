@@ -17,11 +17,22 @@ interface ProfileTabsProps {
   onTabChange: (tab: string) => void;
   followers: User[];
   following: User[];
+  followingIds: string[];
+  requestedIds: string[];
+  blockedIds: string[];
   followRequests: FollowRequest[];
+  sentFollowRequests: FollowRequest[];
   blockedUsers: User[];
   ratingSummary: RatingSummary;
   profile?: User;
   isLoadingSummary?: boolean;
+  isFollowersLoading?: boolean;
+  isFollowingLoading?: boolean;
+  actionLoadingIds?: string[];
+  onFollowUser?: (userId: string) => void;
+  onUnfollowUser?: (userId: string) => void;
+  onBlockUser?: (userId: string) => Promise<void> | void;
+  onUnblockUser?: (userId: string) => void;
 }
 
 export default function ProfileTabs({
@@ -29,17 +40,32 @@ export default function ProfileTabs({
   onTabChange,
   followers,
   following,
+  followingIds,
+  requestedIds,
+  blockedIds,
   followRequests,
+  sentFollowRequests,
   blockedUsers,
   ratingSummary,
   profile,
   isLoadingSummary,
+  isFollowersLoading,
+  isFollowingLoading,
+  actionLoadingIds = [],
+  onFollowUser,
+  onUnfollowUser,
+  onBlockUser,
+  onUnblockUser,
 }: ProfileTabsProps) {
   const tabs = [
     { id: "overview", label: "Overview", icon: "dashboard" },
     { id: "followers", label: "Followers", count: followers.length },
     { id: "following", label: "Following", count: following.length },
-    { id: "requests", label: "Requests", count: followRequests.length },
+    {
+      id: "requests",
+      label: "Requests",
+      count: followRequests.length + sentFollowRequests.length,
+    },
     { id: "blocked", label: "Blocked", count: blockedUsers.length },
     { id: "settings", label: "Settings", icon: "settings" },
   ];
@@ -137,6 +163,15 @@ export default function ProfileTabs({
                 displayName: f.fullName,
                 avatarUrl: f.avatar,
               }))}
+              followingIds={followingIds}
+              requestedIds={requestedIds}
+              blockedIds={blockedIds}
+              loadingIds={actionLoadingIds}
+              isLoading={isFollowersLoading}
+              onFollow={onFollowUser}
+              onUnfollow={onUnfollowUser}
+              onBlock={onBlockUser}
+              onUnblock={onUnblockUser}
             />
           </div>
         </PanelCard>
@@ -156,17 +191,31 @@ export default function ProfileTabs({
                 displayName: f.fullName,
                 avatarUrl: f.avatar,
               }))}
+              blockedIds={blockedIds}
+              loadingIds={actionLoadingIds}
+              isLoading={isFollowingLoading}
+              onUnfollow={onUnfollowUser}
+              onBlock={onBlockUser}
+              onUnblock={onUnblockUser}
             />
           </div>
         </PanelCard>
       </TabsContent>
 
       <TabsContent value="requests" className="mt-0">
-        <FollowRequestsTab requests={followRequests} />
+        <FollowRequestsTab
+          requests={followRequests}
+          sentRequests={sentFollowRequests}
+        />
       </TabsContent>
 
       <TabsContent value="blocked" className="mt-0">
-        <BlockedUsersTab users={blockedUsers} />
+        <BlockedUsersTab
+          users={blockedUsers}
+          loadingIds={actionLoadingIds}
+          onBlock={onBlockUser}
+          onUnblock={onUnblockUser}
+        />
       </TabsContent>
 
       <TabsContent value="settings" className="mt-0">

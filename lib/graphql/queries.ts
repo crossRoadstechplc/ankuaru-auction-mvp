@@ -108,6 +108,12 @@ export const AUCTION_QUERY = `
   }
 `;
 
+export const AUCTION_FORM_OPTIONS_QUERY = `
+  query AuctionFormOptions($category: String, $productName: String) {
+    auctionFormOptions(category: $category, productName: $productName)
+  }
+`;
+
 export const AUCTIONS_BY_USER_QUERY = `
   query AuctionsByUser($userId: ID!) {
     auctionsByUser(userId: $userId)
@@ -133,6 +139,18 @@ export const MY_BIDS_QUERY = `
 export const AUCTION_BIDS_QUERY = `
   query AuctionBids($id: ID!) {
     auctionBids(id: $id)
+  }
+`;
+
+export const MY_BID_REQUESTS_QUERY = `
+  query MyBidRequests {
+    myBidRequests
+  }
+`;
+
+export const AUCTION_BID_REQUESTS_QUERY = `
+  query AuctionBidRequests($id: ID!) {
+    auctionBidRequests(id: $id)
   }
 `;
 
@@ -232,5 +250,15 @@ export const AUCTION_REPORT_QUERY = `
         averageAmount
       }
     }
+  }
+`;
+
+// ==========================================
+// 6. Market Queries
+// ==========================================
+
+export const MARKET_LISTINGS_QUERY = `
+  query MarketListings {
+    marketListings
   }
 `;

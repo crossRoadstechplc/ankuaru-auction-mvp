@@ -11,9 +11,13 @@ export interface FollowUserRowProps {
   displayName?: string | null
   avatarUrl?: string | null
   isFollowing?: boolean
+  isRequested?: boolean
+  isBlocked?: boolean
   isLoading?: boolean
   onFollow?: (userId: string) => void
   onUnfollow?: (userId: string) => void
+  onBlock?: (userId: string) => void
+  onUnblock?: (userId: string) => void
   className?: string
 }
 
@@ -23,9 +27,13 @@ export function FollowUserRow({
   displayName,
   avatarUrl,
   isFollowing,
+  isRequested,
+  isBlocked,
   isLoading,
   onFollow,
   onUnfollow,
+  onBlock,
+  onUnblock,
   className,
 }: FollowUserRowProps) {
   return (
@@ -40,30 +48,73 @@ export function FollowUserRow({
         </div>
       </div>
 
-      <div className="flex-shrink-0">
-        {isFollowing ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={isLoading}
-            onClick={() => onUnfollow?.(userId)}
-            className="text-xs gap-1"
-            aria-label={`Unfollow ${username}`}
-          >
-            <span className="material-symbols-outlined text-sm" aria-hidden="true">person_remove</span>
-            {isLoading ? "..." : "Unfollow"}
-          </Button>
+      <div className="flex-shrink-0 flex items-center gap-2">
+        {isBlocked ? (
+          onUnblock ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isLoading}
+              onClick={() => onUnblock(userId)}
+              className="text-xs gap-1"
+              aria-label={`Unblock ${username}`}
+            >
+              <span className="material-symbols-outlined text-sm" aria-hidden="true">lock_open</span>
+              {isLoading ? "..." : "Unblock"}
+            </Button>
+          ) : null
         ) : (
-          <Button
-            size="sm"
-            disabled={isLoading}
-            onClick={() => onFollow?.(userId)}
-            className="text-xs gap-1"
-            aria-label={`Follow ${username}`}
-          >
-            <span className="material-symbols-outlined text-sm" aria-hidden="true">person_add</span>
-            {isLoading ? "..." : "Follow"}
-          </Button>
+          <>
+            {isFollowing && onUnfollow ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isLoading}
+                onClick={() => onUnfollow(userId)}
+                className="text-xs gap-1"
+                aria-label={`Unfollow ${username}`}
+              >
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">person_remove</span>
+                {isLoading ? "..." : "Unfollow"}
+              </Button>
+            ) : isRequested ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                className="text-xs gap-1 border-amber-300 text-amber-700 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                aria-label={`Follow request sent to ${username}`}
+              >
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">schedule</span>
+                Requested
+              </Button>
+            ) : !isFollowing && onFollow ? (
+              <Button
+                size="sm"
+                disabled={isLoading}
+                onClick={() => onFollow(userId)}
+                className="text-xs gap-1"
+                aria-label={`Follow ${username}`}
+              >
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">person_add</span>
+                {isLoading ? "..." : "Follow"}
+              </Button>
+            ) : null}
+
+            {onBlock ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isLoading}
+                onClick={() => onBlock(userId)}
+                className="text-xs gap-1 border-destructive/30 text-destructive hover:bg-destructive/5"
+                aria-label={`Block ${username}`}
+              >
+                <span className="material-symbols-outlined text-sm" aria-hidden="true">block</span>
+                {isLoading ? "..." : "Block"}
+              </Button>
+            ) : null}
+          </>
         )}
       </div>
     </div>

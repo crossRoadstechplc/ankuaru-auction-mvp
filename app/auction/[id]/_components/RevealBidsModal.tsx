@@ -2,20 +2,10 @@
 
 import { useCloseAuctionMutation } from "@/src/features/auctions/queries/hooks";
 import { useAuctionBidsQuery } from "@/src/features/bids/queries/hooks";
+import { CloseAuctionResult } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-
-type CloseAuctionResult = {
-  winnerId?: string;
-  winningBid?: string;
-  bidCount?: number;
-  closedAt?: string;
-  title?: string;
-  auctionCategory?: string;
-  reservePrice?: string;
-  minBid?: string;
-};
 
 interface RevealBidsModalProps {
   auction: {
@@ -41,29 +31,6 @@ export function RevealBidsModal({
   isOpen,
   onClose,
 }: RevealBidsModalProps) {
-  const toCloseResult = (value: unknown): CloseAuctionResult => {
-    if (!value || typeof value !== "object") {
-      return {};
-    }
-
-    const raw = value as Record<string, unknown>;
-    return {
-      winnerId: typeof raw.winnerId === "string" ? raw.winnerId : undefined,
-      winningBid:
-        typeof raw.winningBid === "string" ? raw.winningBid : undefined,
-      bidCount: typeof raw.bidCount === "number" ? raw.bidCount : undefined,
-      closedAt: typeof raw.closedAt === "string" ? raw.closedAt : undefined,
-      title: typeof raw.title === "string" ? raw.title : undefined,
-      auctionCategory:
-        typeof raw.auctionCategory === "string"
-          ? raw.auctionCategory
-          : undefined,
-      reservePrice:
-        typeof raw.reservePrice === "string" ? raw.reservePrice : undefined,
-      minBid: typeof raw.minBid === "string" ? raw.minBid : undefined,
-    };
-  };
-
   const router = useRouter();
   const {
     data: bids = [],
@@ -80,7 +47,7 @@ export function RevealBidsModal({
   const handleCloseAuction = async () => {
     try {
       const result = await closeAuctionMutation.mutateAsync(auction.id);
-      setCloseResult(toCloseResult(result));
+      setCloseResult(result);
       toast.success("Auction closed successfully!");
     } catch (error) {
       console.error("Failed to close auction:", error);
@@ -116,7 +83,7 @@ export function RevealBidsModal({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
       <div
-        className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
+        className="bg-white dark:bg-slate-900 rounded-xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
         style={{ animation: "slideUp 0.3s ease-out" }}
       >
         {/* Header */}

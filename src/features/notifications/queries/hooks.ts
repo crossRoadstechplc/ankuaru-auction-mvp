@@ -8,10 +8,34 @@ type NotificationsMutationContext = {
   previousNotifications?: Notification[];
 };
 
+const MARK_ALL_READ_BATCH_SIZE = 10;
+
 function normalizeNotifications(
   notifications: Notification[] | undefined,
 ): Notification[] {
   return Array.isArray(notifications) ? notifications : [];
+}
+
+async function markNotificationsReadInBatches(
+  notifications: Notification[],
+): Promise<void> {
+  for (
+    let index = 0;
+    index < notifications.length;
+    index += MARK_ALL_READ_BATCH_SIZE
+  ) {
+    const batch = notifications.slice(index, index + MARK_ALL_READ_BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map((notification) =>
+        notificationsApi.markNotificationRead(notification.id),
+      ),
+    );
+
+    const failed = batchResults.find((result) => result.status === "rejected");
+    if (failed?.status === "rejected") {
+      throw failed.reason;
+    }
+  }
 }
 
 export function useMyNotificationsQuery() {
@@ -114,11 +138,7 @@ export function useMarkAllNotificationsReadMutation() {
         return;
       }
 
-      await Promise.all(
-        unreadNotifications.map((notification) =>
-          notificationsApi.markNotificationRead(notification.id),
-        ),
-      );
+      await markNotificationsReadInBatches(unreadNotifications);
     },
     onMutate: async (): Promise<NotificationsMutationContext> => {
       await queryClient.cancelQueries({

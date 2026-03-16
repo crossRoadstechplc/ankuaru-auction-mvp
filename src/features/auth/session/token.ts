@@ -5,6 +5,13 @@ type TokenValidationFailureReason =
   | "missing_exp"
   | "expired_or_expiring";
 
+type JwtPayload = {
+  exp?: number;
+  sub?: string;
+  userId?: string;
+  id?: string;
+};
+
 type TokenValidationResult =
   | { valid: true; exp: number }
   | { valid: false; reason: TokenValidationFailureReason };
@@ -27,6 +34,20 @@ function decodeBase64Url(value: string): string {
   throw new Error("No base64 decoder available");
 }
 
+function decodeJwtPayload(token: string): JwtPayload | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  try {
+    const decoded = decodeBase64Url(parts[1]);
+    return JSON.parse(decoded) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
 export function validateJwtToken(
   token: string | null | undefined,
   minValiditySeconds = 0,
@@ -35,15 +56,12 @@ export function validateJwtToken(
     return { valid: false, reason: "missing" };
   }
 
-  const parts = token.split(".");
-  if (parts.length !== 3) {
+  const payload = decodeJwtPayload(token);
+  if (!payload) {
     return { valid: false, reason: "invalid_format" };
   }
 
   try {
-    const decoded = decodeBase64Url(parts[1]);
-    const payload = JSON.parse(decoded) as { exp?: number };
-
     if (!payload.exp || typeof payload.exp !== "number") {
       return { valid: false, reason: "missing_exp" };
     }
@@ -57,6 +75,28 @@ export function validateJwtToken(
   } catch {
     return { valid: false, reason: "decode_failed" };
   }
+}
+
+export function extractUserIdFromJwt(
+  token: string | null | undefined,
+): string | null {
+  if (!token || typeof token !== "string") {
+    return null;
+  }
+
+  const payload = decodeJwtPayload(token);
+  if (!payload) {
+    return null;
+  }
+
+  const userIdCandidates = [payload.sub, payload.userId, payload.id];
+  for (const candidate of userIdCandidates) {
+    if (typeof candidate === "string" && candidate.length > 0) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 export function tokenValidationReasonToMessage(
@@ -77,4 +117,3 @@ export function tokenValidationReasonToMessage(
       return "Authentication token is invalid";
   }
 }
-

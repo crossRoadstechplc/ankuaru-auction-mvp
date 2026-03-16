@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { FollowRequest, RatingSummaryResponse, User } from "@/lib/types";
+import { FollowRequest, RatingSummaryResponse, User, UserProfileDetails } from "@/lib/types";
 import { useAuthStore } from "@/stores/auth.store";
-import { profileApi } from "@/src/features/profile/api/profile.api";
+import {
+  profileApi,
+  type UpdateProfileInput,
+} from "@/src/features/profile/api/profile.api";
 import { profileQueryKeys } from "@/src/features/profile/queries/queryKeys";
 
 export function useMyProfileQuery() {
@@ -30,7 +32,7 @@ export function useMyProfileQuery() {
 
 export function useUserInfoQuery(userId: string, enabled = true) {
   return useQuery<User>({
-    queryKey: ["profile", "user", userId],
+    queryKey: profileQueryKeys.user(userId),
     queryFn: () => profileApi.getUserById(userId),
     enabled: enabled && !!userId,
     staleTime: 1000 * 60 * 5,
@@ -41,6 +43,28 @@ export function useUserInfoQuery(userId: string, enabled = true) {
         (error.message.includes("Failed to fetch") ||
           error.message.includes("must not have a selection") ||
           error.message.includes("GRAPHQL_VALIDATION_FAILED"))
+      ) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+  });
+}
+
+export function useUserProfileDetailsQuery(userId: string, enabled = true) {
+  return useQuery<UserProfileDetails>({
+    queryKey: profileQueryKeys.userDetails(userId),
+    queryFn: () => profileApi.getUserProfileDetails(userId),
+    enabled: enabled && !!userId,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+    retry: (failureCount, error) => {
+      if (
+        error instanceof Error &&
+        (error.message.includes("Failed to fetch") ||
+          error.message.includes("must not have a selection") ||
+          error.message.includes("GRAPHQL_VALIDATION_FAILED") ||
+          error.message.includes("Authentication required"))
       ) {
         return false;
       }
@@ -105,6 +129,18 @@ export function useMyFollowRequestsQuery() {
   });
 }
 
+export function useMySentFollowRequestsQuery() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  return useQuery<FollowRequest[]>({
+    queryKey: profileQueryKeys.sentFollowRequests(),
+    queryFn: () => profileApi.getMySentFollowRequests(),
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60,
+    gcTime: 1000 * 60 * 3,
+  });
+}
+
 export function useMyBlockedUsersQuery() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -137,6 +173,9 @@ export function useFollowUserMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.followers() });
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.following() });
+      queryClient.invalidateQueries({
+        queryKey: profileQueryKeys.sentFollowRequests(),
+      });
     },
   });
 }
@@ -149,6 +188,9 @@ export function useUnfollowUserMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.followers() });
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.following() });
+      queryClient.invalidateQueries({
+        queryKey: profileQueryKeys.sentFollowRequests(),
+      });
     },
   });
 }
@@ -162,6 +204,9 @@ export function useApproveFollowRequestMutation() {
       queryClient.invalidateQueries({
         queryKey: profileQueryKeys.followRequests(),
       });
+      queryClient.invalidateQueries({
+        queryKey: profileQueryKeys.sentFollowRequests(),
+      });
     },
   });
 }
@@ -174,6 +219,9 @@ export function useRejectFollowRequestMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: profileQueryKeys.followRequests(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: profileQueryKeys.sentFollowRequests(),
       });
     },
   });
@@ -213,14 +261,8 @@ export function useUpdateMyProfileMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: {
-      fullName?: string;
-      bio?: string;
-      profileImageUrl?: string;
-      isPrivate?: boolean;
-    }) => profileApi.updateMyProfile(data),
+    mutationFn: (data: UpdateProfileInput) => profileApi.updateMyProfile(data),
     onSuccess: () => {
-      toast.success("Profile updated successfully!");
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.profile() });
     },
     onError: (error) => {
@@ -235,7 +277,6 @@ export function useRemoveMyProfileImageMutation() {
   return useMutation({
     mutationFn: () => profileApi.removeMyProfileImage(),
     onSuccess: () => {
-      toast.success("Profile image removed successfully!");
       queryClient.invalidateQueries({ queryKey: profileQueryKeys.profile() });
     },
     onError: (error) => {

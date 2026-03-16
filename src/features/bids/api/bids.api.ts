@@ -1,16 +1,23 @@
 import * as mutations from "@/lib/graphql/mutations";
 import * as queries from "@/lib/graphql/queries";
 import { GraphQLError, graphqlClient } from "@/lib/graphql-client";
-import { Bid, BidResponse, BidWithAuction } from "@/lib/types";
+import { Bid, BidAccessRequest, BidResponse, BidWithAuction } from "@/lib/types";
 import { auctionsApi } from "@/src/features/auctions/api/auctions.api";
 import {
   AuctionBidsQueryResultDto,
+  ApproveBidRequestMutationResultDto,
+  AuctionBidRequestsQueryResultDto,
   MyBidQueryResultDto,
   MyBidsQueryResultDto,
+  MyBidRequestsQueryResultDto,
+  RejectBidRequestMutationResultDto,
+  RequestBidAccessMutationResultDto,
   SubmitBidMutationResultDto,
 } from "@/src/features/bids/dto/bids.dto";
 import {
   mapAuctionBidsPayload,
+  mapBidAccessRequestsPayload,
+  mapBidRequestMutationPayload,
   mapBidWithAuction,
   mapMyBidPayload,
   mapMyBidsPayload,
@@ -23,12 +30,21 @@ function isNotFoundBidError(error: unknown): boolean {
   }
 
   const message = error.message.toLowerCase();
-  if (message.includes("no bid found") || message.includes("not found")) {
+  if (
+    message.includes("no bid found") ||
+    message.includes("not found") ||
+    message.includes("not allowed to view this bid")
+  ) {
     return true;
   }
 
   if (error instanceof GraphQLError) {
-    return error.status === 404 || error.statusCode === 404;
+    return (
+      error.status === 403 ||
+      error.status === 404 ||
+      error.statusCode === 403 ||
+      error.statusCode === 404
+    );
   }
 
   return false;
@@ -93,6 +109,9 @@ async function getMyBids(): Promise<BidWithAuction[]> {
     ),
   );
 
+  // Temporary compromise: backend does not expose bid+auction in one operation.
+  // We dedupe by auctionId to avoid per-bid fan-out; replace with a batch/expanded
+  // backend contract when available to remove the remaining per-unique-auction fetches.
   const auctionEntries = await Promise.all(
     uniqueAuctionIds.map(async (auctionId) => {
       try {
@@ -110,6 +129,50 @@ async function getMyBids(): Promise<BidWithAuction[]> {
     const auction = auctionById.get(bid.auctionId) ?? null;
     return mapBidWithAuction(bid, auction);
   });
+}
+
+async function getMyBidRequests(): Promise<BidAccessRequest[]> {
+  const response = await graphqlClient.request<MyBidRequestsQueryResultDto>(
+    queries.MY_BID_REQUESTS_QUERY,
+  );
+
+  return mapBidAccessRequestsPayload(response.myBidRequests);
+}
+
+async function getAuctionBidRequests(auctionId: string): Promise<BidAccessRequest[]> {
+  const response = await graphqlClient.request<AuctionBidRequestsQueryResultDto>(
+    queries.AUCTION_BID_REQUESTS_QUERY,
+    { id: auctionId },
+  );
+
+  return mapBidAccessRequestsPayload(response.auctionBidRequests);
+}
+
+async function requestBidAccess(auctionId: string): Promise<boolean> {
+  const response = await graphqlClient.request<RequestBidAccessMutationResultDto>(
+    mutations.REQUEST_BID_ACCESS_MUTATION,
+    { id: auctionId },
+  );
+
+  return mapBidRequestMutationPayload(response.requestBidAccess);
+}
+
+async function approveBidRequest(requestId: string): Promise<boolean> {
+  const response = await graphqlClient.request<ApproveBidRequestMutationResultDto>(
+    mutations.APPROVE_BID_REQUEST_MUTATION,
+    { requestId },
+  );
+
+  return mapBidRequestMutationPayload(response.approveBidRequest);
+}
+
+async function rejectBidRequest(requestId: string): Promise<boolean> {
+  const response = await graphqlClient.request<RejectBidRequestMutationResultDto>(
+    mutations.REJECT_BID_REQUEST_MUTATION,
+    { requestId },
+  );
+
+  return mapBidRequestMutationPayload(response.rejectBidRequest);
 }
 
 async function revealBid(
@@ -130,5 +193,10 @@ export const bidsApi = {
   placeBid,
   getMyBid,
   getMyBids,
+  getMyBidRequests,
+  getAuctionBidRequests,
+  requestBidAccess,
+  approveBidRequest,
+  rejectBidRequest,
   revealBid,
 };
