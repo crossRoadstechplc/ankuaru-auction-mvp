@@ -35,6 +35,18 @@ interface ProfileTabsProps {
   onUnblockUser?: (userId: string) => void;
 }
 
+function formatCompactCount(value: number) {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1).replace(".0", "")}M`;
+  }
+
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1).replace(".0", "")}K`;
+  }
+
+  return value.toLocaleString();
+}
+
 function InfoRow({
   label,
   value,
@@ -87,12 +99,12 @@ export default function ProfileTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="mb-6 h-auto w-full flex-wrap justify-start gap-2 rounded-[24px] border border-border/70 bg-card p-2">
+      <TabsList className="mb-6 h-auto w-full justify-start gap-2 overflow-x-auto rounded-[24px] border border-border/70 bg-card p-2">
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.id}
             value={tab.id}
-            className="flex items-center gap-2 rounded-2xl border border-transparent px-4 py-2.5 text-sm font-medium data-[state=active]:border-border/70 data-[state=active]:bg-background data-[state=active]:text-foreground"
+            className="flex shrink-0 items-center gap-2 rounded-2xl border border-transparent px-4 py-2.5 text-sm font-medium whitespace-nowrap data-[state=active]:border-border/70 data-[state=active]:bg-background data-[state=active]:text-foreground"
           >
             {tab.icon ? (
               <span className="material-symbols-outlined text-[18px]">
@@ -105,7 +117,7 @@ export default function ProfileTabs({
                 variant="secondary"
                 className="rounded-full px-2 py-0 text-[10px]"
               >
-                {tab.count}
+                {formatCompactCount(tab.count)}
               </Badge>
             ) : null}
           </TabsTrigger>
@@ -122,7 +134,7 @@ export default function ProfileTabs({
               </span>
             </div>
             <p className="mt-3 text-3xl font-semibold text-foreground">
-              {followers.length}
+              {formatCompactCount(followers.length)}
             </p>
           </div>
 
@@ -134,7 +146,7 @@ export default function ProfileTabs({
               </span>
             </div>
             <p className="mt-3 text-3xl font-semibold text-foreground">
-              {following.length}
+              {formatCompactCount(following.length)}
             </p>
           </div>
 
@@ -146,7 +158,9 @@ export default function ProfileTabs({
               </span>
             </div>
             <p className="mt-3 text-3xl font-semibold text-foreground">
-              {followRequests.length + sentFollowRequests.length}
+              {formatCompactCount(
+                followRequests.length + sentFollowRequests.length,
+              )}
             </p>
           </div>
 
@@ -158,7 +172,7 @@ export default function ProfileTabs({
               </span>
             </div>
             <p className="mt-3 text-3xl font-semibold text-foreground">
-              {blockedUsers.length}
+              {formatCompactCount(blockedUsers.length)}
             </p>
           </div>
         </div>
@@ -215,7 +229,9 @@ export default function ProfileTabs({
             <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
               <p className="text-sm text-muted-foreground">Total Reviews</p>
               <p className="mt-3 text-3xl font-semibold text-foreground">
-                {isLoadingSummary ? "..." : ratingSummary.totalRatings}
+                {isLoadingSummary
+                  ? "..."
+                  : formatCompactCount(ratingSummary.totalRatings)}
               </p>
             </div>
           </PanelCard>

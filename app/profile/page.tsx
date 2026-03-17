@@ -206,10 +206,24 @@ export default function ProfilePage() {
 
   return (
     <PageShell>
-      <PageContainer >
+      <PageContainer>
         <PageHeader
           title="My Profile"
-         
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                window.location.href = "/";
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">
+                arrow_back
+              </span>
+              Back to Home
+            </Button>
+          }
         />
 
         <PageSection>
@@ -260,19 +274,6 @@ export default function ProfilePage() {
                     group_add
                   </span>
                   Requests
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => {
-                    window.location.href = "/";
-                  }}
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    arrow_back
-                  </span>
-                  Back to Home
                 </Button>
               </div>
             }

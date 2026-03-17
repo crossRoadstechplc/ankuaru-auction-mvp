@@ -92,7 +92,7 @@ export default function InstagramProfileLayout({
           <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               <div className="mx-auto sm:mx-0">
-                <div className="rounded-full bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-[3px] shadow-[0_12px_40px_rgba(238,42,123,0.24)]">
+                <div className="rounded-full bg-gradient-to-br from-primary via-accent to-coffee p-[3px] shadow-[0_14px_40px_rgba(61,127,93,0.24)]">
                   <div className="rounded-full bg-card p-1">
                     <div
                       className="h-28 w-28 rounded-full bg-muted bg-cover bg-center sm:h-36 sm:w-36"
