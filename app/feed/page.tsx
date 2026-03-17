@@ -5,7 +5,6 @@ import Header from "@/components/layout/Header";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageSection } from "@/components/layout/page-section";
 import { PageShell } from "@/components/layout/page-shell";
-import { getImageWithFallback } from "@/lib/imageUtils";
 import { Auction } from "@/lib/types";
 import { useAuctionsQuery } from "@/src/features/auctions/queries/hooks";
 import {
@@ -360,7 +359,6 @@ export default function FeedPage() {
                     : "Failed to load auctions"
                   : null
               }
-              getImageWithFallback={getImageWithFallback}
               followingIds={followingIds}
               requestedIds={requestedIds}
               onOpenCreatorProfile={handleOpenCreatorProfile}

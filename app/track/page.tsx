@@ -1,20 +1,19 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import Footer from "@/components/layout/Footer";
+import Header from "@/components/layout/Header";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageSection } from "@/components/layout/page-section";
+import { PageShell } from "@/components/layout/page-shell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { EmptyState } from "@/src/components/ui/empty-state";
+import { LoadingState } from "@/src/components/ui/loading-state";
+import { Auction } from "@/lib/types";
+import { useAuctionQuery, useAuctionsQuery } from "@/src/features/auctions/queries/hooks";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import Footer from "../../components/layout/Footer";
-import Header from "../../components/layout/Header";
-import {
-  useAuctionQuery,
-  useAuctionsQuery,
-} from "@/src/features/auctions/queries/hooks";
-import { Auction } from "../../lib/types";
 import { useAuthStore } from "../../stores/auth.store";
 
 interface TrackedAuction extends Auction {
@@ -27,6 +26,8 @@ interface TrackedAuction extends Auction {
   winnerId?: string;
   winningBid?: string;
 }
+
+type TrackStatusFilter = "ALL" | "SCHEDULED" | "OPEN" | "REVEAL" | "CLOSED";
 
 function toTrackedAuction(auction: Auction): TrackedAuction {
   return {
@@ -44,13 +45,142 @@ function toTrackedAuction(auction: Auction): TrackedAuction {
   };
 }
 
+function formatMoney(value?: string | null) {
+  if (!value) {
+    return "ETB --";
+  }
+
+  return `ETB ${value}`;
+}
+
+function formatCompactCount(value: number) {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1).replace(".0", "")}M`;
+  }
+
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1).replace(".0", "")}K`;
+  }
+
+  return value.toLocaleString();
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function getStatusPillClass(status: string) {
+  switch (status) {
+    case "OPEN":
+      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
+    case "SCHEDULED":
+      return "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300";
+    case "REVEAL":
+      return "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300";
+    case "CLOSED":
+      return "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+function getStatusLabel(status: TrackStatusFilter) {
+  switch (status) {
+    case "ALL":
+      return "All";
+    case "OPEN":
+      return "Open";
+    case "SCHEDULED":
+      return "Scheduled";
+    case "REVEAL":
+      return "Reveal";
+    case "CLOSED":
+      return "Closed";
+    default:
+      return status;
+  }
+}
+
+function getAuctionModeLabel(type: "SELL" | "BUY") {
+  return type === "SELL" ? "Sell auction" : "Buy request";
+}
+
+function getArrivalValue(auction: TrackedAuction) {
+  if (auction.status === "SCHEDULED") {
+    return formatDate(auction.startAt);
+  }
+
+  return formatDate(auction.endAt);
+}
+
+function getRouteValue(auction: TrackedAuction) {
+  const left = auction.region || auction.auctionCategory || "Origin";
+  const right = auction.productName || auction.commodityType || "Destination";
+  return `${left} -> ${right}`;
+}
+
+function TrackRow({
+  auction,
+  onOpen,
+}: {
+  auction: TrackedAuction;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <tr className="border-b border-border/70 transition-colors hover:bg-muted/20">
+      <td className="px-4 py-3 align-middle md:px-5">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">
+            #{auction.id.slice(0, 10)}
+          </p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {auction.title}
+          </p>
+        </div>
+      </td>
+      <td className="px-4 py-3 align-middle text-sm text-foreground md:px-5">
+        {auction.auctionCategory}
+      </td>
+      <td className="px-4 py-3 align-middle text-sm text-foreground md:px-5">
+        {auction.quantity
+          ? `${auction.quantity}${auction.quantityUnit ? ` ${auction.quantityUnit}` : ""}`
+          : "Unspecified"}
+      </td>
+      <td className="px-4 py-3 align-middle text-sm text-foreground md:px-5">
+        {auction.creator?.username || "Marketplace"}
+      </td>
+      <td className="px-4 py-3 align-middle text-sm text-foreground md:px-5">
+        {getArrivalValue(auction)}
+      </td>
+      <td className="px-4 py-3 align-middle text-sm text-foreground md:px-5">
+        <span className="truncate">{getRouteValue(auction)}</span>
+      </td>
+      <td className="px-4 py-3 align-middle md:px-5">
+        <div className="flex items-center justify-end gap-3">
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusPillClass(
+              auction.status,
+            )}`}
+          >
+            {getStatusLabel(auction.status as TrackStatusFilter)}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => onOpen(auction.id)}>
+            View
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function TrackAuctionPage() {
   const [activeTab, setActiveTab] = useState<"all" | "single">("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<
-    "ALL" | "SCHEDULED" | "OPEN" | "REVEAL" | "CLOSED"
-  >("ALL");
-
+  const [filterStatus, setFilterStatus] = useState<TrackStatusFilter>("ALL");
   const [auctionIdInput, setAuctionIdInput] = useState("");
   const [trackedAuctionId, setTrackedAuctionId] = useState("");
   const [singleInputError, setSingleInputError] = useState<string | null>(null);
@@ -99,8 +229,34 @@ export default function TrackAuctionPage() {
     return null;
   }, [singleInputError, singleQueryEnabled, singleAuctionError]);
 
-  const loading = isAuctionsLoading;
-  const error = auctionsError instanceof Error ? auctionsError.message : null;
+  const filteredAuctions = useMemo(() => {
+    return trackedAuctions.filter((auction) => {
+      const matchesSearch =
+        auction.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        auction.auctionCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (auction.productName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (auction.creator?.username || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        filterStatus === "ALL" || auction.status === filterStatus;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [trackedAuctions, searchTerm, filterStatus]);
+
+  const statusTabs = useMemo(
+    () =>
+      (["ALL", "OPEN", "SCHEDULED", "REVEAL", "CLOSED"] as TrackStatusFilter[]).map(
+        (status) => ({
+          id: status,
+          label: getStatusLabel(status),
+          count:
+            status === "ALL"
+              ? trackedAuctions.length
+              : trackedAuctions.filter((auction) => auction.status === status).length,
+        }),
+      ),
+    [trackedAuctions],
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -121,36 +277,9 @@ export default function TrackAuctionPage() {
     }
   }, [singleQueryEnabled, singleAuctionError]);
 
-  const getTimeRemaining = (startAt: string, endAt: string, status: string) => {
-    const now = new Date().getTime();
-    const start = new Date(startAt).getTime();
-    const end = new Date(endAt).getTime();
-
-    if (status === "SCHEDULED") {
-      const diff = start - now;
-      if (diff <= 0) return "Starting soon";
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-      );
-      return `Starts in ${days}d ${hours}h`;
-    }
-
-    if (status === "OPEN") {
-      const diff = end - now;
-      if (diff <= 0) return "Ended";
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-      );
-      return `${days}d ${hours}h left`;
-    }
-
-    return "Completed";
-  };
-
   const handleTrackSingleAuction = async () => {
     const trimmed = auctionIdInput.trim();
+
     if (!trimmed) {
       setSingleInputError("Please enter an auction ID");
       return;
@@ -166,63 +295,12 @@ export default function TrackAuctionPage() {
     setTrackedAuctionId(trimmed);
   };
 
-  const filteredAuctions = useMemo(() => {
-    return trackedAuctions.filter((auction) => {
-      const matchesSearch =
-        auction.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        auction.auctionCategory.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus =
-        filterStatus === "ALL" || auction.status === filterStatus;
-      return matchesSearch && matchesStatus;
-    });
-  }, [trackedAuctions, searchTerm, filterStatus]);
-
-  const getStatusInfo = (status: string) => {
-    switch (status) {
-      case "SCHEDULED":
-        return {
-          color: "blue",
-          icon: "schedule",
-          label: "Scheduled",
-          variant: "secondary" as const,
-        };
-      case "OPEN":
-        return {
-          color: "green",
-          icon: "auction",
-          label: "Active",
-          variant: "default" as const,
-        };
-      case "REVEAL":
-        return {
-          color: "orange",
-          icon: "visibility",
-          label: "Reveal Phase",
-          variant: "secondary" as const,
-        };
-      case "CLOSED":
-        return {
-          color: "slate",
-          icon: "check_circle",
-          label: "Closed",
-          variant: "secondary" as const,
-        };
-      default:
-        return {
-          color: "slate",
-          icon: "help",
-          label: "Unknown",
-          variant: "secondary" as const,
-        };
-    }
-  };
-
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6">
+          <h2 className="mb-4 text-2xl font-bold">Authentication Required</h2>
+          <p className="mb-6 text-slate-600 dark:text-slate-400">
             Please login to track auctions
           </p>
         </div>
@@ -231,412 +309,241 @@ export default function TrackAuctionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <PageShell>
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Track Auctions
-          </h1>
-          <p className="text-muted-foreground">
-            Monitor auction progress, view winners, and discover more from
-            creators
-          </p>
-        </div>
+      <PageContainer className="space-y-8 py-6 md:py-8">
+        <PageSection>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex rounded-[24px] border border-border/70 bg-card p-1.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab("all")}
+                className={`rounded-[18px] px-4 py-2.5 text-sm font-medium transition ${
+                  activeTab === "all"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Auction desk
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("single")}
+                className={`rounded-[18px] px-4 py-2.5 text-sm font-medium transition ${
+                  activeTab === "single"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Track by ID
+              </button>
+            </div>
 
-        <div className="mb-8">
-          <div className="inline-flex rounded-lg bg-muted p-1">
-            <button
-              onClick={() => setActiveTab("all")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "all"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              All Auctions
-            </button>
-            <button
-              onClick={() => setActiveTab("single")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "single"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Track by ID
-            </button>
+            {activeTab === "all" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => void refetchAuctions()}
+                disabled={isAuctionsLoading}
+              >
+                <span className="material-symbols-outlined text-sm">refresh</span>
+                Refresh
+              </Button>
+            ) : null}
           </div>
-        </div>
+        </PageSection>
 
         {activeTab === "all" ? (
           <>
-            <Card className="mb-6">
-              <CardContent className="space-y-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Search auctions by title or category..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-10"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={filterStatus}
-                      onChange={(e) =>
-                        setFilterStatus(
-                          e.target.value as
-                            | "ALL"
-                            | "SCHEDULED"
-                            | "OPEN"
-                            | "REVEAL"
-                            | "CLOSED",
-                        )
-                      }
-                      className="h-10 rounded-md border-input bg-background px-3"
-                    >
-                      <option value="ALL">All Status</option>
-                      <option value="SCHEDULED">Scheduled</option>
-                      <option value="OPEN">Active</option>
-                      <option value="REVEAL">Reveal Phase</option>
-                      <option value="CLOSED">Closed</option>
-                    </select>
-                    <Button
-                      onClick={() => void refetchAuctions()}
-                      disabled={loading}
-                      variant="outline"
-                      size="sm"
-                    >
-                      {loading ? "Loading..." : "Refresh"}
-                    </Button>
-                  </div>
+            <PageSection>
+              {auctionsError instanceof Error ? (
+                <div className="rounded-[28px] border border-destructive/30 bg-destructive/5 px-5 py-4 text-destructive">
+                  {auctionsError.message}
                 </div>
-              </CardContent>
-            </Card>
+              ) : isAuctionsLoading ? (
+                <div className="rounded-[28px] border border-border/70 bg-card p-4">
+                  <LoadingState type="list" count={6} />
+                </div>
+              ) : filteredAuctions.length === 0 ? (
+                <EmptyState
+                  iconName="travel_explore"
+                  title="No auctions found"
+                  description={
+                    searchTerm || filterStatus !== "ALL"
+                      ? "Try adjusting your tracking filters."
+                      : "Tracked auctions will appear here once listings are available."
+                  }
+                  className="min-h-[320px] rounded-[28px] border border-border/70 bg-card"
+                />
+              ) : (
+                <div className="overflow-hidden rounded-[28px] border border-border/70 bg-card">
+                  <div className="border-b border-border/70 px-4 py-3 md:px-5">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex flex-wrap gap-2">
+                        {statusTabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setFilterStatus(tab.id)}
+                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                              filterStatus === tab.id
+                                ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
+                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                            }`}
+                          >
+                            <span>{tab.label}</span>
+                            <span className="text-xs opacity-70">
+                              {formatCompactCount(tab.count)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
 
-            {error && (
-              <Card className="mb-6 border-destructive">
-                <CardContent className="flex items-center gap-3 p-4">
-                  <span className="material-symbols-outlined text-destructive">
-                    error
-                  </span>
-                  <p className="text-destructive font-medium">{error}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {loading && (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-lg bg-muted animate-pulse"></div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-muted rounded animate-pulse"></div>
-                          <div className="h-4 bg-muted rounded w-3/4 animate-pulse"></div>
-                          <div className="h-4 bg-muted rounded w-1/2 animate-pulse"></div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <Input
+                          placeholder="Search by title, category, company, or product..."
+                          value={searchTerm}
+                          onChange={(event) => setSearchTerm(event.target.value)}
+                          className="h-10 min-w-[240px] rounded-xl"
+                        />
+                        <div className="rounded-xl border border-border/70 bg-background px-3 py-2 text-sm text-muted-foreground">
+                          {formatCompactCount(filteredAuctions.length)} rows
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {!loading && !error && (
-              <>
-                {filteredAuctions.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <span className="material-symbols-outlined text-4xl text-muted-foreground mb-4">
-                        visibility_off
-                      </span>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No auctions found
-                      </h3>
-                      <p className="text-muted-foreground">
-                        {searchTerm || filterStatus !== "ALL"
-                          ? "Try adjusting your search or filters"
-                          : "Start tracking auctions to see them here"}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredAuctions.map((auction) => {
-                      const statusInfo = getStatusInfo(auction.status);
-                      const timeRemaining = getTimeRemaining(
-                        auction.startAt,
-                        auction.endAt,
-                        auction.status,
-                      );
-
-                      return (
-                        <Card
-                          key={auction.id}
-                          className="hover:shadow-md transition-shadow"
-                        >
-                          <CardContent className="p-0">
-                            <div className="flex items-start gap-4">
-                              <div className="flex-shrink-0 mt-1">
-                                <Badge
-                                  variant={statusInfo.variant}
-                                  className="h-8 w-8 rounded-full p-0 flex items-center justify-center"
-                                >
-                                  <span className="material-symbols-outlined text-sm">
-                                    {statusInfo.icon}
-                                  </span>
-                                </Badge>
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                  <div className="flex-1">
-                                    <h3 className="font-semibold text-foreground line-clamp-1">
-                                      {auction.title}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      {auction.auctionCategory}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {auction.auctionType}
-                                    </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                      • {auction.bidCount || 0} bids
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4 mb-3">
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Current Bid
-                                    </p>
-                                    <p className="font-semibold text-foreground">
-                                      ETB {auction.minBid}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Reserve Price
-                                    </p>
-                                    <p className="font-semibold text-foreground">
-                                      ETB {auction.reservePrice || "---"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Time Left
-                                    </p>
-                                    <p className="font-semibold text-foreground">
-                                      {timeRemaining}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {auction.status === "CLOSED" &&
-                                  auction.winnerId && (
-                                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                                      <span className="material-symbols-outlined text-green-600 dark:text-green-400">
-                                        emoji_events
-                                      </span>
-                                      <div>
-                                        <p className="text-xs text-green-600 dark:text-green-400">
-                                          Winner
-                                        </p>
-                                        <p className="font-semibold text-green-900 dark:text-green-100">
-                                          {auction.winnerId?.slice(0, 8)}...
-                                        </p>
-                                        {auction.winningBid && (
-                                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                            Winning bid: {auction.winningBid}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                {auction.creator && (
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <span>by</span>
-                                    <span className="font-medium text-foreground">
-                                      {auction.creator.username}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex gap-2 mt-3">
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    router.push(`/auction/${auction.id}`)
-                                  }
-                                >
-                                  View Auction
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                    </div>
                   </div>
-                )}
-              </>
-            )}
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-border/70 bg-muted/20 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          <th className="px-4 py-3 md:px-5">Auction ID</th>
+                          <th className="px-4 py-3 md:px-5">Category</th>
+                          <th className="px-4 py-3 md:px-5">Quantity</th>
+                          <th className="px-4 py-3 md:px-5">Company</th>
+                          <th className="px-4 py-3 md:px-5">Arrival time</th>
+                          <th className="px-4 py-3 md:px-5">Route</th>
+                          <th className="px-4 py-3 text-right md:px-5">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAuctions.map((auction) => (
+                          <TrackRow
+                            key={auction.id}
+                            auction={auction}
+                            onOpen={(id) => router.push(`/auction/${id}`)}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </PageSection>
           </>
         ) : (
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle>Track Auction by ID</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
+          <PageSection>
+            <div className="mx-auto max-w-3xl rounded-[30px] border border-border/70 bg-card p-4 md:p-5">
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold tracking-tight text-foreground">
+                  Track by auction ID
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Use a direct auction ID when you want one precise result instead of the full tracking table.
+                </p>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <Input
-                  placeholder="Enter auction ID (e.g., 15c0c64c-3941-494e-935a-821a2d0b5540)"
+                  placeholder="Enter auction ID"
                   value={auctionIdInput}
-                  onChange={(e) => setAuctionIdInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                  onChange={(event) => setAuctionIdInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
                       void handleTrackSingleAuction();
                     }
                   }}
-                  className="flex-1"
+                  className="h-11 flex-1 rounded-xl"
                 />
                 <Button
                   onClick={() => void handleTrackSingleAuction()}
                   disabled={singleLoading}
+                  className="gap-2"
                 >
-                  {singleLoading ? (
-                    <>
-                      <span className="material-symbols-outlined animate-spin">
-                        refresh
-                      </span>
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined">search</span>
-                      Track
-                    </>
-                  )}
+                  <span className="material-symbols-outlined text-sm">
+                    {singleLoading ? "sync" : "search"}
+                  </span>
+                  {singleLoading ? "Searching..." : "Track"}
                 </Button>
               </div>
 
-              {singleError && (
-                <div className="rounded-lg border-destructive bg-destructive/10 p-4">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-destructive">
-                      error
-                    </span>
-                    <p className="text-destructive font-medium">{singleError}</p>
+              {singleError ? (
+                <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {singleError}
+                </div>
+              ) : null}
+
+              {singleLoading ? (
+                <div className="mt-6">
+                  <LoadingState type="list" count={3} />
+                </div>
+              ) : null}
+
+              {singleAuction ? (
+                <div className="mt-5 overflow-hidden rounded-[24px] border border-border/70 bg-background/60">
+                  <div className="border-b border-border/70 px-4 py-3.5">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-xl font-bold tracking-tight text-foreground">
+                        {singleAuction.title}
+                      </h3>
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusPillClass(
+                          singleAuction.status,
+                        )}`}
+                      >
+                        {getStatusLabel(singleAuction.status as TrackStatusFilter)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-px bg-border/60 md:grid-cols-2">
+                    {[
+                      { label: "Auction ID", value: `#${singleAuction.id.slice(0, 12)}` },
+                      { label: "Category", value: singleAuction.auctionCategory },
+                      { label: "Auction mode", value: getAuctionModeLabel(singleAuction.auctionType) },
+                      { label: "Current bid", value: formatMoney(singleAuction.currentBid || singleAuction.winningBid || singleAuction.minBid) },
+                      { label: "Arrival time", value: getArrivalValue(singleAuction) },
+                      { label: "Route", value: getRouteValue(singleAuction) },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-card px-4 py-3.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          {item.label}
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-foreground">
+                          {item.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-end px-4 py-3.5">
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/auction/${singleAuction.id}`)}
+                    >
+                      Open Full Auction
+                    </Button>
                   </div>
                 </div>
-              )}
-
-              {singleAuction && (
-                <Card className="mt-4">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>{singleAuction.title}</CardTitle>
-                      <Badge variant={getStatusInfo(singleAuction.status).variant}>
-                        {getStatusInfo(singleAuction.status).label}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Category</p>
-                        <p className="font-semibold">
-                          {singleAuction.auctionCategory}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Type</p>
-                        <p className="font-semibold">{singleAuction.auctionType}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Min Bid</p>
-                        <p className="font-semibold">ETB {singleAuction.minBid}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Reserve Price
-                        </p>
-                        <p className="font-semibold">
-                          ETB {singleAuction.reservePrice}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        {singleAuction.itemDescription}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Time remaining:{" "}
-                        {getTimeRemaining(
-                          singleAuction.startAt,
-                          singleAuction.endAt,
-                          singleAuction.status,
-                        )}
-                      </p>
-                    </div>
-
-                    {singleAuction.status === "CLOSED" && singleAuction.winnerId && (
-                      <>
-                        <Separator />
-                        <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                          <span className="material-symbols-outlined text-green-600 dark:text-green-400">
-                            emoji_events
-                          </span>
-                          <div>
-                            <p className="text-sm text-green-600 dark:text-green-400">
-                              Winner
-                            </p>
-                            <p className="font-semibold text-green-900 dark:text-green-100">
-                              {singleAuction.winnerId?.slice(0, 8)}...
-                            </p>
-                            {singleAuction.winningBid && (
-                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                Winning bid: {singleAuction.winningBid}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="flex gap-2 pt-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => router.push(`/auction/${singleAuction.id}`)}
-                      >
-                        View Full Auction
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </CardContent>
-          </Card>
+              ) : null}
+            </div>
+          </PageSection>
         )}
-      </main>
+      </PageContainer>
 
       <Footer />
-    </div>
+    </PageShell>
   );
 }

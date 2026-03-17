@@ -27,6 +27,7 @@ function AuctionDetailContent() {
       ? true
       : document.visibilityState === "visible",
   );
+  const [isAuctionIdCopied, setIsAuctionIdCopied] = useState(false);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -177,6 +178,12 @@ function AuctionDetailContent() {
   }
 
   const isSell = auction.auctionType === "SELL";
+  const handleCopyAuctionId = () => {
+    navigator.clipboard.writeText(auction.id).then(() => {
+      setIsAuctionIdCopied(true);
+      setTimeout(() => setIsAuctionIdCopied(false), 2000);
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7f4ee_0%,#efe7da_100%)] text-slate-900 antialiased dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] dark:text-slate-100">
@@ -229,8 +236,23 @@ function AuctionDetailContent() {
                   {auction.status}
                 </div>
               </div>
-
-              
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white md:text-3xl">
+                  {auction.title}
+                </h1>
+                <button
+                  type="button"
+                  onClick={handleCopyAuctionId}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    {isAuctionIdCopied ? "check_circle" : "content_copy"}
+                  </span>
+                  {isAuctionIdCopied
+                    ? "Copied"
+                    : `Auction ID: ${auction.id.slice(0, 10)}...`}
+                </button>
+              </div>
             </div>
 
             <Link

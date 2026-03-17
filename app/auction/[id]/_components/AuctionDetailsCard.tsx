@@ -1,6 +1,4 @@
 "use client";
-
-import { useState } from "react";
 import { useMyBidQuery } from "@/src/features/bids/queries/hooks";
 import {
   useFollowUserMutation,
@@ -109,7 +107,6 @@ export function AuctionDetailsCard({
   creatorInfo,
   isCreator,
 }: AuctionDetailsCardProps) {
-  const [idCopied, setIdCopied] = useState(false);
   const { data: myBid } = useMyBidQuery(data.id);
   const { data: following = [] } = useMyFollowingQuery();
   const { data: sentFollowRequests = [] } = useMySentFollowRequestsQuery();
@@ -191,13 +188,6 @@ export function AuctionDetailsCard({
     },
   ].filter((item): item is { label: string; value: string } => !!item.value);
 
-  const handleCopyId = () => {
-    navigator.clipboard.writeText(data.id).then(() => {
-      setIdCopied(true);
-      setTimeout(() => setIdCopied(false), 2000);
-    });
-  };
-
   const handleFollow = async () => {
     if (!data.createdBy || isFollowLoading) {
       return;
@@ -224,49 +214,12 @@ export function AuctionDetailsCard({
 
   return (
     <section className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_28px_100px_-60px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900">
-      <div className="relative overflow-hidden border-b border-slate-200/70 dark:border-slate-800">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.04),rgba(15,23,42,0.26))]" />
+      <div className="overflow-hidden border-b border-slate-200/70 dark:border-slate-800">
         <img
           src="/static.jpg"
           alt={data.title}
           className="h-60 w-full object-cover sm:h-72"
         />
-        <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur">
-              {data.status}
-            </span>
-            <span className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur">
-              {data.auctionType === "SELL" ? "Sell auction" : "Buy request"}
-            </span>
-            <span className="rounded-full bg-white/18 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] backdrop-blur">
-              {formatVisibilityLabel(data.visibility)}
-            </span>
-          </div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="max-w-3xl">
-              <h1 className="text-3xl font-black tracking-tight sm:text-[2.2rem]">
-                {data.title}
-              </h1>
-              <p className="mt-2 text-sm text-white/85 sm:text-base">
-                {data.productName || data.auctionCategory}
-                {data.productName && data.auctionCategory
-                  ? ` in ${data.auctionCategory}`
-                  : ""}
-              </p>
-            </div>
-            <button
-              onClick={handleCopyId}
-              title="Copy full Auction ID"
-              className="inline-flex items-center gap-2 self-start rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
-            >
-              <span className="material-symbols-outlined text-base">
-                {idCopied ? "check_circle" : "content_copy"}
-              </span>
-              {idCopied ? "Copied" : `ANK-${data.id ? `${data.id.slice(0, 8)}...` : "000"}`}
-            </button>
-          </div>
-        </div>
       </div>
 
       <div className="space-y-6 p-5 sm:p-6">

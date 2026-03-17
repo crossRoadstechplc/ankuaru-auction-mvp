@@ -112,9 +112,7 @@ export function FeedFilterSidebar({
               <span className="material-symbols-outlined text-sm">tune</span>
               Market Filters
             </div>
-            <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
-              Refine the board
-            </h2>
+            
           </div>
 
           {activeFilterCount > 0 ? (
@@ -132,7 +130,7 @@ export function FeedFilterSidebar({
       <div className="space-y-6 p-5 xl:min-h-0 xl:overflow-y-auto">
         <FilterSection
           title="Category"
-          subtitle="Pulled from the lots visible in the current feed."
+          subtitle=""
           options={categories}
           selectedValues={selectedCategories}
           onToggle={onToggleCategory}
@@ -140,7 +138,7 @@ export function FeedFilterSidebar({
 
         <FilterSection
           title="Status"
-          subtitle="Use auction phase to prioritize what should appear."
+          subtitle=""
           options={statuses}
           selectedValues={selectedStatuses}
           onToggle={onToggleStatus}
@@ -148,7 +146,7 @@ export function FeedFilterSidebar({
 
         <FilterSection
           title="Quantity"
-          subtitle="Simple ranges for scanning small, medium, and bulk lots."
+          subtitle=""
           options={quantityRanges}
           selectedValues={selectedQuantityRanges}
           onToggle={onToggleQuantityRange}

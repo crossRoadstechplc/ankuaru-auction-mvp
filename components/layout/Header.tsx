@@ -12,6 +12,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import MarketTickerBar from "@/components/layout/MarketTickerBar";
 import { useNotificationsWithRealTimeQuery } from "@/src/features/notifications/queries/hooks";
+import { resolveNotificationPresentation } from "@/src/features/notifications/utils/notification-routing";
 import {
   useApproveFollowRequestMutation,
   useMyFollowRequestsQuery,
@@ -173,7 +174,16 @@ export default function Header() {
     if (!n.is_read) {
       await markAsRead(n.id);
     }
-    // Handle notification navigation logic here
+    const presentation = resolveNotificationPresentation(n);
+
+    if (presentation.action.kind === "external") {
+      window.open(presentation.action.href, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (presentation.action.kind === "route") {
+      router.push(presentation.action.href);
+    }
   };
 
   const getNotificationText = (notification: Notification) => {
@@ -388,30 +398,23 @@ export default function Header() {
                           Loading notifications...
                         </div>
                       ) : notifications && notifications.length > 0 ? (
-                        notifications.slice(0, 5).map((n) => (
-                          <DropdownMenuItem
-                            key={n.id}
-                            onClick={() => handleNotificationClick(n)}
-                            className="flex flex-col items-start p-4 cursor-pointer"
-                          >
-                            <div className="flex w-full items-start gap-3">
-                              <span
-                                className={`material-symbols-outlined text-sm mt-0.5 ${
-                                  n.type === "AUCTION_WON" ||
-                                  n.type === "success"
-                                    ? "text-green-600"
-                                    : n.type === "fail"
-                                      ? "text-red-600"
-                                      : "text-amber-600"
-                                }`}
-                              >
-                                {n.type === "AUCTION_WON" ||
-                                n.type === "success"
-                                  ? "check_circle"
-                                  : n.type === "fail"
-                                    ? "error"
-                                    : "notifications"}
-                              </span>
+                        notifications.slice(0, 5).map((n) => {
+                          const presentation = resolveNotificationPresentation(n);
+
+                          return (
+                            <DropdownMenuItem
+                              key={n.id}
+                              onClick={() => handleNotificationClick(n)}
+                              className="flex flex-col items-start p-4 cursor-pointer"
+                            >
+                              <div className="flex w-full items-start gap-3">
+                                <div
+                                  className={`flex h-8 w-8 items-center justify-center rounded-xl ${presentation.accentClassName}`}
+                                >
+                                  <span className="material-symbols-outlined text-sm">
+                                    {presentation.iconName}
+                                  </span>
+                                </div>
                               <div className="flex flex-col gap-1 flex-1">
                                 <p
                                   className={`text-sm ${!n.is_read ? "font-semibold" : "font-medium"} text-foreground`}
@@ -419,12 +422,18 @@ export default function Header() {
                                   {getNotificationText(n)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
+                                  {presentation.action.kind === "none"
+                                    ? "View details"
+                                    : presentation.action.label}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
                                   {new Date(n.created_at).toLocaleTimeString()}
                                 </p>
                               </div>
-                            </div>
-                          </DropdownMenuItem>
-                        ))
+                              </div>
+                            </DropdownMenuItem>
+                          );
+                        })
                       ) : (
                         <div className="p-4 text-center text-sm text-muted-foreground">
                           No notifications yet.

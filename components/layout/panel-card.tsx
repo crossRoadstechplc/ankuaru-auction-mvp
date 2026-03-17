@@ -18,14 +18,14 @@ export function PanelCard({
   ...props
 }: PanelCardProps) {
   return (
-      <section
+    <section
       className={cn(
-        "rounded-xl border border-border/70 bg-card/95 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-[2px] transition-shadow hover:shadow-md",
+        "rounded-xl bg-card/95 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-[2px] transition-shadow hover:shadow-sm",
         className,
       )}
       {...props}
     >
-      <header className="flex items-start justify-between gap-4 border-b border-border/60 px-5 py-4 md:px-6">
+      <header className="flex items-start justify-between gap-4 px-5 py-5 md:px-6">
         <div className="space-y-1">
           <h3 className="text-lg font-bold tracking-tight text-foreground">{title}</h3>
           {description ? (
