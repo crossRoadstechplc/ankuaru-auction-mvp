@@ -26,6 +26,11 @@ interface FeedPostHeaderProps {
   isFollowing?: boolean;
   isRequested?: boolean;
   onOpenProfile?: (userId: string) => void;
+  onOpenProfileImage?: (payload: {
+    imageUrl?: string | null;
+    displayName: string;
+    username?: string | null;
+  }) => void;
 }
 
 function isSyntheticIdentity(value?: string | null): boolean {
@@ -62,6 +67,7 @@ export function FeedPostHeader({
   isFollowing,
   isRequested,
   onOpenProfile,
+  onOpenProfileImage,
 }: FeedPostHeaderProps) {
   const router = useRouter();
   const [isFollowActionLoading, setIsFollowActionLoading] = useState(false);
@@ -88,10 +94,6 @@ export function FeedPostHeader({
     creator?.username,
     creatorProfile?.username,
   );
-  const subtitle =
-    readableUsername && readableUsername !== displayName
-      ? `@${readableUsername}`
-      : null;
   const avatarUrl =
     creator?.avatar || creatorProfile?.avatar || creatorProfile?.profileImageUrl;
 
@@ -145,22 +147,33 @@ export function FeedPostHeader({
     onOpenProfile(creatorId);
   };
 
+  const handleProfileImageOpen = () => {
+    if (!onOpenProfileImage) {
+      return;
+    }
+
+    onOpenProfileImage({
+      imageUrl: avatarUrl,
+      displayName,
+      username: readableUsername,
+    });
+  };
+
   return (
-    <div className="flex items-start gap-3 px-4 pb-4 pt-4 md:px-5">
+    <div className="flex items-center gap-3.5 px-4 pb-4 pt-4 md:gap-4 md:px-5">
       <button
         type="button"
-        onClick={handleProfileOpen}
-        disabled={!onOpenProfile}
-        title={onOpenProfile ? "Open profile" : undefined}
-        className="group flex min-w-0 flex-1 items-start gap-3 rounded-xl px-1 py-1 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-default disabled:hover:bg-transparent"
+        onClick={handleProfileImageOpen}
+        title="View profile image"
+        className="group shrink-0 rounded-xl p-1 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        <Avatar className="size-11 rounded-xl border border-border/50 transition-transform group-hover:scale-[1.03]">
+        <Avatar className="size-12 rounded-2xl border border-border/50 transition-transform group-hover:scale-[1.03] md:size-13">
           <AvatarImage
             src={avatarUrl || ""}
             alt={displayName}
             className="object-cover"
           />
-          <AvatarFallback className="rounded-xl bg-muted text-muted-foreground">
+          <AvatarFallback className="rounded-2xl bg-muted text-muted-foreground">
             {avatarUrl ? (
               <User className="size-5" />
             ) : (
@@ -168,23 +181,25 @@ export function FeedPostHeader({
             )}
           </AvatarFallback>
         </Avatar>
+      </button>
 
+      <button
+        type="button"
+        onClick={handleProfileOpen}
+        disabled={!onOpenProfile}
+        title={onOpenProfile ? "Open profile" : undefined}
+        className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1.5 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-default disabled:hover:bg-transparent"
+      >
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <h3 className="truncate text-base font-bold text-foreground transition-colors group-hover:text-primary">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h3 className="truncate text-[1.05rem] font-extrabold leading-tight text-foreground transition-colors group-hover:text-primary md:text-[1.15rem]">
               {displayName}
             </h3>
             {onOpenProfile ? (
-              <span className="hidden rounded-full border border-border/70 bg-background/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 md:inline-flex">
+              <span className="hidden rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 md:inline-flex">
                 View profile
               </span>
             ) : null}
-          </div>
-          {subtitle ? (
-            <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
-          ) : null}
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-            Auction creator
           </div>
         </div>
       </button>

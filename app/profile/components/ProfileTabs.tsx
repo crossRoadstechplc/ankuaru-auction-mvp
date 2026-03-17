@@ -4,8 +4,8 @@ import { PanelCard } from "@/components/layout/panel-card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-    FollowersList,
-    FollowingList,
+  FollowersList,
+  FollowingList,
 } from "@/src/components/domain/follow/follow-lists";
 import { FollowRequest, RatingSummary, User } from "../../../lib/types";
 import BlockedUsersTab from "./BlockedUsersTab";
@@ -33,6 +33,21 @@ interface ProfileTabsProps {
   onUnfollowUser?: (userId: string) => void;
   onBlockUser?: (userId: string) => Promise<void> | void;
   onUnblockUser?: (userId: string) => void;
+}
+
+function InfoRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold text-foreground">{value}</span>
+    </div>
+  );
 }
 
 export default function ProfileTabs({
@@ -72,23 +87,23 @@ export default function ProfileTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="mb-6 h-auto w-full justify-start gap-2 overflow-x-auto rounded-2xl border border-border/70 bg-card p-2">
+      <TabsList className="mb-6 h-auto w-full flex-wrap justify-start gap-2 rounded-[24px] border border-border/70 bg-card p-2">
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.id}
             value={tab.id}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            className="flex items-center gap-2 rounded-2xl border border-transparent px-4 py-2.5 text-sm font-medium data-[state=active]:border-border/70 data-[state=active]:bg-background data-[state=active]:text-foreground"
           >
             {tab.icon ? (
-              <span className="material-symbols-outlined text-base">
+              <span className="material-symbols-outlined text-[18px]">
                 {tab.icon}
               </span>
             ) : null}
             <span>{tab.label}</span>
-            {tab.count !== undefined && tab.count > 0 ? (
+            {tab.count !== undefined ? (
               <Badge
                 variant="secondary"
-                className="ml-1 px-1.5 py-0 text-[10px] data-[state=active]:text-primary"
+                className="rounded-full px-2 py-0 text-[10px]"
               >
                 {tab.count}
               </Badge>
@@ -97,33 +112,76 @@ export default function ProfileTabs({
         ))}
       </TabsList>
 
-      <TabsContent value="overview" className="mt-0">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <TabsContent value="overview" className="mt-0 space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-[24px] border border-border/70 bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Followers</span>
+              <span className="material-symbols-outlined text-[18px] text-muted-foreground">
+                group
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-semibold text-foreground">
+              {followers.length}
+            </p>
+          </div>
+
+          <div className="rounded-[24px] border border-border/70 bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Following</span>
+              <span className="material-symbols-outlined text-[18px] text-muted-foreground">
+                person_add
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-semibold text-foreground">
+              {following.length}
+            </p>
+          </div>
+
+          <div className="rounded-[24px] border border-border/70 bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Requests</span>
+              <span className="material-symbols-outlined text-[18px] text-muted-foreground">
+                group_add
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-semibold text-foreground">
+              {followRequests.length + sentFollowRequests.length}
+            </p>
+          </div>
+
+          <div className="rounded-[24px] border border-border/70 bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Blocked</span>
+              <span className="material-symbols-outlined text-[18px] text-muted-foreground">
+                block
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-semibold text-foreground">
+              {blockedUsers.length}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <PanelCard
             title="Account Information"
             description="Basic account details and membership info."
-            bodyClassName="space-y-4"
+            bodyClassName="space-y-3"
           >
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Username</span>
-              <span className="font-medium text-foreground">
-                @{profile?.username || "N/A"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Email</span>
-              <span className="font-medium text-foreground">
-                {profile?.email || "N/A"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Member Since</span>
-              <span className="font-medium text-foreground">
-                {profile?.createdAt
+            <InfoRow
+              label="Username"
+              value={`@${profile?.username || "N/A"}`}
+            />
+            <InfoRow label="Email" value={profile?.email || "N/A"} />
+            <InfoRow
+              label="Member Since"
+              value={
+                profile?.createdAt
                   ? new Date(profile.createdAt).toLocaleDateString()
-                  : "N/A"}
-              </span>
-            </div>
+                  : "N/A"
+              }
+            />
           </PanelCard>
 
           <PanelCard
@@ -131,19 +189,34 @@ export default function ProfileTabs({
             description="Your marketplace trust score at a glance."
             bodyClassName="space-y-4"
           >
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Average Rating</span>
-              <span className="font-medium text-foreground">
-                {isLoadingSummary
-                  ? "..."
-                  : `Rating ${ratingSummary.averageRating.toFixed(1)}`}
-              </span>
+            <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
+              <p className="text-sm text-muted-foreground">Average Rating</p>
+              <div className="mt-3 flex items-end justify-between gap-4">
+                <p className="text-3xl font-semibold text-foreground">
+                  {isLoadingSummary
+                    ? "..."
+                    : ratingSummary.averageRating.toFixed(1)}
+                </p>
+                <div className="flex items-center gap-1 text-amber-500">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <span
+                      key={index}
+                      className="material-symbols-outlined text-[18px]"
+                    >
+                      {index < Math.round(ratingSummary.averageRating)
+                        ? "star"
+                        : "star_outline"}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Total Reviews</span>
-              <span className="font-medium text-foreground">
+
+            <div className="rounded-[24px] border border-border/70 bg-background/80 p-5">
+              <p className="text-sm text-muted-foreground">Total Reviews</p>
+              <p className="mt-3 text-3xl font-semibold text-foreground">
                 {isLoadingSummary ? "..." : ratingSummary.totalRatings}
-              </span>
+              </p>
             </div>
           </PanelCard>
         </div>

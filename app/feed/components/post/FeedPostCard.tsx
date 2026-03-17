@@ -14,6 +14,11 @@ interface FeedPostCardProps {
   isFollowingCreator?: boolean;
   isRequestedCreator?: boolean;
   onOpenCreatorProfile?: (userId: string) => void;
+  onOpenCreatorProfileImage?: (payload: {
+    imageUrl?: string | null;
+    displayName: string;
+    username?: string | null;
+  }) => void;
 }
 
 export function FeedPostCard({
@@ -22,6 +27,7 @@ export function FeedPostCard({
   isFollowingCreator,
   isRequestedCreator,
   onOpenCreatorProfile,
+  onOpenCreatorProfileImage,
 }: FeedPostCardProps) {
   return (
     <Card className="mx-auto w-full overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_36px_120px_-64px_rgba(15,23,42,0.48)] dark:border-slate-800 dark:bg-slate-950">
@@ -32,6 +38,7 @@ export function FeedPostCard({
         isFollowing={isFollowingCreator}
         isRequested={isRequestedCreator}
         onOpenProfile={onOpenCreatorProfile}
+        onOpenProfileImage={onOpenCreatorProfileImage}
       />
 
       <div className="grid gap-4 px-4 pb-4 md:grid-cols-[minmax(0,1fr)_188px] md:px-5 md:pb-5">
@@ -39,6 +46,8 @@ export function FeedPostCard({
           <FeedPostBody
             title={auction.title}
             description={auction.itemDescription}
+            auctionType={auction.auctionType}
+            status={auction.status}
             category={auction.auctionCategory}
             productName={auction.productName}
             region={auction.region}

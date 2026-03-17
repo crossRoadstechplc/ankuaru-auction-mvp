@@ -6,7 +6,7 @@ import { PageSection } from "@/components/layout/page-section";
 import { PageShell } from "@/components/layout/page-shell";
 import { PanelCard } from "@/components/layout/panel-card";
 import { Button } from "@/components/ui/button";
-import { ProfileSummaryCard } from "@/src/components/domain/profile/profile-summary-card";
+import { useUserAuctionsQuery } from "@/src/features/auctions/queries/hooks";
 import {
   useMyBlockedUsersQuery,
   useBlockUserMutation,
@@ -28,16 +28,16 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useAuthStore } from "../../stores/auth.store";
 import EditProfileModal from "./components/EditProfileModal";
-import ProfileSettingsModal from "./components/ProfileSettingsModal";
+import InstagramProfileLayout from "./components/InstagramProfileLayout";
 import ProfileTabs from "./components/ProfileTabs";
 
 export default function ProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [userActionLoadingId, setUserActionLoadingId] = useState<
-    string | null
-  >(null);
+  const [activeGridTab, setActiveGridTab] = useState<"posts">("posts");
+  const [userActionLoadingId, setUserActionLoadingId] = useState<string | null>(
+    null,
+  );
   const { isAuthenticated } = useAuthStore();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -52,6 +52,8 @@ export default function ProfilePage() {
   const { data: blockedUsers = [] } = useMyBlockedUsersQuery();
   const { data: ratingSummary, isLoading: ratingLoading } =
     useMyRatingSummaryQuery();
+  const { data: myAuctions = [], isLoading: myAuctionsLoading } =
+    useUserAuctionsQuery(profile?.id || "");
 
   const updateProfileMutation = useUpdateMyProfileMutation();
   const removeProfileImageMutation = useRemoveMyProfileImageMutation();
@@ -198,87 +200,122 @@ export default function ProfilePage() {
     );
   }
 
+  if (!profile) {
+    return null;
+  }
+
   return (
     <PageShell>
-      <PageContainer className="space-y-8 py-8 md:py-10">
+      <PageContainer >
         <PageHeader
           title="My Profile"
-          description="Manage your account details, followers, and privacy settings."
-          actions={
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                window.location.href = "/";
-              }}
-            >
-              <span className="material-symbols-outlined text-sm">
-                arrow_back
-              </span>
-              Back to Home
-            </Button>
-          }
+         
         />
 
         <PageSection>
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <ProfileSummaryCard
-              className="xl:col-span-8"
-              username={profile?.username || ""}
-              displayName={profile?.fullName}
-              bio={profile?.bio}
-              avatarUrl={profile?.avatar}
-              followersCount={followers.length}
-              followingCount={following.length}
-              ratingValue={
-                ratingSummary?.user?.averageRating
-                  ? parseFloat(ratingSummary.user.averageRating)
-                  : undefined
-              }
-              joinedAt={profile?.createdAt}
-              isVerified={false}
-              onFollowersClick={() => setActiveTab("followers")}
-              onFollowingClick={() => setActiveTab("following")}
-              actions={
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1 justify-start gap-2"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditModalOpen(true)}
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      edit
-                    </span>
-                    Edit Profile
-                  </Button>
-                  <Button
-                    className="flex-1 justify-start gap-2"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveTab("settings")}
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      settings
-                    </span>
-                    Settings
-                  </Button>
-                  <Button
-                    className="flex-1 justify-start gap-2"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveTab("requests")}
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      group_add
-                    </span>
-                    Requests
-                  </Button>
-                </div>
-              }
-            />
+          <InstagramProfileLayout
+            profile={{
+              ...profile,
+              followersCount: followers.length,
+              followingCount: following.length,
+              rating: ratingSummary?.user?.averageRating
+                ? parseFloat(ratingSummary.user.averageRating)
+                : profile.rating,
+            }}
+            auctions={myAuctions}
+            isLoadingAuctions={myAuctionsLoading}
+            activeTab={activeGridTab}
+            onTabChange={setActiveGridTab}
+            actions={
+              <div className="flex flex-wrap justify-center gap-2 sm:justify-end">
+                <Button
+                  className="gap-2"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(true)}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    edit
+                  </span>
+                  Edit Profile
+                </Button>
+                <Button
+                  className="gap-2"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("settings")}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    settings
+                  </span>
+                  Settings
+                </Button>
+                <Button
+                  className="gap-2"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("requests")}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    group_add
+                  </span>
+                  Requests
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    window.location.href = "/";
+                  }}
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    arrow_back
+                  </span>
+                  Back to Home
+                </Button>
+              </div>
+            }
+          />
+        </PageSection>
 
-            <div className="space-y-6 xl:col-span-4">
+        <PageSection>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="min-w-0">
+              <ProfileTabs
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                followers={followers}
+                following={following}
+                followRequests={followRequests}
+                sentFollowRequests={sentFollowRequests}
+                blockedUsers={blockedUsers}
+                followingIds={followingIds}
+                requestedIds={requestedIds}
+                blockedIds={blockedIds}
+                actionLoadingIds={
+                  userActionLoadingId ? [userActionLoadingId] : []
+                }
+                isFollowersLoading={followersLoading}
+                isFollowingLoading={followingLoading}
+                onFollowUser={handleFollowUser}
+                onUnfollowUser={handleUnfollowUser}
+                onBlockUser={handleBlockUser}
+                onUnblockUser={handleUnblockUser}
+                profile={profile}
+                isLoadingSummary={ratingLoading}
+                ratingSummary={{
+                  averageRating: ratingSummary?.user?.averageRating
+                    ? parseFloat(ratingSummary.user.averageRating)
+                    : 0,
+                  totalRatings: ratingSummary?.user?.ratingsCount || 0,
+                  ratingDistribution: {},
+                  recentReviews: [],
+                }}
+              />
+            </div>
+
+            <div className="space-y-6">
               <PanelCard
                 title="Account Health"
                 description="Recommended updates for a stronger profile."
@@ -304,13 +341,13 @@ export default function ProfilePage() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Bio Added</span>
                     <span className="font-medium text-foreground">
-                      {profile?.bio ? "Complete" : "Missing"}
+                      {profile.bio ? "Complete" : "Missing"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Avatar Added</span>
                     <span className="font-medium text-foreground">
-                      {profile?.avatar || profile?.profileImageUrl
+                      {profile.avatar || profile.profileImageUrl
                         ? "Complete"
                         : "Missing"}
                     </span>
@@ -321,41 +358,7 @@ export default function ProfilePage() {
           </div>
         </PageSection>
 
-        <PageSection>
-          <ProfileTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            followers={followers}
-            following={following}
-            followRequests={followRequests}
-            sentFollowRequests={sentFollowRequests}
-            blockedUsers={blockedUsers}
-            followingIds={followingIds}
-            requestedIds={requestedIds}
-            blockedIds={blockedIds}
-            actionLoadingIds={
-              userActionLoadingId ? [userActionLoadingId] : []
-            }
-            isFollowersLoading={followersLoading}
-            isFollowingLoading={followingLoading}
-            onFollowUser={handleFollowUser}
-            onUnfollowUser={handleUnfollowUser}
-            onBlockUser={handleBlockUser}
-            onUnblockUser={handleUnblockUser}
-            profile={profile!}
-            isLoadingSummary={ratingLoading}
-            ratingSummary={{
-              averageRating: ratingSummary?.user?.averageRating
-                ? parseFloat(ratingSummary.user.averageRating)
-                : 0,
-              totalRatings: ratingSummary?.user?.ratingsCount || 0,
-              ratingDistribution: {},
-              recentReviews: [],
-            }}
-          />
-        </PageSection>
-
-        {isEditModalOpen && profile ? (
+        {isEditModalOpen ? (
           <EditProfileModal
             profile={profile}
             onClose={() => setIsEditModalOpen(false)}
@@ -379,39 +382,6 @@ export default function ProfilePage() {
                   "Failed to remove profile image. Please try again.",
                 );
               }
-            }}
-          />
-        ) : null}
-
-        {isSettingsModalOpen && profile ? (
-          <ProfileSettingsModal
-            profile={profile}
-            onClose={() => setIsSettingsModalOpen(false)}
-            onEditProfile={() => {
-              setIsSettingsModalOpen(false);
-              setIsEditModalOpen(true);
-            }}
-            onRemoveImage={async () => {
-              try {
-                await removeProfileImageMutation.mutateAsync();
-                toast.success("Profile image removed successfully!");
-              } catch (error) {
-                console.error("Failed to remove profile image:", error);
-              }
-            }}
-            onTogglePrivacy={async () => {
-              try {
-                await updateProfileMutation.mutateAsync({
-                  isPrivate: !profile.isPrivate,
-                });
-                toast.success("Profile updated successfully!");
-              } catch (error) {
-                console.error("Failed to toggle privacy:", error);
-              }
-            }}
-            onDeactivateAccount={async () => {
-              // This would need to be implemented in the backend
-              console.log("Account deactivation not implemented yet");
             }}
           />
         ) : null}

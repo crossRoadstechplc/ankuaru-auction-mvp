@@ -13,6 +13,11 @@ interface FeedAuctionGridProps {
   followingIds?: string[];
   requestedIds?: string[];
   onOpenCreatorProfile?: (userId: string) => void;
+  onOpenCreatorProfileImage?: (payload: {
+    imageUrl?: string | null;
+    displayName: string;
+    username?: string | null;
+  }) => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
   showEndMessage?: boolean;
@@ -81,6 +86,7 @@ export function FeedAuctionGrid({
   followingIds = [],
   requestedIds = [],
   onOpenCreatorProfile,
+  onOpenCreatorProfileImage,
   onLoadMore,
   hasMore,
   showEndMessage = true,
@@ -168,6 +174,7 @@ export function FeedAuctionGrid({
               isFollowingCreator={followingIds.includes(auction.createdBy)}
               isRequestedCreator={requestedIds.includes(auction.createdBy)}
               onOpenCreatorProfile={onOpenCreatorProfile}
+              onOpenCreatorProfileImage={onOpenCreatorProfileImage}
             />
           </div>
         ))}

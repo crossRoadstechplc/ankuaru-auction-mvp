@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 interface FeedPostBodyProps {
   title: string;
   description: string;
+  auctionType: "SELL" | "BUY";
+  status: string;
   category?: string;
   productName?: string;
   region?: string;
@@ -18,6 +20,8 @@ interface FeedPostBodyProps {
 export function FeedPostBody({
   title,
   description,
+  auctionType,
+  status,
   category,
   productName,
   region,
@@ -70,23 +74,18 @@ export function FeedPostBody({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {category ? (
-          <Badge
-            variant="secondary"
-            className="rounded-full border-0 bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            {category}
-          </Badge>
-        ) : null}
-
-        {productName ? (
-          <Badge
-            variant="outline"
-            className="rounded-full border-slate-200/80 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-          >
-            {productName}
-          </Badge>
-        ) : null}
+        <Badge
+          variant="secondary"
+          className="rounded-full border-0 bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        >
+          {auctionType === "SELL" ? "Sell auction" : "Buy request"}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="rounded-full border-slate-200/80 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+        >
+          {status === "CLOSED" ? "Closed / Expired" : status}
+        </Badge>
       </div>
 
       <div className="space-y-2">

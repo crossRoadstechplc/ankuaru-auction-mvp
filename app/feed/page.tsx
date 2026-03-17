@@ -23,6 +23,7 @@ import {
   FeedFilterSidebar,
 } from "./components/FeedFilterSidebar";
 import PublicUserProfileModal from "../profile/components/PublicUserProfileModal";
+import ProfileImageModal from "../profile/components/ProfileImageModal";
 
 const DISPLAY_PAGE_SIZE = 6;
 const STATUS_SORT_ORDER = ["SCHEDULED", "OPEN", "REVEAL", "CLOSED"] as const;
@@ -130,6 +131,12 @@ export default function FeedPage() {
     null,
   );
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedProfileImage, setSelectedProfileImage] = useState<{
+    imageUrl?: string | null;
+    displayName: string;
+    username?: string | null;
+  } | null>(null);
+  const [isProfileImageModalOpen, setIsProfileImageModalOpen] = useState(false);
   const userId = useAuthStore((state) => state.userId);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const searchParams = useSearchParams();
@@ -318,6 +325,15 @@ export default function FeedPage() {
     setIsProfileModalOpen(true);
   };
 
+  const handleOpenCreatorProfileImage = (payload: {
+    imageUrl?: string | null;
+    displayName: string;
+    username?: string | null;
+  }) => {
+    setSelectedProfileImage(payload);
+    setIsProfileImageModalOpen(true);
+  };
+
   return (
     <PageShell>
       <Header />
@@ -348,6 +364,7 @@ export default function FeedPage() {
               followingIds={followingIds}
               requestedIds={requestedIds}
               onOpenCreatorProfile={handleOpenCreatorProfile}
+              onOpenCreatorProfileImage={handleOpenCreatorProfileImage}
               onLoadMore={handleLoadMore}
               hasMore={hasMore}
             />
@@ -401,6 +418,18 @@ export default function FeedPage() {
             setSelectedProfileUserId(null);
           }
         }}
+      />
+      <ProfileImageModal
+        open={isProfileImageModalOpen}
+        onOpenChange={(open) => {
+          setIsProfileImageModalOpen(open);
+          if (!open) {
+            setSelectedProfileImage(null);
+          }
+        }}
+        imageUrl={selectedProfileImage?.imageUrl}
+        displayName={selectedProfileImage?.displayName}
+        username={selectedProfileImage?.username}
       />
       <Footer />
     </PageShell>
