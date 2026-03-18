@@ -210,46 +210,7 @@ export const AUCTION_REPORT_SUMMARY_QUERY = `
 
 export const AUCTION_REPORT_QUERY = `
   query AuctionReport($id: ID!) {
-    auctionReport(id: $id) {
-      auction {
-        id
-        title
-        status
-        startAt
-        endAt
-        createdAt
-        closedAt
-      }
-      totalBids
-      uniqueBidders
-      winningBid {
-        id
-        amount
-        bidder {
-          id
-          username
-          avatar
-        }
-      }
-      bidHistory {
-        id
-        amount
-        isRevealed
-        createdAt
-        bidder {
-          id
-          username
-          avatar
-        }
-      }
-      revenue
-      averageBidAmount
-      bidTimeline {
-        timestamp
-        bidCount
-        averageAmount
-      }
-    }
+    auctionReport(id: $id)
   }
 `;
 

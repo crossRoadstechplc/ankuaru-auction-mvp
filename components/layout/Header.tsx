@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import MarketTickerBar from "@/components/layout/MarketTickerBar";
+import { cn } from "../../lib/utils";
 import { useNotificationsWithRealTimeQuery } from "@/src/features/notifications/queries/hooks";
 import { resolveNotificationPresentation } from "@/src/features/notifications/utils/notification-routing";
 import {
@@ -148,11 +149,18 @@ export default function Header() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isFeedRoute = pathname === "/feed";
-  const isMarketRoute = pathname === "/market";
   const feedQuery = searchParams.get("q") ?? "";
   const incomingRequestCount = followRequests.length;
   const sentRequestCount = sentFollowRequests.length;
   const totalRequestCount = incomingRequestCount + sentRequestCount;
+
+  const getNavButtonClassName = (active: boolean) =>
+    cn(
+      "h-9 gap-2 rounded-full px-3 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+      active
+        ? "border border-primary/20 bg-primary/10 text-primary hover:border-primary/30 hover:bg-primary/15 hover:text-primary"
+        : "border border-border/60 bg-background/80 text-foreground hover:border-border hover:bg-accent/80 hover:text-accent-foreground",
+    );
 
   const commitFeedSearch = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -298,9 +306,10 @@ export default function Header() {
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-1">
             <Button
-              variant={pathname === "/feed" ? "secondary" : "ghost"}
+              variant="ghost"
               size="sm"
               asChild
+              className={getNavButtonClassName(isFeedRoute)}
             >
               <Link href="/feed" className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-sm">
@@ -310,21 +319,10 @@ export default function Header() {
               </Link>
             </Button>
             <Button
-              variant={isMarketRoute ? "secondary" : "ghost"}
+              variant="ghost"
               size="sm"
               asChild
-            >
-              <Link href="/market" className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm">
-                  query_stats
-                </span>
-                Market Board
-              </Link>
-            </Button>
-            <Button
-              variant={pathname === "/dashboard" ? "secondary" : "ghost"}
-              size="sm"
-              asChild
+              className={getNavButtonClassName(pathname === "/dashboard")}
             >
               <Link href="/dashboard" className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-sm">
@@ -333,18 +331,11 @@ export default function Header() {
                 Dashboard
               </Link>
             </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/track" className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm">
-                  track_changes
-                </span>
-                Track
-              </Link>
-            </Button>
             <Button
-              variant={pathname === "/favorites" ? "secondary" : "ghost"}
+              variant="ghost"
               size="sm"
               asChild
+              className={getNavButtonClassName(pathname === "/favorites")}
             >
               <Link href="/favorites" className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-sm">

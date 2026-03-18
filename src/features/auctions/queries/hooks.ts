@@ -3,6 +3,7 @@ import {
   Auction,
   AuctionFormOptions,
   AuctionFormOptionsParams,
+  AuctionReport,
   CreateAuctionData,
 } from "@/lib/types";
 import { auctionsApi } from "@/src/features/auctions/api/auctions.api";
@@ -42,6 +43,11 @@ type AuctionQueryOptions = {
 
 type AuctionFormOptionsQueryOptions = {
   enabled?: boolean;
+};
+
+type AuctionReportQueryOptions = {
+  enabled?: boolean;
+  refetchOnWindowFocus?: boolean;
 };
 
 export function useAuctionQuery(id: string, options: AuctionQueryOptions = {}) {
@@ -89,6 +95,32 @@ export function useAuctionFormOptionsQuery(
       if (
         error instanceof Error &&
         (error.message.includes("Failed to fetch") ||
+          error.message.includes("GRAPHQL_VALIDATION_FAILED"))
+      ) {
+        return false;
+      }
+
+      return failureCount < 2;
+    },
+  });
+}
+
+export function useAuctionReportQuery(
+  id: string,
+  options: AuctionReportQueryOptions = {},
+) {
+  return useQuery<AuctionReport>({
+    queryKey: auctionsQueryKeys.report(id),
+    queryFn: () => auctionsApi.getAuctionReport(id),
+    enabled: !!id && (options.enabled ?? true),
+    refetchOnWindowFocus: options.refetchOnWindowFocus,
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 15,
+    retry: (failureCount, error) => {
+      if (
+        error instanceof Error &&
+        (error.message.includes("Failed to fetch") ||
+          error.message.includes("NOT_FOUND") ||
           error.message.includes("GRAPHQL_VALIDATION_FAILED"))
       ) {
         return false;

@@ -66,7 +66,7 @@ export function ClosedPanel({ winningBid, currentBid, onViewReport, className }:
       {onViewReport && (
         <Button variant="outline" onClick={onViewReport} className="w-full gap-2">
           <span className="material-symbols-outlined text-sm">description</span>
-          View Final Report
+          View Auction Report
         </Button>
       )}
     </div>

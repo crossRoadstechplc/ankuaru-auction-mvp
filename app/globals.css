@@ -197,7 +197,7 @@
 }
 
 .market-ticker-track {
-  animation: marketTicker 164s linear infinite;
+  animation: marketTicker 160s linear infinite;
   will-change: transform;
 }
 

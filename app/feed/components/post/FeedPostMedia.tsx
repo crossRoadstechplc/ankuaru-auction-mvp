@@ -10,7 +10,6 @@ interface FeedPostMediaProps {
   getImageWithFallback?: (image?: string) => string;
   status: string;
   auctionType: "SELL" | "BUY";
-  category?: string;
 }
 
 function getStatusTone(status: string): string {
@@ -33,7 +32,6 @@ export function FeedPostMedia({
   getImageWithFallback,
   status,
   auctionType,
-  category,
 }: FeedPostMediaProps) {
   const imageUrl = getImageWithFallback
     ? getImageWithFallback(image)
@@ -71,16 +69,7 @@ export function FeedPostMedia({
             </span>
           </div>
 
-          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/70">
-                Product image
-              </div>
-              <div className="mt-1 truncate text-sm font-semibold text-white">
-                {category || "Commodity"}
-              </div>
-            </div>
-
+          <div className="absolute bottom-3 right-3">
             <div className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white shadow-md backdrop-blur-md transition-opacity duration-300 group-hover:opacity-100">
               <span className="material-symbols-outlined text-sm">
                 zoom_in

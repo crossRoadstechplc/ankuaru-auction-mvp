@@ -19,9 +19,10 @@ import {
   Minus,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const EMPTY_MARKET_LISTINGS: MarketListing[] = [];
+const MARKET_TICKER_HIDDEN_STORAGE_KEY = "market-ticker-hidden";
 
 function TrendIcon({ trend }: { trend: ReturnType<typeof getMarketTrend> }) {
   switch (trend) {
@@ -38,6 +39,8 @@ function TrendIcon({ trend }: { trend: ReturnType<typeof getMarketTrend> }) {
 
 export default function MarketTickerBar() {
   const { data, isLoading } = useMarketListingsQuery();
+  const [isReady, setIsReady] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const listings = data?.listings ?? EMPTY_MARKET_LISTINGS;
   const summary = useMemo(
     () => summarizeMarketListings(listings),
@@ -50,6 +53,71 @@ export default function MarketTickerBar() {
 
     return [...listings, ...listings];
   }, [listings]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(
+      MARKET_TICKER_HIDDEN_STORAGE_KEY,
+    );
+    const timer = window.setTimeout(() => {
+      setIsHidden(stored === "true");
+      setIsReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isReady || typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(
+      MARKET_TICKER_HIDDEN_STORAGE_KEY,
+      String(isHidden),
+    );
+  }, [isHidden, isReady]);
+
+  if (!isReady) {
+    return null;
+  }
+
+  if (isHidden) {
+    return (
+      <div className="w-full border-t border-border/60 bg-[linear-gradient(90deg,rgba(61,127,93,0.08),rgba(248,246,242,0.95),rgba(61,127,93,0.06))]">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Activity className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Market Pulse hidden
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                Tap show to restore the live ticker.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setIsHidden(false)}
+            aria-label="Show market pulse"
+            className="shrink-0"
+          >
+            <span className="material-symbols-outlined text-sm">
+              visibility
+            </span>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading && !data) {
     return (
@@ -123,6 +191,18 @@ export default function MarketTickerBar() {
             })}
           </div>
         </div>
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setIsHidden(true)}
+          aria-label="Hide market pulse"
+          className="shrink-0"
+        >
+          <span className="material-symbols-outlined text-sm">
+            visibility_off
+          </span>
+        </Button>
 
         <Button
           variant="ghost"

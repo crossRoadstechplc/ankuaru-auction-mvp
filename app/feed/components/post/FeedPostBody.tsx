@@ -1,5 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-
 interface FeedPostBodyProps {
   title: string;
   description: string;
@@ -73,21 +71,6 @@ export function FeedPostBody({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge
-          variant="secondary"
-          className="rounded-full border-0 bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-        >
-          {auctionType === "SELL" ? "Sell auction" : "Buy request"}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="rounded-full border-slate-200/80 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-        >
-          {status === "CLOSED" ? "Closed / Expired" : status}
-        </Badge>
-      </div>
-
       <div className="space-y-2">
         <h4 className="line-clamp-2 text-xl font-black leading-tight tracking-tight text-slate-900 dark:text-white">
           {title}
@@ -114,28 +97,6 @@ export function FeedPostBody({
           </div>
         ))}
       </div>
-
-      {propertySummary.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {propertySummary.slice(0, 4).map((item) => (
-            <Badge
-              key={item}
-              variant="outline"
-              className="rounded-full border-slate-200/80 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-800 dark:text-slate-300"
-            >
-              {item}
-            </Badge>
-          ))}
-          {propertySummary.length > 4 ? (
-            <Badge
-              variant="outline"
-              className="rounded-full border-slate-200/80 px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:border-slate-800 dark:text-slate-400"
-            >
-              +{propertySummary.length - 4} more
-            </Badge>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

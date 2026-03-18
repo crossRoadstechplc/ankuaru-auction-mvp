@@ -700,7 +700,7 @@ export function BiddingSidebar({
                 <span className="material-symbols-outlined text-lg">
                   description
                 </span>
-                View Final Report
+                View Auction Report
               </button>
             </div>
           ) : isRevealPhase ? (
@@ -870,7 +870,7 @@ export function BiddingSidebar({
             </p>
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {isClosedPhase
-                ? "This auction is closed. You can view the final reports or relist the item."
+                ? "This auction is closed. You can view the auction report or relist the item."
                 : isRevealPhase
                   ? "Bidding has ended and reveal phase is active. You can review requests, reveal bids, or close the auction."
                   : isScheduledPhase
@@ -929,7 +929,7 @@ export function BiddingSidebar({
                   <span className="material-symbols-outlined text-lg">
                     description
                   </span>
-                  View Final Report
+                  View Auction Report
                 </button>
                 <button
                   onClick={() => {

@@ -77,7 +77,6 @@ export function FeedPostCard({
           getImageWithFallback={getImageWithFallback}
           status={auction.status}
           auctionType={auction.auctionType}
-          category={auction.auctionCategory}
         />
       </div>
 

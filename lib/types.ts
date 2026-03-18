@@ -109,6 +109,47 @@ export interface AuctionCloseResponse {
   };
 }
 
+export interface AuctionReportTopBid {
+  bidderId: string;
+  bidderUsername?: string;
+  bidderAvatar?: string | null;
+  revealedAmount?: string;
+  revealedAt?: string;
+  isValid?: boolean;
+  invalidReason?: string | null;
+}
+
+export interface AuctionReportTimelinePoint {
+  timestamp: string;
+  bidCount: number;
+  averageAmount?: string;
+}
+
+export interface AuctionReport {
+  auction: {
+    id: string;
+    title: string;
+    status: "SCHEDULED" | "OPEN" | "REVEAL" | "CLOSED" | string;
+    startAt: string;
+    endAt: string;
+    createdAt?: string;
+    closedAt?: string;
+    winnerId?: string;
+    winningBid?: string;
+  };
+  totalBids: number;
+  revealedBids: number;
+  validBids: number;
+  invalidBids: number;
+  highestRevealedBid?: string;
+  averageRevealedBid?: string;
+  uniqueBidders?: number;
+  revenue?: string;
+  averageBidAmount?: string;
+  topBids: AuctionReportTopBid[];
+  bidTimeline: AuctionReportTimelinePoint[];
+}
+
 export interface CloseAuctionResult {
   auctionId: string;
   title: string;

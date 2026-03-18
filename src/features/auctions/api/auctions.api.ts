@@ -5,6 +5,7 @@ import {
   Auction,
   AuctionFormOptions,
   AuctionFormOptionsParams,
+  AuctionReport,
   CloseAuctionResult,
   CreateAuctionData,
 } from "@/lib/types";
@@ -12,6 +13,7 @@ import { getGraphqlBaseUrl } from "@/src/platform/config/env";
 import {
   AuctionQueryResultDto,
   AuctionFormOptionsQueryResultDto,
+  AuctionReportQueryResultDto,
   AuctionsByUserQueryResultDto,
   AuctionsQueryResultDto,
   CloseAuctionResultDto,
@@ -21,6 +23,7 @@ import {
 import {
   mapAuctionPayload,
   mapAuctionFormOptionsPayload,
+  mapAuctionReportPayload,
   mapAuctionsPayload,
   mapCloseAuctionPayload,
 } from "@/src/features/auctions/mappers/auctions.mapper";
@@ -79,6 +82,15 @@ async function getAuction(id: string): Promise<Auction> {
   );
 
   return mapAuctionPayload(response.auction);
+}
+
+async function getAuctionReport(id: string): Promise<AuctionReport> {
+  const response = await graphqlClient.request<AuctionReportQueryResultDto>(
+    queries.AUCTION_REPORT_QUERY,
+    { id },
+  );
+
+  return mapAuctionReportPayload(response.auctionReport);
 }
 
 async function getAuctionFormOptions(
@@ -230,6 +242,7 @@ async function closeAuction(auctionId: string): Promise<CloseAuctionResult> {
 export const auctionsApi = {
   getAuctions,
   getAuction,
+  getAuctionReport,
   getAuctionFormOptions,
   getUserAuctions,
   createAuction,

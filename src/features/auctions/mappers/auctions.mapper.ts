@@ -2,6 +2,9 @@ import {
   Auction,
   AuctionFormOptions,
   AuctionSelectOption,
+  AuctionReport,
+  AuctionReportTimelinePoint,
+  AuctionReportTopBid,
   CloseAuctionResult,
 } from "@/lib/types";
 import {
@@ -280,5 +283,195 @@ export function mapCloseAuctionPayload(
     winnerId: toOptionalString(source.winnerId),
     winningBid: toOptionalString(source.winningBid),
     closedAt: toOptionalString(source.closedAt),
+  };
+}
+
+function toAuctionReportStatus(value: unknown): AuctionReport["auction"]["status"] {
+  switch (toStringOr(value).toUpperCase()) {
+    case "OPEN":
+    case "REVEAL":
+    case "CLOSED":
+    case "SCHEDULED":
+      return toStringOr(value).toUpperCase() as AuctionReport["auction"]["status"];
+    default:
+      return "CLOSED";
+  }
+}
+
+function toOptionalBooleanLike(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") {
+      return true;
+    }
+
+    if (normalized === "false") {
+      return false;
+    }
+  }
+
+  return undefined;
+}
+
+function mapAuctionReportBid(value: unknown): AuctionReportTopBid | null {
+  const dto = toJsonObject(value);
+  if (!dto) {
+    return null;
+  }
+
+  const bidder = toJsonObject(dto.bidder);
+  const bidderId = toStringOr(
+    dto.bidderId ?? bidder?.id ?? dto.userId ?? dto.id,
+  );
+
+  if (!bidderId) {
+    return null;
+  }
+
+  return {
+    bidderId,
+    bidderUsername: toOptionalString(
+      dto.bidderUsername ?? bidder?.username ?? bidder?.fullName,
+    ),
+    bidderAvatar: toOptionalString(dto.bidderAvatar ?? bidder?.avatar),
+    revealedAmount: toOptionalString(
+      dto.revealedAmount ?? dto.amount ?? dto.bidAmount,
+    ),
+    revealedAt: toOptionalString(dto.revealedAt ?? dto.createdAt),
+    isValid: toOptionalBooleanLike(dto.isValid),
+    invalidReason: toOptionalString(dto.invalidReason),
+  };
+}
+
+function mapAuctionReportTimelinePoint(
+  value: unknown,
+): AuctionReportTimelinePoint | null {
+  const dto = toJsonObject(value);
+  if (!dto) {
+    return null;
+  }
+
+  const timestamp = toStringOr(dto.timestamp ?? dto.createdAt);
+  if (!timestamp) {
+    return null;
+  }
+
+  return {
+    timestamp,
+    bidCount: toOptionalNumber(dto.bidCount) ?? 0,
+    averageAmount: toOptionalString(dto.averageAmount),
+  };
+}
+
+export function mapAuctionReportPayload(value: unknown): AuctionReport {
+  const parsed = parseJsonScalar(value);
+  const envelope = toJsonObject(parsed) ?? {};
+  const rawReport = toJsonObject(parseJsonScalar(envelope.report)) ?? envelope;
+  const auctionValue = toJsonObject(parseJsonScalar(rawReport.auction)) ?? {};
+  const winningBidValue = toJsonObject(parseJsonScalar(rawReport.winningBid));
+  const winningBidBidder = toJsonObject(winningBidValue?.bidder);
+
+  const topBidSource = toJsonArray(
+    parseJsonScalar(rawReport.topBids ?? rawReport.bidHistory ?? rawReport.bids),
+  );
+  const topBids = topBidSource
+    .map((entry) => mapAuctionReportBid(entry))
+    .filter((entry): entry is AuctionReportTopBid => entry !== null)
+    .sort((left, right) => {
+      const rightAmount = Number(
+        (right.revealedAmount ?? "0").replace(/,/g, "").trim(),
+      );
+      const leftAmount = Number(
+        (left.revealedAmount ?? "0").replace(/,/g, "").trim(),
+      );
+
+      if (rightAmount !== leftAmount) {
+        return rightAmount - leftAmount;
+      }
+
+      const rightTime = new Date(right.revealedAt ?? 0).getTime();
+      const leftTime = new Date(left.revealedAt ?? 0).getTime();
+      return rightTime - leftTime;
+    });
+
+  const countedValidBids = topBids.filter((bid) => bid.isValid !== false).length;
+  const countedInvalidBids = topBids.filter((bid) => bid.isValid === false).length;
+  const derivedHighestBid = topBids[0]?.revealedAmount;
+  const derivedAverageBid =
+    topBids.length > 0
+      ? (
+          topBids.reduce((sum, bid) => {
+            const numeric = Number(
+              (bid.revealedAmount ?? "0").replace(/,/g, "").trim(),
+            );
+            return Number.isFinite(numeric) ? sum + numeric : sum;
+          }, 0) / topBids.length
+        ).toString()
+      : undefined;
+
+  const timeline = toJsonArray(parseJsonScalar(rawReport.bidTimeline))
+    .map((entry) => mapAuctionReportTimelinePoint(entry))
+    .filter((entry): entry is AuctionReportTimelinePoint => entry !== null);
+
+  const auctionId = toStringOr(
+    auctionValue.id ?? rawReport.auctionId ?? envelope.auctionId,
+  );
+  const title = toStringOr(auctionValue.title ?? rawReport.title);
+  const status = toAuctionReportStatus(
+    auctionValue.status ?? rawReport.status ?? "CLOSED",
+  );
+
+  const winningBid =
+    toOptionalString(
+      auctionValue.winningBid ??
+        winningBidValue?.amount ??
+        winningBidValue?.revealedAmount ??
+        rawReport.winningBid ??
+        derivedHighestBid,
+    ) ?? undefined;
+
+  const winnerId =
+    toOptionalString(
+      auctionValue.winnerId ??
+        winningBidValue?.bidderId ??
+        winningBidBidder?.id,
+    ) ?? undefined;
+
+  return {
+    auction: {
+      id: auctionId,
+      title,
+      status,
+      startAt: toStringOr(auctionValue.startAt ?? rawReport.startAt),
+      endAt: toStringOr(auctionValue.endAt ?? rawReport.endAt),
+      createdAt: toOptionalString(auctionValue.createdAt ?? rawReport.createdAt),
+      closedAt: toOptionalString(auctionValue.closedAt ?? rawReport.closedAt),
+      winnerId,
+      winningBid,
+    },
+    totalBids: toOptionalNumber(rawReport.totalBids) ?? 0,
+    revealedBids:
+      toOptionalNumber(rawReport.revealedBids) ?? topBids.length,
+    validBids:
+      toOptionalNumber(rawReport.validBids) ?? countedValidBids,
+    invalidBids:
+      toOptionalNumber(rawReport.invalidBids) ?? countedInvalidBids,
+    highestRevealedBid:
+      toOptionalString(rawReport.highestRevealedBid) ??
+      toOptionalString(derivedHighestBid) ??
+      winningBid,
+    averageRevealedBid:
+      toOptionalString(rawReport.averageRevealedBid) ??
+      toOptionalString(rawReport.averageBidAmount) ??
+      derivedAverageBid,
+    uniqueBidders: toOptionalNumber(rawReport.uniqueBidders),
+    revenue: toOptionalString(rawReport.revenue),
+    averageBidAmount: toOptionalString(rawReport.averageBidAmount),
+    topBids,
+    bidTimeline: timeline,
   };
 }

@@ -6,6 +6,10 @@ export type AuctionQueryResultDto = {
   auction: unknown;
 };
 
+export type AuctionReportQueryResultDto = {
+  auctionReport: unknown;
+};
+
 export type AuctionFormOptionsQueryResultDto = {
   auctionFormOptions: unknown;
 };
