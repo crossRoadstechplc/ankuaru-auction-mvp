@@ -65,21 +65,25 @@ export function FeedPostMeta({
       hint: reservePriceDisplay
         ? `Reserve ETB ${reservePriceDisplay}`
         : "Reserve not set",
+      primary: true,
     },
     {
       label: "Quantity",
       value: quantityDisplay,
       hint: "Lot volume",
+      primary: false,
     },
     {
       label: isScheduled ? "Opens" : isClosed ? "Ended" : "Closes",
       value: timingValue,
       hint: timingHint,
+      primary: false,
     },
     {
       label: "Auction mode",
       value: isSell ? "Seller listing" : "Buyer request",
       hint: isSell ? "Supply-side auction" : "Demand-side request",
+      primary: false,
     },
   ];
 
@@ -90,16 +94,20 @@ export function FeedPostMeta({
           {metricCards.map((metric) => (
             <div
               key={metric.label}
-              className="bg-slate-50/90 p-3 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100"
+              title={metric.hint}
+              className="bg-slate-50/90 p-3.5 text-slate-900 dark:bg-slate-900/90 dark:text-slate-100 cursor-help"
             >
               <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                 {metric.label}
               </div>
-              <div className="mt-2 text-base font-black leading-tight">
+              <div
+                className={`mt-2 leading-tight ${
+                  metric.primary
+                    ? "text-xl font-black text-primary"
+                    : "text-base font-semibold"
+                }`}
+              >
                 {metric.value}
-              </div>
-              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                {metric.hint}
               </div>
             </div>
           ))}

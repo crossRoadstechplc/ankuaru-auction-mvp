@@ -16,12 +16,18 @@ interface FeedFilterSidebarProps {
   categories: FeedFilterOption[];
   statuses: FeedFilterOption[];
   quantityRanges: FeedFilterOption[];
+  priceRanges: FeedFilterOption[];
+  origins: FeedFilterOption[];
   selectedCategories: string[];
   selectedStatuses: string[];
   selectedQuantityRanges: string[];
+  selectedPriceRanges: string[];
+  selectedOrigins: string[];
   onToggleCategory: (categoryId: string) => void;
   onToggleStatus: (statusId: string) => void;
   onToggleQuantityRange: (quantityRangeId: string) => void;
+  onTogglePriceRange: (priceRangeId: string) => void;
+  onToggleOrigin: (originId: string) => void;
   onClearAll: () => void;
 }
 
@@ -95,12 +101,18 @@ export function FeedFilterSidebar({
   categories,
   statuses,
   quantityRanges,
+  priceRanges,
+  origins,
   selectedCategories,
   selectedStatuses,
   selectedQuantityRanges,
+  selectedPriceRanges,
+  selectedOrigins,
   onToggleCategory,
   onToggleStatus,
   onToggleQuantityRange,
+  onTogglePriceRange,
+  onToggleOrigin,
   onClearAll,
 }: FeedFilterSidebarProps) {
   return (
@@ -150,6 +162,22 @@ export function FeedFilterSidebar({
           options={quantityRanges}
           selectedValues={selectedQuantityRanges}
           onToggle={onToggleQuantityRange}
+        />
+
+        <FilterSection
+          title="Price (Opening bid)"
+          subtitle=""
+          options={priceRanges}
+          selectedValues={selectedPriceRanges}
+          onToggle={onTogglePriceRange}
+        />
+
+        <FilterSection
+          title="Origin"
+          subtitle=""
+          options={origins}
+          selectedValues={selectedOrigins}
+          onToggle={onToggleOrigin}
         />
 
         <div className="rounded-md border border-dashed border-slate-300 bg-slate-50/70 p-4 text-xs leading-5 text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">

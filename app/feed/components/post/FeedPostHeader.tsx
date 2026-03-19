@@ -10,7 +10,7 @@ import {
 } from "@/src/features/profile/queries/hooks";
 import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -71,7 +71,17 @@ export function FeedPostHeader({
 }: FeedPostHeaderProps) {
   const router = useRouter();
   const [isFollowActionLoading, setIsFollowActionLoading] = useState(false);
+  const [optimisticRequestedId, setOptimisticRequestedId] = useState<string | null>(null);
   const authUserId = useAuthStore((state) => state.userId);
+
+  const effectiveIsRequested =
+    isRequested || (optimisticRequestedId === creatorId && !isFollowing);
+
+  useEffect(() => {
+    if (isRequested || isFollowing) {
+      setOptimisticRequestedId(null);
+    }
+  }, [isRequested, isFollowing]);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const followUserMutation = useFollowUserMutation();
   const unfollowUserMutation = useUnfollowUserMutation();
@@ -131,6 +141,7 @@ export function FeedPostHeader({
       }
 
       await followUserMutation.mutateAsync(creatorId);
+      setOptimisticRequestedId(creatorId);
     } catch (error) {
       console.error("Failed to update follow status:", error);
       toast.error("Failed to update follow status. Please try again.");
@@ -165,9 +176,9 @@ export function FeedPostHeader({
         type="button"
         onClick={handleProfileImageOpen}
         title="View profile image"
-        className="group shrink-0 rounded-xl p-1 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="group shrink-0 rounded-xl p-1 transition-all duration-200 ease-out hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.98]"
       >
-        <Avatar className="size-12 rounded-2xl border border-border/50 transition-transform group-hover:scale-[1.03] md:size-13">
+        <Avatar className="size-12 rounded-2xl border border-border/50 transition-transform duration-200 ease-out group-hover:scale-[1.03] md:size-13">
           <AvatarImage
             src={avatarUrl || ""}
             alt={displayName}
@@ -188,7 +199,7 @@ export function FeedPostHeader({
         onClick={handleProfileOpen}
         disabled={!onOpenProfile}
         title={onOpenProfile ? "Open profile" : undefined}
-        className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1.5 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-default disabled:hover:bg-transparent"
+        className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1.5 text-left transition-colors duration-200 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-default disabled:hover:bg-transparent"
       >
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -215,24 +226,24 @@ export function FeedPostHeader({
           <Button
             type="button"
             size="sm"
-            variant={isFollowing || isRequested ? "outline" : "default"}
+            variant={isFollowing || effectiveIsRequested ? "outline" : "default"}
             onClick={() => {
-              if (!isRequested) {
+              if (!effectiveIsRequested) {
                 void handleFollowToggle();
               }
             }}
-            disabled={isFollowActionLoading || isRequested}
-            className={`h-8 rounded-full px-3 text-xs font-semibold shadow-sm ${
+            disabled={isFollowActionLoading || effectiveIsRequested}
+            className={`h-8 rounded-full px-3 text-xs font-semibold ${
               isFollowing
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                : isRequested
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                : effectiveIsRequested
                   ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-primary text-primary-foreground"
             }`}
           >
             {isFollowing ? (
               <UserCheck className="mr-1.5 size-4" />
-            ) : isRequested ? (
+            ) : effectiveIsRequested ? (
               <span className="material-symbols-outlined mr-1.5 text-[16px]">
                 schedule
               </span>
@@ -243,7 +254,7 @@ export function FeedPostHeader({
               ? "..."
               : isFollowing
                 ? "Following"
-                : isRequested
+                : effectiveIsRequested
                   ? "Requested"
                   : "Follow"}
           </Button>

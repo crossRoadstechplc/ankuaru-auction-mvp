@@ -78,14 +78,14 @@ export default function RegisterPage() {
       setTimeout(() => {
         router.push("/feed");
       }, 2000);
-    } catch (err) {
+    } catch {
       // Error is already captured in the store
     }
   };
 
   if (success) {
     return (
-      <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center p-4 font-display">
+      <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
         <div className="w-full max-w-md mx-auto">
           <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-8 text-center">
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">

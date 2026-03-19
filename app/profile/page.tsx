@@ -38,7 +38,7 @@ export default function ProfilePage() {
   const [userActionLoadingId, setUserActionLoadingId] = useState<string | null>(
     null,
   );
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, userId: authUserId } = useAuthStore();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
 
@@ -71,10 +71,23 @@ export default function ProfilePage() {
     (completionItems.filter(Boolean).length / completionItems.length) * 100,
   );
   const followingIds = following.map((user) => user.id);
-  const requestedIds = sentFollowRequests
-    .filter((request) => request.status === "PENDING")
-    .map((request) => request.target.id)
-    .filter((userId) => !!userId);
+  const requestedIds = (() => {
+    const currentUserId = authUserId || profile?.id;
+    if (!currentUserId) return [];
+    return sentFollowRequests
+      .filter(
+        (request) =>
+          String(request.status || "").toUpperCase() === "PENDING",
+      )
+      .map((request) => {
+        const requestedUserId =
+          request.requester?.id === currentUserId
+            ? request.target?.id
+            : request.target?.id || request.requester?.id;
+        return requestedUserId;
+      })
+      .filter((id): id is string => !!id);
+  })();
   const blockedIds = blockedUsers.map((user) => user.id);
 
   useEffect(() => {

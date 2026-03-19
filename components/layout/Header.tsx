@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import MarketTickerBar from "@/components/layout/MarketTickerBar";
+import { NetworkStatusIndicator } from "@/components/layout/NetworkStatusIndicator";
 import { cn } from "../../lib/utils";
 import { useNotificationsWithRealTimeQuery } from "@/src/features/notifications/queries/hooks";
 import { resolveNotificationPresentation } from "@/src/features/notifications/utils/notification-routing";
@@ -322,13 +323,13 @@ export default function Header() {
               variant="ghost"
               size="sm"
               asChild
-              className={getNavButtonClassName(pathname === "/dashboard")}
+              className={getNavButtonClassName(pathname === "/track")}
             >
-              <Link href="/dashboard" className="flex items-center gap-2">
+              <Link href="/track" className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-sm">
-                  dashboard
+                  track_changes
                 </span>
-                Dashboard
+                Track Auction
               </Link>
             </Button>
             <Button
@@ -353,6 +354,7 @@ export default function Header() {
 
           {/* Right Actions */}
           <div className="flex items-center space-x-2">
+            <NetworkStatusIndicator />
             {isAuthenticated ? (
               <>
                 {/* Notifications */}
@@ -656,12 +658,12 @@ export default function Header() {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-2 cursor-pointer"
-                      onClick={() => router.push("/track")}
+                      onClick={() => router.push("/dashboard")}
                     >
                       <span className="material-symbols-outlined text-sm">
-                        track_changes
+                        dashboard
                       </span>
-                      Track Auction
+                      Dashboard
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {

@@ -51,7 +51,7 @@ export function AuctionCard({
     <Link href={`/auction/${id}`} className="block h-full outline-none">
       <Card
         className={cn(
-          "h-full overflow-hidden transition-all hover:shadow-md group flex flex-col cursor-pointer",
+          "h-full overflow-hidden group flex flex-col cursor-pointer",
           isHighlighted && "ring-2 ring-primary border-primary",
           className
         )}
@@ -59,7 +59,7 @@ export function AuctionCard({
         {/* Image Header Area */}
         <div className="relative h-48 w-full bg-muted overflow-hidden shrink-0">
           <div
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+            className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url('${getImageWithFallback(coverImage)}')` }}
           />
           {/* Overlay gradient */}
@@ -75,7 +75,7 @@ export function AuctionCard({
           <div className="absolute bottom-3 right-3">
             <Badge
               variant={status === "CLOSED" ? "secondary" : isClosingSoon ? "warning" : "default"}
-              className={cn("bg-background/90 text-foreground shadow-sm backdrop-blur-sm flex items-center gap-1.5 px-2 py-1")}
+              className={cn("bg-background/90 text-foreground backdrop-blur-sm flex items-center gap-1.5 px-2 py-1")}
             >
               <span className="material-symbols-outlined text-[14px]">
                 {status === "CLOSED" ? "event_available" : "schedule"}
@@ -87,7 +87,7 @@ export function AuctionCard({
 
         <CardContent className="p-5 flex-1 flex flex-col">
           {/* Title */}
-          <h3 className="text-lg font-bold text-foreground line-clamp-2 mb-4 group-hover:text-primary transition-colors">
+          <h3 className="text-lg font-bold text-foreground line-clamp-2 mb-4">
             {title}
           </h3>
 

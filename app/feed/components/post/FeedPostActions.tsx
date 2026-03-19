@@ -27,14 +27,14 @@ export function FeedPostActions({ auctionId, status }: FeedPostActionsProps) {
       <Button
         variant="ghost"
         size="sm"
-        className={`h-11 flex-1 gap-2 rounded-xl transition-colors ${
+        className={`h-11 flex-1 gap-2 rounded-xl transition-all duration-200 ease-out active:scale-[0.98] ${
           isFavorite
             ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20"
             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
         }`}
         onClick={() => toggleFavoriteAuction(auctionId)}
       >
-        <span className="material-symbols-outlined text-[20px]">
+        <span className="material-symbols-outlined text-[20px] transition-transform duration-200 group-hover/button:scale-110">
           {isFavorite ? "favorite" : "favorite_border"}
         </span>
         <span className="font-medium text-sm">
@@ -45,7 +45,7 @@ export function FeedPostActions({ auctionId, status }: FeedPostActionsProps) {
       <Button
         variant="default"
         size="sm"
-        className="h-11 flex-[1.4] gap-2 rounded-xl bg-primary text-primary-foreground font-semibold shadow-sm transition-all hover:bg-primary/90"
+        className="h-11 flex-[1.4] gap-2 rounded-xl bg-primary text-primary-foreground font-semibold shadow-sm transition-all duration-200 ease-out hover:bg-primary/90 hover:shadow-md active:scale-[0.98]"
         onClick={() => router.push(`/auction/${auctionId}`)}
       >
         <span className="material-symbols-outlined text-[18px]">

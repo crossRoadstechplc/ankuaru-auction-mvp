@@ -44,11 +44,11 @@ export function FeedPostMedia({
       <Dialog>
         <DialogTrigger
           render={
-            <button className="group relative block h-48 w-full overflow-hidden rounded-[12px] border border-slate-200/80 bg-slate-100 text-left shadow-sm ring-offset-background transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-[214px]" />
+            <button className="group relative block h-48 w-full overflow-hidden rounded-[12px] border border-slate-200/80 bg-slate-100 text-left ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-[214px]" />
           }
         >
           <div
-            className={`absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105 ${
+            className={`absolute inset-0 bg-cover bg-center ${
               isClosed ? "grayscale-[0.18] saturate-[0.82]" : ""
             }`}
             style={{
@@ -70,7 +70,7 @@ export function FeedPostMedia({
           </div>
 
           <div className="absolute bottom-3 right-3">
-            <div className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white shadow-md backdrop-blur-md transition-opacity duration-300 group-hover:opacity-100">
+            <div className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md">
               <span className="material-symbols-outlined text-sm">
                 zoom_in
               </span>
@@ -90,7 +90,7 @@ export function FeedPostMedia({
             <img
               src={imageUrl}
               alt="Auction item"
-              className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+              className="max-h-full max-w-full rounded-lg object-contain"
             />
           </div>
         </DialogContent>

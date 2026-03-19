@@ -117,7 +117,8 @@
   --color-background-dark: #112114;
 
   /* Fonts */
-  --font-display: "Inter", sans-serif;
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
 
   /* Radius */
   --radius-sm: var(--radius-sm);
@@ -159,7 +160,16 @@
 
 @layer base {
   body {
-    @apply bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased font-display;
+    @apply bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+    letter-spacing: -0.02em;
   }
   * {
     @apply border-border;

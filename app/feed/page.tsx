@@ -39,7 +39,15 @@ const QUANTITY_RANGE_DEFINITIONS = [
   { id: "1000-plus", label: "1000+" },
 ] as const;
 
+const PRICE_RANGE_DEFINITIONS = [
+  { id: "under-100", label: "Under 100 ETB" },
+  { id: "100-500", label: "100 - 500 ETB" },
+  { id: "500-1000", label: "500 - 1000 ETB" },
+  { id: "1000-plus", label: "1000+ ETB" },
+] as const;
+
 type QuantityRangeId = (typeof QUANTITY_RANGE_DEFINITIONS)[number]["id"];
+type PriceRangeId = (typeof PRICE_RANGE_DEFINITIONS)[number]["id"];
 
 function parseQuantityValue(quantity?: string): number | null {
   if (!quantity) {
@@ -67,6 +75,37 @@ function getQuantityRangeId(quantity?: string): QuantityRangeId | null {
 
   if (normalizedQuantity < 1000) {
     return "500-999";
+  }
+
+  return "1000-plus";
+}
+
+function parseMinBidValue(minBid?: string): number | null {
+  if (!minBid) {
+    return null;
+  }
+
+  const parsed = Number(String(minBid).replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getPriceRangeId(minBid?: string): PriceRangeId | null {
+  const value = parseMinBidValue(minBid);
+
+  if (value === null) {
+    return null;
+  }
+
+  if (value < 100) {
+    return "under-100";
+  }
+
+  if (value < 500) {
+    return "100-500";
+  }
+
+  if (value < 1000) {
+    return "500-1000";
   }
 
   return "1000-plus";
@@ -126,6 +165,8 @@ export default function FeedPage() {
   const [selectedQuantityRanges, setSelectedQuantityRanges] = useState<string[]>(
     [],
   );
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
+  const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(
     null,
   );
@@ -159,9 +200,18 @@ export default function FeedPage() {
     }
 
     return sentFollowRequests
-      .filter((request) => request.status === "PENDING")
-      .map((request) => request.target.id)
-      .filter((requestUserId) => !!requestUserId);
+      .filter(
+        (request) =>
+          String(request.status || "").toUpperCase() === "PENDING",
+      )
+      .map((request) => {
+        const requestedUserId =
+          request.requester?.id === userId
+            ? request.target?.id
+            : request.target?.id || request.requester?.id;
+        return requestedUserId;
+      })
+      .filter((requestUserId): requestUserId is string => !!requestUserId);
   }, [sentFollowRequests, userId]);
 
   const searchMatchingAuctions = useMemo(() => {
@@ -255,11 +305,48 @@ export default function FeedPage() {
       count: counts.get(range.id) ?? 0,
     }));
   }, [searchMatchingAuctions]);
+  const priceRangeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    searchMatchingAuctions.forEach((auction) => {
+      const priceRange = getPriceRangeId(auction.minBid);
+
+      if (!priceRange) {
+        return;
+      }
+
+      counts.set(priceRange, (counts.get(priceRange) ?? 0) + 1);
+    });
+
+    return PRICE_RANGE_DEFINITIONS.map((range) => ({
+      id: range.id,
+      label: range.label,
+      count: counts.get(range.id) ?? 0,
+    }));
+  }, [searchMatchingAuctions]);
+  const originOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    searchMatchingAuctions.forEach((auction) => {
+      const label = (auction.region || "").trim() || "Unspecified";
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([label, count]) => ({
+        id: label,
+        label,
+        count,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [searchMatchingAuctions]);
   const filteredAndSortedAuctions = useMemo(() => {
     return [...searchMatchingAuctions]
       .filter((auction) => {
         const categoryLabel = auction.auctionCategory?.trim() || "Uncategorized";
         const quantityRange = getQuantityRangeId(auction.quantity);
+        const priceRange = getPriceRangeId(auction.minBid);
+        const originLabel = (auction.region || "").trim() || "Unspecified";
 
         if (
           selectedCategories.length > 0 &&
@@ -282,6 +369,20 @@ export default function FeedPage() {
           return false;
         }
 
+        if (
+          selectedPriceRanges.length > 0 &&
+          (!priceRange || !selectedPriceRanges.includes(priceRange))
+        ) {
+          return false;
+        }
+
+        if (
+          selectedOrigins.length > 0 &&
+          !selectedOrigins.includes(originLabel)
+        ) {
+          return false;
+        }
+
         return true;
       })
       .sort(sortAuctionsForBoard);
@@ -290,12 +391,16 @@ export default function FeedPage() {
     selectedCategories,
     selectedQuantityRanges,
     selectedStatuses,
+    selectedPriceRanges,
+    selectedOrigins,
   ]);
   const filteredAuctions = filteredAndSortedAuctions.slice(0, displayLimit);
   const activeFilterCount =
     selectedCategories.length +
     selectedStatuses.length +
-    selectedQuantityRanges.length;
+    selectedQuantityRanges.length +
+    selectedPriceRanges.length +
+    selectedOrigins.length;
 
   // Check if there are more auctions to load
   const hasMore = filteredAndSortedAuctions.length > filteredAuctions.length;
@@ -376,9 +481,13 @@ export default function FeedPage() {
               categories={categoryOptions}
               statuses={statusOptions}
               quantityRanges={quantityRangeOptions}
+              priceRanges={priceRangeOptions}
+              origins={originOptions}
               selectedCategories={selectedCategories}
               selectedStatuses={selectedStatuses}
               selectedQuantityRanges={selectedQuantityRanges}
+              selectedPriceRanges={selectedPriceRanges}
+              selectedOrigins={selectedOrigins}
               onToggleCategory={(categoryId) => {
                 setDisplayLimit(DISPLAY_PAGE_SIZE);
                 setSelectedCategories((current) =>
@@ -397,11 +506,25 @@ export default function FeedPage() {
                   toggleSelection(current, quantityRangeId),
                 );
               }}
+              onTogglePriceRange={(priceRangeId) => {
+                setDisplayLimit(DISPLAY_PAGE_SIZE);
+                setSelectedPriceRanges((current) =>
+                  toggleSelection(current, priceRangeId),
+                );
+              }}
+              onToggleOrigin={(originId) => {
+                setDisplayLimit(DISPLAY_PAGE_SIZE);
+                setSelectedOrigins((current) =>
+                  toggleSelection(current, originId),
+                );
+              }}
               onClearAll={() => {
                 setDisplayLimit(DISPLAY_PAGE_SIZE);
                 setSelectedCategories([]);
                 setSelectedStatuses([]);
                 setSelectedQuantityRanges([]);
+                setSelectedPriceRanges([]);
+                setSelectedOrigins([]);
               }}
             />
           </aside>

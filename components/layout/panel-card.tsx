@@ -20,7 +20,7 @@ export function PanelCard({
   return (
     <section
       className={cn(
-        "rounded-xl bg-card/95 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-[2px] transition-shadow hover:shadow-sm",
+        "rounded-xl bg-card/95 ring-1 ring-black/[0.03] backdrop-blur-[2px]",
         className,
       )}
       {...props}

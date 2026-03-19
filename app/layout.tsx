@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Geist } from "next/font/google";
+import { Manrope, Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import ClientErrorBoundary from "../components/error-handling/ClientErrorBoundary";
 import { ToastContainer } from "../components/error-handling/ToastContainer";
@@ -10,11 +10,16 @@ import "./globals.css";
 import Providers from "./providers";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({
-  variable: "--font-inter",
+const bodyFont = Plus_Jakarta_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const headingFont = Manrope({
+  variable: "--font-heading",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -28,14 +33,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={cn(bodyFont.variable, headingFont.variable)}>
       <head>
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.variable} font-display antialiased`}>
+      <body className="font-sans antialiased">
         <Providers>
           <ClientErrorBoundary>
             <AuthHydrator />
@@ -46,7 +51,7 @@ export default function RootLayout({
                 position="top-center"
                 toastOptions={{
                   style: {
-                    fontFamily: "var(--font-inter)",
+                    fontFamily: "var(--font-body)",
                   },
                 }}
               />

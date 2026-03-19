@@ -25,7 +25,7 @@ interface FeedAuctionGridProps {
 
 // Loading skeleton card with shimmering social post style
 const LoadingSkeletonCard = () => (
-  <Card className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_24px_80px_-54px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-950">
+  <Card className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
     {/* Header Skeleton */}
     <div className="flex items-center gap-3 px-4 pb-3 pt-4 md:px-5">
       <div className="h-11 w-11 rounded-xl bg-muted/60 animate-pulse" />
@@ -161,7 +161,7 @@ export function FeedAuctionGrid({
 
   return (
     <div className="w-full">
-      <div className="space-y-4">
+      <div className="space-y-6">
         {auctions.map((auction, index) => (
           <div
             key={auction.id}
@@ -187,12 +187,12 @@ export function FeedAuctionGrid({
             variant="outline"
             onClick={onLoadMore}
             disabled={isLoading}
-            className="group h-12 rounded-full border-border/60 px-8 shadow-sm hover:border-border hover:bg-muted/50"
+            className="h-12 rounded-full border-border/60 px-8"
           >
             <span className="font-semibold">
               {isLoading ? "Loading..." : "Load more lots"}
             </span>
-            <span className="material-symbols-outlined ml-2 group-hover:translate-y-1 transition-transform">
+            <span className="material-symbols-outlined ml-2">
               expand_more
             </span>
           </Button>

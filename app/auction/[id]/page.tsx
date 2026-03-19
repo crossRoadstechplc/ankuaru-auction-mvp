@@ -1,6 +1,8 @@
 "use client";
 
+import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import { PageShell } from "@/components/layout/page-shell";
 import { useAuctionQuery } from "@/src/features/auctions/queries/hooks";
 import { useAuctionBidsQuery } from "@/src/features/bids/queries/hooks";
 import { useUserInfoQuery } from "@/src/features/profile/queries/hooks";
@@ -132,9 +134,9 @@ function AuctionDetailContent() {
 
   if (isLoading || auctionLoading) {
     return (
-      <div className="min-h-screen bg-[linear-gradient(180deg,#f7f4ee_0%,#efe7da_100%)] text-slate-900 antialiased dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] dark:text-slate-100">
+      <PageShell className="bg-[linear-gradient(180deg,#f7f4ee_0%,#efe7da_100%)] text-slate-900 antialiased dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] dark:text-slate-100">
         <Header />
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-6">
+        <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-6 lg:px-6">
           <div className="animate-pulse space-y-5">
             <div className="h-36 rounded-[18px] bg-slate-200/80 dark:bg-slate-800" />
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
@@ -146,15 +148,15 @@ function AuctionDetailContent() {
             </div>
           </div>
         </main>
-      </div>
+      </PageShell>
     );
   }
 
   if (auctionError || !auction) {
     return (
-      <div className="min-h-screen bg-[#f8f5f0] text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
+      <PageShell className="bg-[#f8f5f0] text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
         <Header />
-        <main className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-6">
+        <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-8 lg:px-6">
           <div className="py-16 text-center">
             <span className="material-symbols-outlined mb-4 text-6xl text-red-500">
               error
@@ -173,7 +175,7 @@ function AuctionDetailContent() {
             </Link>
           </div>
         </main>
-      </div>
+      </PageShell>
     );
   }
 
@@ -186,11 +188,11 @@ function AuctionDetailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f7f4ee_0%,#efe7da_100%)] text-slate-900 antialiased dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] dark:text-slate-100">
+    <PageShell className="bg-[linear-gradient(180deg,#f7f4ee_0%,#efe7da_100%)] text-slate-900 antialiased dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] dark:text-slate-100">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 lg:px-6">
-        <div className="mb-6 rounded-[18px] border border-slate-200/80 bg-white/92 p-5 shadow-[0_28px_100px_-64px_rgba(15,23,42,0.42)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/92 md:p-6">
+      <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-6 lg:px-6">
+        <div className="mb-6 rounded-[18px] border border-slate-200/80 bg-white/92 p-5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/92 md:p-6">
           <nav className="mb-5 flex items-center gap-2 text-sm font-medium">
             <Link
               className="text-slate-400 transition-colors hover:text-primary"
@@ -278,7 +280,7 @@ function AuctionDetailContent() {
             <BidActivity data={auction} bids={bids} isCreator={isOwner} />
           </div>
 
-          <div className="order-2 xl:order-2">
+          <div className="order-2 xl:sticky xl:top-24 xl:order-2 xl:self-start">
             <BiddingSidebar
               data={auction}
               isCreator={isOwner}
@@ -297,12 +299,8 @@ function AuctionDetailContent() {
         </div>
       </main>
 
-      <footer className="mt-auto border-t border-slate-100 px-8 py-8 text-center dark:border-slate-800">
-        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
-          Copyright 2026 Ankuaru Specialty Coffee Marketplace
-        </p>
-      </footer>
-    </div>
+      <Footer />
+    </PageShell>
   );
 }
 

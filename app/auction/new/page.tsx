@@ -37,6 +37,35 @@ type ProductOptionFieldDefinition = {
   emptyText: string;
 };
 
+type FormSection = "details" | "commercial" | "access";
+
+type FormFieldName = keyof CreateAuctionData | "selectedUserIds";
+
+const FIELD_SECTION_MAP: Record<FormFieldName, FormSection> = {
+  title: "details",
+  auctionCategory: "details",
+  productName: "details",
+  region: "details",
+  commodityType: "details",
+  grade: "details",
+  process: "details",
+  transaction: "details",
+  commodityBrand: "details",
+  commodityClass: "details",
+  commoditySize: "details",
+  quantity: "details",
+  quantityUnit: "details",
+  itemDescription: "commercial",
+  reservePrice: "commercial",
+  minBid: "commercial",
+  auctionType: "details",
+  visibility: "access",
+  auctionImageUrl: "details",
+  startAt: "commercial",
+  endAt: "commercial",
+  selectedUserIds: "access",
+};
+
 const PRODUCT_OPTION_FIELD_DEFINITIONS: ProductOptionFieldDefinition[] = [
   {
     key: "region",
@@ -164,6 +193,8 @@ export default function PostAuctionPage() {
   const [activeTab, setActiveTab] = useState<"sell" | "buy">(
     requestedTab === "buy" ? "buy" : "sell",
   );
+  const [activeFormSection, setActiveFormSection] =
+    useState<FormSection>("details");
   const [selectedVisibility, setSelectedVisibility] = useState<
     "PUBLIC" | "FOLLOWERS" | "SELECTED"
   >("PUBLIC");
@@ -179,6 +210,9 @@ export default function PostAuctionPage() {
     INITIAL_AUCTION_FORM_DATA,
   );
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<FormFieldName, string>>
+  >({});
 
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
@@ -300,6 +334,84 @@ export default function PostAuctionPage() {
     requiredProductFieldSet,
   ]);
 
+  const clearFieldErrors = (...fields: FormFieldName[]) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      let didChange = false;
+
+      fields.forEach((field) => {
+        if (field in next) {
+          delete next[field];
+          didChange = true;
+        }
+      });
+
+      return didChange ? next : prev;
+    });
+  };
+
+  const focusField = (field: FormFieldName) => {
+    const selectors: Record<FormFieldName, string> = {
+      title: '[name="title"]',
+      auctionCategory: '[name="auctionCategory"]',
+      productName: '[name="productName"]',
+      region: '[name="region"]',
+      commodityType: '[name="commodityType"]',
+      grade: '[name="grade"]',
+      process: '[name="process"]',
+      transaction: '[name="transaction"]',
+      commodityBrand: '[name="commodityBrand"]',
+      commodityClass: '[name="commodityClass"]',
+      commoditySize: '[name="commoditySize"]',
+      quantity: '[name="quantity"]',
+      quantityUnit: '[name="quantityUnit"]',
+      itemDescription: '[name="itemDescription"]',
+      reservePrice: '[name="reservePrice"]',
+      minBid: '[name="minBid"]',
+      auctionType: '[data-field-anchor="auctionType"]',
+      visibility: '[data-field-anchor="selectedVisibility"]',
+      auctionImageUrl: '[name="auctionImageUrl"]',
+      startAt: '[name="startAt"]',
+      endAt: '[name="endAt"]',
+      selectedUserIds: '[data-field-anchor="selectedUserIds"]',
+    };
+
+    const section = FIELD_SECTION_MAP[field];
+    setActiveFormSection(section);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const target = document.querySelector<HTMLElement>(selectors[field]);
+
+        if (!target) {
+          return;
+        }
+
+        target.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+
+        if ("focus" in target) {
+          target.focus({ preventScroll: true });
+        }
+      });
+    });
+  };
+
+  const showFieldError = (field: FormFieldName, message: string) => {
+    setFieldErrors({ [field]: message });
+    setError(message);
+    focusField(field);
+  };
+
+  const renderFieldError = (field: FormFieldName) =>
+    fieldErrors[field] ? (
+      <p className="text-xs font-medium text-red-600 dark:text-red-400">
+        {fieldErrors[field]}
+      </p>
+    ) : null;
+
   const handleCategoryChange = (auctionCategory: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -315,6 +427,20 @@ export default function PostAuctionPage() {
       commoditySize: "",
       quantityUnit: "",
     }));
+
+    clearFieldErrors(
+      "auctionCategory",
+      "productName",
+      "region",
+      "commodityType",
+      "grade",
+      "process",
+      "transaction",
+      "commodityBrand",
+      "commodityClass",
+      "commoditySize",
+      "quantityUnit",
+    );
 
     if (error) {
       setError(null);
@@ -336,6 +462,19 @@ export default function PostAuctionPage() {
       quantityUnit: "",
     }));
 
+    clearFieldErrors(
+      "productName",
+      "region",
+      "commodityType",
+      "grade",
+      "process",
+      "transaction",
+      "commodityBrand",
+      "commodityClass",
+      "commoditySize",
+      "quantityUnit",
+    );
+
     if (error) {
       setError(null);
     }
@@ -347,10 +486,14 @@ export default function PostAuctionPage() {
     >,
   ) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+
+    clearFieldErrors(name as FormFieldName);
+
     // Clear error when user starts typing
     if (error) setError(null);
   };
@@ -362,6 +505,8 @@ export default function PostAuctionPage() {
       ...prev,
       auctionImageUrl: nextFile,
     }));
+
+    clearFieldErrors("auctionImageUrl");
 
     if (error) {
       setError(null);
@@ -382,6 +527,8 @@ export default function PostAuctionPage() {
     if (selectedBidderError) {
       setSelectedBidderError(null);
     }
+
+    clearFieldErrors("selectedUserIds");
   };
 
   const removeSelectedUser = (userId: string) => {
@@ -394,6 +541,8 @@ export default function PostAuctionPage() {
     if (selectedBidderError) {
       setSelectedBidderError(null);
     }
+
+    clearFieldErrors("selectedUserIds");
   };
 
   const handleManualSelectedUserAdd = async () => {
@@ -422,6 +571,7 @@ export default function PostAuctionPage() {
         prev.includes(user.id) ? prev : [...prev, user.id],
       );
       setManualSelectedUserId("");
+      clearFieldErrors("selectedUserIds");
 
       if (error) {
         setError(null);
@@ -437,23 +587,74 @@ export default function PostAuctionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
 
     if (isWaitingForDependentOptions) {
       setError("Please wait for product options to finish loading.");
       return;
     }
 
-    // Basic validation
-    if (
-      !formData.title ||
-      !formData.auctionCategory ||
-      !formData.productName ||
-      !formData.itemDescription ||
-      !formData.reservePrice ||
-      !formData.minBid ||
-      !formData.quantity
-    ) {
-      setError("All required fields must be filled");
+    const requiredFieldChecks: Array<{
+      field: FormFieldName;
+      value: string | null;
+      message: string;
+    }> = [
+      {
+        field: "title",
+        value: formData.title,
+        message: "Enter the auction title.",
+      },
+      {
+        field: "auctionCategory",
+        value: formData.auctionCategory,
+        message: "Select a category.",
+      },
+      {
+        field: "productName",
+        value: formData.productName,
+        message: "Select a product name.",
+      },
+      {
+        field: "quantity",
+        value: formData.quantity,
+        message: "Enter the quantity.",
+      },
+      {
+        field: "itemDescription",
+        value: formData.itemDescription,
+        message: "Enter the description.",
+      },
+      {
+        field: "reservePrice",
+        value: formData.reservePrice,
+        message: "Enter the reserve price.",
+      },
+      {
+        field: "minBid",
+        value: formData.minBid,
+        message: "Enter the initial bid.",
+      },
+      {
+        field: "startAt",
+        value: formData.startAt,
+        message: "Choose the start date.",
+      },
+      {
+        field: "endAt",
+        value: formData.endAt,
+        message: "Choose the end date.",
+      },
+    ];
+
+    const missingRequiredField = requiredFieldChecks.find(
+      ({ value }) => !value?.trim(),
+    );
+
+    if (missingRequiredField) {
+      showFieldError(
+        missingRequiredField.field,
+        missingRequiredField.message,
+      );
       return;
     }
 
@@ -461,19 +662,23 @@ export default function PostAuctionPage() {
       const value = formData[field.key];
 
       if (field.required && field.options.length === 0) {
-        setError(
+        showFieldError(
+          field.key,
           `${field.label} options are unavailable for the selected product.`,
         );
         return;
       }
 
       if (field.required && !value) {
-        setError(`Please select ${field.label.toLowerCase()}`);
+        showFieldError(field.key, `Please select ${field.label.toLowerCase()}.`);
         return;
       }
 
       if (value && !hasOptionValue(field.options, value)) {
-        setError(`Please select a valid ${field.label.toLowerCase()}`);
+        showFieldError(
+          field.key,
+          `Please select a valid ${field.label.toLowerCase()}.`,
+        );
         return;
       }
     }
@@ -482,17 +687,18 @@ export default function PostAuctionPage() {
     const minBid = Number(formData.minBid);
 
     if (!Number.isFinite(reservePrice) || reservePrice <= 0) {
-      setError("Reserve price must be greater than zero.");
+      showFieldError("reservePrice", "Reserve price must be greater than zero.");
       return;
     }
 
     if (!Number.isFinite(minBid) || minBid <= 0) {
-      setError("Initial bid must be greater than zero.");
+      showFieldError("minBid", "Initial bid must be greater than zero.");
       return;
     }
 
     if (reservePrice < minBid) {
-      setError(
+      showFieldError(
+        "reservePrice",
         "Reserve price must be greater than or equal to the initial bid.",
       );
       return;
@@ -504,12 +710,13 @@ export default function PostAuctionPage() {
     const startGraceWindowMs = 10 * 60 * 1000;
 
     if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
-      setError("Choose valid start and end times.");
+      showFieldError("startAt", "Choose valid start and end times.");
       return;
     }
 
     if (startAt.getTime() < now - startGraceWindowMs) {
-      setError(
+      showFieldError(
+        "startAt",
         "Start time is too far in the past. Choose now or a future time.",
       );
       return;
@@ -518,12 +725,12 @@ export default function PostAuctionPage() {
     const effectiveStartAt = startAt.getTime() < now ? new Date(now) : startAt;
 
     if (endAt.getTime() <= effectiveStartAt.getTime()) {
-      setError("End time must be after the start time.");
+      showFieldError("endAt", "End time must be after the start time.");
       return;
     }
 
     if (selectedVisibility === "SELECTED" && selectedUserIds.length === 0) {
-      setError("Choose at least one selected bidder.");
+      showFieldError("selectedUserIds", "Choose at least one selected bidder.");
       return;
     }
 
@@ -569,6 +776,250 @@ export default function PostAuctionPage() {
     }
   };
 
+  const bidAccessCard = (
+    <div className="rounded-[16px] border border-slate-200/80 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:p-6">
+      <div className="mb-6 flex items-center gap-2">
+        <span className="material-symbols-outlined text-primary">groups</span>
+        <h2 className="text-lg font-bold">Bid Access</h2>
+      </div>
+      <div
+        className="grid grid-cols-1 gap-3"
+        data-field-anchor="selectedVisibility"
+        tabIndex={-1}
+      >
+        {[
+          {
+            value: "PUBLIC",
+            label: "Public",
+            icon: "public",
+            description:
+              "Anyone who opens the auction can bid immediately once it is open.",
+            disabled: false,
+            badge: "Open bidding",
+          },
+          {
+            value: "FOLLOWERS",
+            label: "Followers",
+            icon: "groups",
+            description:
+              "Followers bid directly. Other viewers request access from the detail page.",
+            disabled: false,
+            badge: isFollowersLoading
+              ? "Loading..."
+              : `${followers.length} follower${followers.length === 1 ? "" : "s"}`,
+          },
+          {
+            value: "SELECTED",
+            label: "Selected bidders",
+            icon: "person_add",
+            description:
+              "Only the users you choose can bid. Pick from followers or add a user by ID.",
+            disabled: false,
+            badge:
+              selectedUserIds.length > 0
+                ? `${selectedUserIds.length} selected`
+                : "Private list",
+          },
+        ].map((type) => (
+          <button
+            key={type.value}
+            type="button"
+            onClick={() => {
+              if (!type.disabled) {
+                setSelectedVisibility(
+                  type.value as "PUBLIC" | "FOLLOWERS" | "SELECTED",
+                );
+                clearFieldErrors("visibility", "selectedUserIds");
+                if (error) {
+                  setError(null);
+                }
+              }
+            }}
+            disabled={type.disabled}
+            className={`group relative flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
+              type.disabled
+                ? "cursor-not-allowed border-dashed border-slate-200 bg-slate-100/60 opacity-75 dark:border-slate-700 dark:bg-slate-900/60"
+                : "cursor-pointer hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
+            } ${
+              selectedVisibility === type.value
+                ? "border-primary bg-primary/5"
+                : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+            }`}
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <span className="material-symbols-outlined">{type.icon}</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-sm font-bold">{type.label}</h4>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                  {type.badge}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                {type.description}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+      {renderFieldError("selectedUserIds")}
+
+      {(selectedVisibility === "FOLLOWERS" ||
+        selectedVisibility === "SELECTED") && (
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Bid access behavior
+              </h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {selectedVisibility === "FOLLOWERS"
+                  ? "Feed stays public. Followers can bid directly, while other viewers use request access from the detail page."
+                  : "Only the selected users can bid. Start with followers or add someone directly by user ID."}
+              </p>
+            </div>
+            {isFollowersLoading && (
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Loading followers...
+              </div>
+            )}
+          </div>
+
+          {followersError && (
+            <div className="mt-3 text-xs text-red-600 dark:text-red-400">
+              {followersError}
+            </div>
+          )}
+
+          {selectedVisibility === "FOLLOWERS" && (
+            <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
+              Followers connected:{" "}
+              <span className="font-semibold">{followers.length}</span>
+            </div>
+          )}
+
+          {selectedVisibility === "SELECTED" && (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <input
+                  type="text"
+                  value={selectedBidderSearch}
+                  onChange={(e) => setSelectedBidderSearch(e.target.value)}
+                  placeholder="Search followers by name, email, or user ID"
+                  data-field-anchor="selectedUserIds"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-800 dark:bg-slate-950"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualSelectedUserId}
+                    onChange={(e) => setManualSelectedUserId(e.target.value)}
+                    placeholder="Add by user ID"
+                    className="w-full min-w-[180px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-800 dark:bg-slate-950"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleManualSelectedUserAdd();
+                    }}
+                    disabled={isAddingSelectedUser || isSubmitting}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                  >
+                    {isAddingSelectedUser ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              </div>
+
+              {selectedBidderError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                  {selectedBidderError}
+                </div>
+              )}
+
+              {selectedBidderUsers.length > 0 && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/60">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    Selected bidders
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedBidderUsers.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => removeSelectedUser(user.id)}
+                        className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+                      >
+                        <span className="max-w-[180px] truncate">
+                          {user.fullName || user.username || user.id}
+                        </span>
+                        <span className="material-symbols-outlined text-sm">
+                          close
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      Followers list
+                    </h4>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                    {filteredFollowers.length} shown
+                  </span>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto px-2 py-2">
+                  {filteredFollowers.length > 0 ? (
+                    filteredFollowers.map((follower) => {
+                      const isChecked = selectedUserIds.includes(follower.id);
+
+                      return (
+                        <label
+                          key={follower.id}
+                          className="flex cursor-pointer items-start justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              {follower.fullName || follower.username}
+                            </div>
+                            <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                              {follower.email}
+                            </div>
+                            <div className="truncate text-[11px] text-slate-400 dark:text-slate-500">
+                              {follower.id}
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSelectedUser(follower)}
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
+                          />
+                        </label>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                      {followers.length === 0
+                        ? "You do not have any followers available to select yet."
+                        : "No followers match your search."}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   if (!isAuthenticated) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-background-light dark:bg-background-dark">
@@ -606,13 +1057,6 @@ export default function PostAuctionPage() {
                   </span>
                   {activeTab === "sell" ? "Sell Auction" : "Buy Auction"}
                 </div>
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white md:text-[1.75rem]">
-                    {activeTab === "sell"
-                      ? "Post a new auction"
-                      : "Post a buy request"}
-                  </h1>
-                </div>
               </div>
 
               <Link
@@ -624,10 +1068,13 @@ export default function PostAuctionPage() {
               </Link>
             </div>
 
-            <div className="mt-4 inline-flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+            <div className="mt-4 inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
               <button
-                onClick={() => setActiveTab("sell")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all md:text-sm ${
+                onClick={() => {
+                  setActiveTab("sell");
+                  setActiveFormSection("details");
+                }}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
                   activeTab === "sell"
                     ? "bg-primary text-white shadow-sm"
                     : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
@@ -637,8 +1084,11 @@ export default function PostAuctionPage() {
                 Sell Auction
               </button>
               <button
-                onClick={() => setActiveTab("buy")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all md:text-sm ${
+                onClick={() => {
+                  setActiveTab("buy");
+                  setActiveFormSection("details");
+                }}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
                   activeTab === "buy"
                     ? "bg-primary text-white shadow-sm"
                     : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
@@ -669,615 +1119,428 @@ export default function PostAuctionPage() {
               onSubmit={handleSubmit}
             >
               <div className="space-y-5">
+                <div className="flex w-full flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 sm:inline-flex sm:w-auto sm:flex-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFormSection("details")}
+                    className={`flex-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
+                      activeFormSection === "details"
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    {activeTab === "sell"
+                      ? "Product Details"
+                      : "Requirement Details"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFormSection("commercial")}
+                    className={`flex-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
+                      activeFormSection === "commercial"
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    Commercial Terms
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFormSection("access")}
+                    className={`flex-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
+                      activeFormSection === "access"
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    Bid Access
+                  </button>
+                </div>
+
                 {/* Section 1: Product Basics */}
-                <div className="rounded-[16px] border border-slate-200/80 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:p-6">
-                  <div className="mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">
-                      inventory_2
-                    </span>
-                    <h2 className="text-lg font-bold">
-                      {activeTab === "sell"
-                        ? "Product Details"
-                        : "Requirement Details"}
-                    </h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Auction Title
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                        placeholder="e.g. Ethiopia Sidamo G1 Natural"
-                        type="text"
-                        id="title"
-                        name="title"
-                        value={formData.title}
-                        onChange={handleChange}
-                        required
-                      />
+                {activeFormSection === "details" && (
+                  <div className="rounded-[16px] border border-slate-200/80 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:p-6">
+                    <div className="mb-6 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary">
+                        inventory_2
+                      </span>
+                      <h2 className="text-lg font-bold">
+                        {activeTab === "sell"
+                          ? "Product Details"
+                          : "Requirement Details"}
+                      </h2>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Category
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <select
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                        value={formData.auctionCategory}
-                        onChange={(e) => handleCategoryChange(e.target.value)}
-                        required
-                        disabled={isCategorySelectDisabled}
-                      >
-                        <option value="">
-                          {isFormOptionsBusy && categoryOptions.length === 0
-                            ? "Loading categories..."
-                            : isFormOptionsErrored &&
-                                categoryOptions.length === 0
-                              ? "Unable to load categories"
-                              : categoryOptions.length === 0
-                                ? "No categories available"
-                                : "Select category"}
-                        </option>
-                        {categoryOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      {categoryOptions.length === 0 && !isFormOptionsBusy && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {isFormOptionsErrored
-                            ? "Auction categories are currently unavailable."
-                            : "No auction categories are available from the backend."}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Product Name
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <select
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                        value={formData.productName ?? ""}
-                        onChange={(e) =>
-                          handleProductNameChange(e.target.value)
-                        }
-                        required
-                        disabled={isProductSelectDisabled}
-                      >
-                        <option value="">
-                          {!formData.auctionCategory
-                            ? "Select category first"
-                            : isFormOptionsBusy
-                              ? "Loading products..."
-                              : isFormOptionsErrored
-                                ? "Unable to load products"
-                                : productNameOptions.length === 0
-                                  ? "No products available"
-                                  : "Select product name"}
-                        </option>
-                        {productNameOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      {formData.auctionCategory &&
-                        productNameOptions.length === 0 &&
-                        !isFormOptionsBusy && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {isFormOptionsErrored
-                              ? "Products could not be loaded for this category."
-                              : "This category has no products available yet."}
-                          </p>
-                        )}
-                    </div>
-
-                    {productOptionFields.map((field) => (
-                      <div key={field.key} className="flex flex-col gap-1.5">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          {field.label}
-                          {field.required && (
-                            <span className="text-red-500 ml-1">*</span>
-                          )}
+                          Auction Title
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <input
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                          placeholder="e.g. Ethiopia Sidamo G1 Natural"
+                          type="text"
+                          id="title"
+                          name="title"
+                          value={formData.title}
+                          onChange={handleChange}
+                          required
+                          aria-invalid={Boolean(fieldErrors.title)}
+                        />
+                        {renderFieldError("title")}
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Category
+                          <span className="text-red-500 ml-1">*</span>
                         </label>
                         <select
                           className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-                          name={field.key}
-                          value={formData[field.key] ?? ""}
-                          onChange={handleChange}
-                          required={field.required}
-                          disabled={field.disabled}
+                          name="auctionCategory"
+                          value={formData.auctionCategory}
+                          onChange={(e) => handleCategoryChange(e.target.value)}
+                          required
+                          disabled={isCategorySelectDisabled}
+                          aria-invalid={Boolean(fieldErrors.auctionCategory)}
                         >
                           <option value="">
-                            {!formData.productName
-                              ? "Select product first"
-                              : isFormOptionsBusy
-                                ? field.loadingText
-                                : isFormOptionsErrored
-                                  ? field.unavailableText
-                                  : field.options.length === 0
-                                    ? field.emptyText
-                                    : `Select ${field.label.toLowerCase()}`}
+                            {isFormOptionsBusy && categoryOptions.length === 0
+                              ? "Loading categories..."
+                              : isFormOptionsErrored &&
+                                  categoryOptions.length === 0
+                                ? "Unable to load categories"
+                                : categoryOptions.length === 0
+                                  ? "No categories available"
+                                  : "Select category"}
                           </option>
-                          {field.options.map((option) => (
+                          {categoryOptions.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
                             </option>
                           ))}
                         </select>
-                        {formData.productName &&
-                          field.options.length === 0 &&
+                        {categoryOptions.length === 0 && !isFormOptionsBusy && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {isFormOptionsErrored
+                              ? "Auction categories are currently unavailable."
+                              : "No auction categories are available from the backend."}
+                          </p>
+                        )}
+                        {renderFieldError("auctionCategory")}
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Product Name
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <select
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                          name="productName"
+                          value={formData.productName ?? ""}
+                          onChange={(e) =>
+                            handleProductNameChange(e.target.value)
+                          }
+                          required
+                          disabled={isProductSelectDisabled}
+                          aria-invalid={Boolean(fieldErrors.productName)}
+                        >
+                          <option value="">
+                            {!formData.auctionCategory
+                              ? "Select category first"
+                              : isFormOptionsBusy
+                                ? "Loading products..."
+                                : isFormOptionsErrored
+                                  ? "Unable to load products"
+                                  : productNameOptions.length === 0
+                                    ? "No products available"
+                                    : "Select product name"}
+                          </option>
+                          {productNameOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        {formData.auctionCategory &&
+                          productNameOptions.length === 0 &&
                           !isFormOptionsBusy && (
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                               {isFormOptionsErrored
-                                ? `${field.label} options could not be loaded for this product.`
-                                : `${field.label} is not available for this product.`}
+                                ? "Products could not be loaded for this category."
+                                : "This category has no products available yet."}
                             </p>
                           )}
+                        {renderFieldError("productName")}
                       </div>
-                    ))}
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Quantity
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                        placeholder="e.g. 1000"
-                        type="number"
-                        id="quantity"
-                        name="quantity"
-                        value={formData.quantity ?? ""}
-                        onChange={handleChange}
-                        required
-                        min="0"
-                      />
-                    </div>
+                      {productOptionFields.map((field) => (
+                        <div key={field.key} className="flex flex-col gap-1.5">
+                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            {field.label}
+                            {field.required && (
+                              <span className="text-red-500 ml-1">*</span>
+                            )}
+                          </label>
+                          <select
+                            className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+                            name={field.key}
+                            value={formData[field.key] ?? ""}
+                            onChange={handleChange}
+                            required={field.required}
+                            disabled={field.disabled}
+                            aria-invalid={Boolean(fieldErrors[field.key])}
+                          >
+                            <option value="">
+                              {!formData.productName
+                                ? "Select product first"
+                                : isFormOptionsBusy
+                                  ? field.loadingText
+                                  : isFormOptionsErrored
+                                    ? field.unavailableText
+                                    : field.options.length === 0
+                                      ? field.emptyText
+                                      : `Select ${field.label.toLowerCase()}`}
+                            </option>
+                            {field.options.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          {formData.productName &&
+                            field.options.length === 0 &&
+                            !isFormOptionsBusy && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {isFormOptionsErrored
+                                  ? `${field.label} options could not be loaded for this product.`
+                                  : `${field.label} is not available for this product.`}
+                              </p>
+                            )}
+                          {renderFieldError(field.key)}
+                        </div>
+                      ))}
 
-                    <div className="md:col-span-2 flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          Product Image
+                          Quantity
+                          <span className="text-red-500 ml-1">*</span>
                         </label>
-                        {selectedAuctionImage && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                auctionImageUrl: null,
-                              }))
-                            }
-                            className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-
-                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/5 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-primary/60 dark:hover:bg-primary/10">
-                        <span className="material-symbols-outlined text-[22px] text-primary">
-                          add_photo_alternate
-                        </span>
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                            {selectedAuctionImage
-                              ? "Change product image"
-                              : "Upload a product image"}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            PNG, JPG, and WEBP are supported.
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                          {selectedAuctionImage
-                            ? "Choose another file"
-                            : "Choose file"}
-                        </span>
                         <input
-                          accept="image/*"
-                          className="sr-only"
-                          disabled={isSubmitting}
-                          key={selectedAuctionImage?.name ?? "empty"}
-                          name="auctionImageUrl"
-                          onChange={handleImageChange}
-                          type="file"
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                          placeholder="e.g. 1000"
+                          type="number"
+                          id="quantity"
+                          name="quantity"
+                          value={formData.quantity ?? ""}
+                          onChange={handleChange}
+                          required
+                          min="0"
+                          aria-invalid={Boolean(fieldErrors.quantity)}
                         />
-                      </label>
-
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {selectedAuctionImage
-                          ? `Selected image: ${selectedAuctionImage.name}`
-                          : "Optional. The selected image will be sent when the auction is created."}
-                      </p>
-                    </div>
-
-                    {formOptionsError && (
-                      <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <span>
-                            Failed to load product options. Retry to refresh the
-                            dependent selections.
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void refetchAuctionFormOptions();
-                            }}
-                            disabled={isFormOptionsBusy}
-                            className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/40"
-                          >
-                            Retry Options
-                          </button>
-                        </div>
+                        {renderFieldError("quantity")}
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                <div className="rounded-[16px] border border-slate-200/80 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:p-6">
-                  <div className="mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">
-                      payments
-                    </span>
-                    <div>
-                      <h2 className="text-lg font-bold">Commercial Terms</h2>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Set pricing and timing.
-                      </p>
+                      <div className="md:col-span-2 flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            Product Image
+                          </label>
+                          {selectedAuctionImage && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  auctionImageUrl: null,
+                                }))
+                              }
+                              className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
+                        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/5 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-primary/60 dark:hover:bg-primary/10">
+                          <span className="material-symbols-outlined text-[22px] text-primary">
+                            add_photo_alternate
+                          </span>
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              {selectedAuctionImage
+                                ? "Change product image"
+                                : "Upload a product image"}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              PNG, JPG, and WEBP are supported.
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                            {selectedAuctionImage
+                              ? "Choose another file"
+                              : "Choose file"}
+                          </span>
+                          <input
+                            accept="image/*"
+                            className="sr-only"
+                            disabled={isSubmitting}
+                            key={selectedAuctionImage?.name ?? "empty"}
+                            name="auctionImageUrl"
+                            onChange={handleImageChange}
+                            type="file"
+                          />
+                        </label>
+
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {selectedAuctionImage
+                            ? `Selected image: ${selectedAuctionImage.name}`
+                            : "Optional. The selected image will be sent when the auction is created."}
+                        </p>
+                      </div>
+
+                      {formOptionsError && (
+                        <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <span>
+                              Failed to load product options. Retry to refresh
+                              the dependent selections.
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void refetchAuctionFormOptions();
+                              }}
+                              disabled={isFormOptionsBusy}
+                              className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                            >
+                              Retry Options
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Reserve Price
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                        placeholder="e.g. 1000"
-                        type="number"
-                        id="reservePrice"
-                        name="reservePrice"
-                        value={formData.reservePrice}
-                        onChange={handleChange}
-                        required
-                        min="0"
-                      />
+                {activeFormSection === "commercial" && (
+                  <div className="rounded-[16px] border border-slate-200/80 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:p-6">
+                    <div className="mb-6 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary">
+                        payments
+                      </span>
+                      <div>
+                        <h2 className="text-lg font-bold">Commercial Terms</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          Set pricing and timing.
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="md:col-span-2 flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Description
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <textarea
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20 resize-none"
-                        placeholder="Detailed description of your item"
-                        id="itemDescription"
-                        name="itemDescription"
-                        value={formData.itemDescription}
-                        onChange={handleChange}
-                        required
-                        rows={4}
-                      />
-                    </div>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Reserve Price
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <input
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                          placeholder="e.g. 1000"
+                          type="number"
+                          id="reservePrice"
+                          name="reservePrice"
+                          value={formData.reservePrice}
+                          onChange={handleChange}
+                          required
+                          min="0"
+                          aria-invalid={Boolean(fieldErrors.reservePrice)}
+                        />
+                        {renderFieldError("reservePrice")}
+                      </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Initial Bid
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                        placeholder="e.g. 100"
-                        type="number"
-                        id="minBid"
-                        name="minBid"
-                        value={formData.minBid}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
+                      <div className="md:col-span-2 flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Description
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <textarea
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20 resize-none"
+                          placeholder="Detailed description of your item"
+                          id="itemDescription"
+                          name="itemDescription"
+                          value={formData.itemDescription}
+                          onChange={handleChange}
+                          required
+                          rows={4}
+                          aria-invalid={Boolean(fieldErrors.itemDescription)}
+                        />
+                        {renderFieldError("itemDescription")}
+                      </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Start Date
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                        type="datetime-local"
-                        id="startAt"
-                        name="startAt"
-                        value={formData.startAt}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Initial Bid
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <input
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                          placeholder="e.g. 100"
+                          type="number"
+                          id="minBid"
+                          name="minBid"
+                          value={formData.minBid}
+                          onChange={handleChange}
+                          required
+                          aria-invalid={Boolean(fieldErrors.minBid)}
+                        />
+                        {renderFieldError("minBid")}
+                      </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        End Date
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                        type="datetime-local"
-                        id="endAt"
-                        name="endAt"
-                        value={formData.endAt}
-                        onChange={handleChange}
-                        required
-                      />
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Start Date
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <input
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                          type="datetime-local"
+                          id="startAt"
+                          name="startAt"
+                          value={formData.startAt}
+                          onChange={handleChange}
+                          required
+                          aria-invalid={Boolean(fieldErrors.startAt)}
+                        />
+                        {renderFieldError("startAt")}
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          End Date
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <input
+                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                          type="datetime-local"
+                          id="endAt"
+                          name="endAt"
+                          value={formData.endAt}
+                          onChange={handleChange}
+                          required
+                          aria-invalid={Boolean(fieldErrors.endAt)}
+                        />
+                        {renderFieldError("endAt")}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {activeFormSection === "access" && bidAccessCard}
               </div>
 
               <div className="space-y-5 xl:sticky xl:top-24">
-                {/* Section 2: Visibility Selection */}
-                <div className="rounded-[16px] border border-slate-200/80 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:p-6">
-                  <div className="mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">
-                      groups
-                    </span>
-                    <h2 className="text-lg font-bold">Bid Access</h2>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {[
-                      {
-                        value: "PUBLIC",
-                        label: "Public",
-                        icon: "public",
-                        description:
-                          "Anyone who opens the auction can bid immediately once it is open.",
-                        disabled: false,
-                        badge: "Open bidding",
-                      },
-                      {
-                        value: "FOLLOWERS",
-                        label: "Followers",
-                        icon: "groups",
-                        description:
-                          "Followers bid directly. Other viewers request access from the detail page.",
-                        disabled: false,
-                        badge: isFollowersLoading
-                          ? "Loading..."
-                          : `${followers.length} follower${followers.length === 1 ? "" : "s"}`,
-                      },
-                      {
-                        value: "SELECTED",
-                        label: "Selected bidders",
-                        icon: "person_add",
-                        description:
-                          "Only the users you choose can bid. Pick from followers or add a user by ID.",
-                        disabled: false,
-                        badge:
-                          selectedUserIds.length > 0
-                            ? `${selectedUserIds.length} selected`
-                            : "Private list",
-                      },
-                    ].map((type) => (
-                      <button
-                        key={type.value}
-                        type="button"
-                        onClick={() => {
-                          if (!type.disabled) {
-                            setSelectedVisibility(
-                              type.value as "PUBLIC" | "FOLLOWERS" | "SELECTED",
-                            );
-                            if (error) {
-                              setError(null);
-                            }
-                          }
-                        }}
-                        disabled={type.disabled}
-                        className={`group relative flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
-                          type.disabled
-                            ? "cursor-not-allowed border-dashed border-slate-200 bg-slate-100/60 opacity-75 dark:border-slate-700 dark:bg-slate-900/60"
-                            : "cursor-pointer hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
-                        } ${
-                          selectedVisibility === type.value
-                            ? "border-primary bg-primary/5"
-                            : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-                        }`}
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <span className="material-symbols-outlined">
-                            {type.icon}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-sm font-bold">{type.label}</h4>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                              {type.badge}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {type.description}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  {(selectedVisibility === "FOLLOWERS" ||
-                    selectedVisibility === "SELECTED") && (
-                    <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            Bid access behavior
-                          </h3>
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            {selectedVisibility === "FOLLOWERS"
-                              ? "Feed stays public. Followers can bid directly, while other viewers use request access from the detail page."
-                              : "Only the selected users can bid. Start with followers or add someone directly by user ID."}
-                          </p>
-                        </div>
-                        {isFollowersLoading && (
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Loading followers...
-                          </div>
-                        )}
-                      </div>
-
-                      {followersError && (
-                        <div className="mt-3 text-xs text-red-600 dark:text-red-400">
-                          {followersError}
-                        </div>
-                      )}
-
-                      {selectedVisibility === "FOLLOWERS" && (
-                        <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
-                          Followers connected:{" "}
-                          <span className="font-semibold">
-                            {followers.length}
-                          </span>
-                        </div>
-                      )}
-
-                      {selectedVisibility === "SELECTED" && (
-                        <div className="mt-4 space-y-4">
-                          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                            <input
-                              type="text"
-                              value={selectedBidderSearch}
-                              onChange={(e) =>
-                                setSelectedBidderSearch(e.target.value)
-                              }
-                              placeholder="Search followers by name, email, or user ID"
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-800 dark:bg-slate-950"
-                            />
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={manualSelectedUserId}
-                                onChange={(e) =>
-                                  setManualSelectedUserId(e.target.value)
-                                }
-                                placeholder="Add by user ID"
-                                className="w-full min-w-[180px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-800 dark:bg-slate-950"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  void handleManualSelectedUserAdd();
-                                }}
-                                disabled={isAddingSelectedUser || isSubmitting}
-                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
-                              >
-                                {isAddingSelectedUser ? "Adding..." : "Add"}
-                              </button>
-                            </div>
-                          </div>
-
-                          {selectedBidderError && (
-                            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                              {selectedBidderError}
-                            </div>
-                          )}
-
-                          {selectedBidderUsers.length > 0 && (
-                            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/60">
-                              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                                Selected bidders
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedBidderUsers.map((user) => (
-                                  <button
-                                    key={user.id}
-                                    type="button"
-                                    onClick={() => removeSelectedUser(user.id)}
-                                    className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
-                                  >
-                                    <span className="max-w-[180px] truncate">
-                                      {user.fullName ||
-                                        user.username ||
-                                        user.id}
-                                    </span>
-                                    <span className="material-symbols-outlined text-sm">
-                                      close
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-                            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-                              <div>
-                                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                  Followers list
-                                </h4>
-                              </div>
-                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                                {filteredFollowers.length} shown
-                              </span>
-                            </div>
-
-                            <div className="max-h-64 overflow-y-auto px-2 py-2">
-                              {filteredFollowers.length > 0 ? (
-                                filteredFollowers.map((follower) => {
-                                  const isChecked = selectedUserIds.includes(
-                                    follower.id,
-                                  );
-
-                                  return (
-                                    <label
-                                      key={follower.id}
-                                      className="flex cursor-pointer items-start justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/70"
-                                    >
-                                      <div className="min-w-0">
-                                        <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
-                                          {follower.fullName ||
-                                            follower.username}
-                                        </div>
-                                        <div className="truncate text-xs text-slate-500 dark:text-slate-400">
-                                          {follower.email}
-                                        </div>
-                                        <div className="truncate text-[11px] text-slate-400 dark:text-slate-500">
-                                          {follower.id}
-                                        </div>
-                                      </div>
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={() =>
-                                          toggleSelectedUser(follower)
-                                        }
-                                        className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
-                                      />
-                                    </label>
-                                  );
-                                })
-                              ) : (
-                                <div className="px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                                  {followers.length === 0
-                                    ? "You do not have any followers available to select yet."
-                                    : "No followers match your search."}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
                 <div className="rounded-[16px] border border-slate-900/5 bg-slate-950 p-5 text-white shadow-[0_24px_80px_-52px_rgba(15,23,42,0.8)] dark:border-slate-800 dark:bg-slate-950">
                   <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-300/90">
                     <span className="material-symbols-outlined text-base">

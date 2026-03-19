@@ -16,7 +16,7 @@ export default function StatsCard({
   iconTextColor = "text-primary",
 }: StatsCardProps) {
   return (
-    <div className="flex items-center gap-4 rounded-xl bg-card/95 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-muted/20">
+    <div className="flex items-center gap-4 rounded-xl bg-card/95 p-5">
       <div
         className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBgColor} ${iconTextColor}`}
       >

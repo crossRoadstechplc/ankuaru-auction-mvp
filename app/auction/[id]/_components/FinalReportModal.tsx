@@ -164,7 +164,7 @@ export function FinalReportModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-border/60 bg-gradient-to-r from-primary/8 via-background to-background px-6 py-5">
           <div className="min-w-0 space-y-2">

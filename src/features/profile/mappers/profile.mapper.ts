@@ -267,6 +267,8 @@ export function mapFollowRequestsPayload(value: unknown): FollowRequest[] {
   const envelope = toJsonObject(parsed);
   const list = pickList(envelope, [
     "myFollowRequests",
+    "mySentFollowRequests",
+    "sentFollowRequests",
     "requests",
     "followRequests",
   ]);

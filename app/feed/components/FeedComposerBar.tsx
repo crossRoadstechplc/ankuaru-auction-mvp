@@ -28,7 +28,7 @@ export function FeedComposerBar({
   const searchLabel = searchTerm.trim();
 
   return (
-    <section className="mb-6 overflow-hidden rounded-[18px] border border-border/70 bg-card/95 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.3)] backdrop-blur supports-[backdrop-filter]:bg-card/90">
+    <section className="mb-6 overflow-hidden rounded-[18px] border border-border/70 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/90">
       <div className="p-4 md:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
@@ -58,7 +58,7 @@ export function FeedComposerBar({
             asChild
             variant="outline"
             size="sm"
-            className="shrink-0 gap-2 rounded-full border-border/70 bg-background/80 shadow-sm hover:bg-muted/50"
+            className="shrink-0 gap-2 rounded-full border-border/70 bg-background/80"
           >
             <Link href={isAuthenticated ? "/dashboard" : "/login"}>
               <span className="material-symbols-outlined text-sm">
@@ -74,7 +74,7 @@ export function FeedComposerBar({
             asChild
             variant="ghost"
             size="sm"
-            className="justify-center rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 text-sm font-semibold text-emerald-700 transition-all hover:-translate-y-0.5 hover:border-emerald-500/25 hover:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-950/20"
+            className="justify-center rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300"
           >
             <Link href={isAuthenticated ? "/auction/new?tab=sell" : "/login"}>
               <span className="material-symbols-outlined text-[18px]">sell</span>
@@ -103,7 +103,7 @@ export function FeedComposerBar({
             onClick={() => {
               toast("RFQ/IOI is coming soon.");
             }}
-            className="justify-center rounded-2xl border border-amber-500/15 bg-amber-500/5 px-3 py-2 text-sm font-semibold text-amber-700 transition-all hover:-translate-y-0.5 hover:border-amber-500/25 hover:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-950/20"
+            className="justify-center rounded-2xl border border-amber-500/15 bg-amber-500/5 px-3 py-2 text-sm font-semibold text-amber-700 dark:text-amber-300"
           >
             <span className="material-symbols-outlined text-[18px]">
               request_quote

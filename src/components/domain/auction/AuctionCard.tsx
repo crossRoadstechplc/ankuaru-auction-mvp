@@ -87,7 +87,7 @@ export function AuctionCard({ auction }: AuctionCardProps) {
     auction.image?.includes("example.com") ? undefined : auction.image,
   );
   return (
-    <div className="rounded-[20px] border border-slate-200/80 bg-white p-3 shadow-[0_20px_55px_-44px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950">
+    <div className="rounded-[20px] border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
       <div className="flex gap-3">
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex items-start justify-between gap-3">

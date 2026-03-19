@@ -1,4 +1,6 @@
 "use client";
+
+import { formatEtbValue, formatShortDateTime } from "@/lib/format";
 import { useMyBidQuery } from "@/src/features/bids/queries/hooks";
 import {
   useFollowUserMutation,
@@ -7,6 +9,7 @@ import {
   useUnfollowUserMutation,
   useUserInfoQuery,
 } from "@/src/features/profile/queries/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 import { User, UserRating } from "../../../../lib/types";
 
 interface AuctionDetailsCardProps {
@@ -71,24 +74,6 @@ function pickReadableIdentity(
   return undefined;
 }
 
-function formatCurrency(value?: string | null): string {
-  if (!value) {
-    return "ETB --";
-  }
-
-  return `ETB ${value}`;
-}
-
-function formatShortDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 function formatVisibilityLabel(visibility: AuctionDetailsCardProps["data"]["visibility"]): string {
   if (visibility === "FOLLOWERS") {
     return "Followers-first bidding";
@@ -107,6 +92,7 @@ export function AuctionDetailsCard({
   creatorInfo,
   isCreator,
 }: AuctionDetailsCardProps) {
+  const authUserId = useAuthStore((state) => state.userId);
   const { data: myBid } = useMyBidQuery(data.id);
   const { data: following = [] } = useMyFollowingQuery();
   const { data: sentFollowRequests = [] } = useMySentFollowRequestsQuery();
@@ -129,7 +115,12 @@ export function AuctionDetailsCard({
     return followedUser.id === data.createdBy;
   });
   const isRequested = sentFollowRequests.some((request) => {
-    return request.status === "PENDING" && request.target.id === data.createdBy;
+    if (String(request.status || "").toUpperCase() !== "PENDING") return false;
+    const requestedUserId =
+      request.requester?.id === authUserId
+        ? request.target?.id
+        : request.target?.id || request.requester?.id;
+    return requestedUserId === data.createdBy;
   });
   const isFollowLoading =
     followMutation.isPending || unfollowMutation.isPending;
@@ -158,10 +149,10 @@ export function AuctionDetailsCard({
 
   const primaryValue =
     data.status === "CLOSED"
-      ? formatCurrency(data.winningBid || data.currentBid)
+      ? formatEtbValue(data.winningBid || data.currentBid)
       : myBid?.amount
-        ? formatCurrency(myBid.amount)
-        : formatCurrency(data.currentBid || data.minBid);
+        ? formatEtbValue(myBid.amount)
+        : formatEtbValue(data.currentBid || data.minBid);
   const primaryLabel =
     data.status === "CLOSED"
       ? "Winning bid"
@@ -213,7 +204,7 @@ export function AuctionDetailsCard({
   };
 
   return (
-    <section className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white shadow-[0_28px_100px_-60px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900">
+    <section className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div className="overflow-hidden border-b border-slate-200/70 dark:border-slate-800">
         <img
           src="/static.jpg"
@@ -223,13 +214,13 @@ export function AuctionDetailsCard({
       </div>
 
       <div className="space-y-6 p-5 sm:p-6">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
               Minimum bid
             </p>
             <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">
-              {formatCurrency(data.minBid)}
+              {formatEtbValue(data.minBid)}
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
@@ -243,7 +234,7 @@ export function AuctionDetailsCard({
               Reserve price
             </p>
             <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">
-              {formatCurrency(data.reservePrice)}
+              {formatEtbValue(data.reservePrice)}
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
@@ -324,21 +315,7 @@ export function AuctionDetailsCard({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-800/40">
-          <div className="mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-lg">
-              notes
-            </span>
-            <h2 className="text-base font-black text-slate-900 dark:text-white">
-              Description
-            </h2>
-          </div>
-          <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
-            {data.itemDescription}
-          </p>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="h-14 w-14 overflow-hidden rounded-lg border border-primary/20 bg-primary/10">
@@ -419,6 +396,20 @@ export function AuctionDetailsCard({
               </div>
             ) : null}
           </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-800/40">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-lg">
+              notes
+            </span>
+            <h2 className="text-base font-black text-slate-900 dark:text-white">
+              Description
+            </h2>
+          </div>
+          <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            {data.itemDescription}
+          </p>
         </div>
       </div>
     </section>

@@ -18,7 +18,7 @@ import {
 } from "@/src/features/profile/queries/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import InstagramProfileLayout from "./InstagramProfileLayout";
 
@@ -36,6 +36,7 @@ export default function PublicUserProfileView({
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [activeGridTab, setActiveGridTab] = useState<"posts">("posts");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [optimisticRequestedId, setOptimisticRequestedId] = useState<string | null>(null);
   const { data: profile, isLoading, error } = useUserProfileDetailsQuery(
     userId,
     !!userId,
@@ -52,17 +53,40 @@ export default function PublicUserProfileView({
     () => following.map((user) => user.id),
     [following],
   );
-  const requestedIds = useMemo(
-    () =>
-      sentFollowRequests
-        .filter((request) => request.status === "PENDING")
-        .map((request) => request.target.id)
-        .filter((requestUserId) => !!requestUserId),
-    [sentFollowRequests],
-  );
+  const requestedIds = useMemo(() => {
+    if (!authUserId) return [];
+    return sentFollowRequests
+      .filter(
+        (request) =>
+          String(request.status || "").toUpperCase() === "PENDING",
+      )
+      .map((request) => {
+        const requestedUserId =
+          request.requester?.id === authUserId
+            ? request.target?.id
+            : request.target?.id || request.requester?.id;
+        return requestedUserId;
+      })
+      .filter((requestUserId): requestUserId is string => !!requestUserId);
+  }, [sentFollowRequests, authUserId]);
   const isFollowing = followingIds.includes(userId);
   const isRequested = requestedIds.includes(userId);
+  const effectiveIsRequested =
+    isRequested || (optimisticRequestedId === userId && !isFollowing);
+  const effectiveRequestedIds = useMemo(
+    () =>
+      optimisticRequestedId && !requestedIds.includes(optimisticRequestedId)
+        ? [...requestedIds, optimisticRequestedId]
+        : requestedIds,
+    [requestedIds, optimisticRequestedId],
+  );
   const postedLotsCount = auctions.length;
+
+  useEffect(() => {
+    if (isRequested || isFollowing) {
+      setOptimisticRequestedId(null);
+    }
+  }, [isRequested, isFollowing]);
 
   const handleFollowToggle = async (
     targetUserId: string,
@@ -84,6 +108,7 @@ export default function PublicUserProfileView({
         await unfollowUserMutation.mutateAsync(targetUserId);
       } else {
         await followUserMutation.mutateAsync(targetUserId);
+        setOptimisticRequestedId(targetUserId);
       }
     } catch (actionError) {
       console.error("Profile follow action failed:", actionError);
@@ -156,7 +181,7 @@ export default function PublicUserProfileView({
               {actionLoadingId === userId ? "..." : "Unfollow"}
             </Button>
           </>
-        ) : isRequested ? (
+        ) : effectiveIsRequested ? (
           <Button
             variant="outline"
             size="sm"
@@ -230,7 +255,7 @@ export default function PublicUserProfileView({
                 avatarUrl: user.avatar || user.profileImageUrl,
               }))}
               followingIds={followingIds}
-              requestedIds={requestedIds}
+              requestedIds={effectiveRequestedIds}
               loadingIds={actionLoadingId ? [actionLoadingId] : []}
               onFollow={(targetUserId) => void handleFollowToggle(targetUserId)}
               onUnfollow={(targetUserId) =>
