@@ -596,7 +596,7 @@ export default function PostAuctionPage() {
 
     const requiredFieldChecks: Array<{
       field: FormFieldName;
-      value: string | null;
+      value: string | null | undefined;
       message: string;
     }> = [
       {
