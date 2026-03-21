@@ -9,7 +9,7 @@ Ankuaru Auction MVP is a modern, full-featured web application for a sealed-bid 
 - **Dynamic Auction Feed**: Browse public auctions, with specialized visibility for followers or selected users.
 - **Comprehensive Dashboard**: Track your reputation, followers, and auction participation at a glance.
 - **Real-time Notifications**: Stay updated on bid status, auction closes, and new followers.
-- **Creator Profiles**: Follow other users and view their auction history.
+- **Creator Profiles**: Fllow other users and view their auction history.
 - **Auction Tracking**: Specialized tracking page to monitor specific auctions by ID.
 - **Responsive Design**: Fully optimized for desktop and mobile devices with dark mode support.
 
