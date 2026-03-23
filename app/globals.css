@@ -42,6 +42,12 @@
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
   --radius: 0.5rem;
+
+  /* Card typography */
+  --card-title: 1rem;
+  --card-body: 0.875rem;
+  --card-caption: 0.75rem;
+  --card-meta: 0.6875rem;
 }
 
 .dark {
@@ -119,6 +125,12 @@
   /* Fonts */
   --font-sans: var(--font-body);
   --font-display: var(--font-heading);
+
+  /* Card typography scale */
+  --text-card-title: var(--card-title);
+  --text-card-body: var(--card-body);
+  --text-card-caption: var(--card-caption);
+  --text-card-meta: var(--card-meta);
 
   /* Radius */
   --radius-sm: var(--radius-sm);

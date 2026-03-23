@@ -8,6 +8,7 @@ import {
   AuctionReport,
   CloseAuctionResult,
   CreateAuctionData,
+  EditAuctionData,
 } from "@/lib/types";
 import { getGraphqlBaseUrl } from "@/src/platform/config/env";
 import {
@@ -19,6 +20,7 @@ import {
   CloseAuctionResultDto,
   CloseAuctionMutationResultDto,
   CreateAuctionMutationResultDto,
+  EditAuctionMutationResultDto,
 } from "@/src/features/auctions/dto/auctions.dto";
 import {
   mapAuctionPayload,
@@ -130,6 +132,7 @@ async function createAuctionWithImageUpload(
   const inputWithoutFile = {
     ...input,
     auctionImageUrl: undefined,
+    auctionImages: undefined,
   };
   const body = new FormData();
 
@@ -140,6 +143,7 @@ async function createAuctionWithImageUpload(
       variables: {
         input: {
           ...inputWithoutFile,
+          priceTiers: input.priceTiers ?? [],
           auctionImageUrl: null,
         },
       },
@@ -215,17 +219,57 @@ async function createAuctionWithImageUpload(
   );
 }
 
-async function createAuction(input: CreateAuctionData): Promise<Auction> {
+function buildCreateAuctionInput(
+  input: CreateAuctionData,
+): Record<string, unknown> {
+  const base = {
+    ...input,
+    priceTiers: input.priceTiers ?? [],
+  };
   if (isFileUpload(input.auctionImageUrl)) {
-    return createAuctionWithImageUpload(input, input.auctionImageUrl);
+    return { ...base, auctionImageUrl: undefined };
+  }
+  if (input.auctionImages?.length) {
+    const files = input.auctionImages.filter(
+      (v): v is File => typeof File !== "undefined" && v instanceof File,
+    );
+    if (files.length > 0) {
+      return { ...base, auctionImageUrl: undefined };
+    }
+  }
+  return base;
+}
+
+async function createAuction(input: CreateAuctionData): Promise<Auction> {
+  const file =
+    isFileUpload(input.auctionImageUrl)
+      ? input.auctionImageUrl
+      : input.auctionImages?.find(
+          (v): v is File => typeof File !== "undefined" && v instanceof File,
+        );
+  if (file) {
+    return createAuctionWithImageUpload(input, file);
   }
 
+  const apiInput = buildCreateAuctionInput(input);
   const response = await graphqlClient.request<CreateAuctionMutationResultDto>(
     mutations.CREATE_AUCTION_MUTATION,
-    { input },
+    { input: apiInput },
   );
 
   return mapAuctionPayload(response.createAuction);
+}
+
+async function editAuction(
+  id: string,
+  input: EditAuctionData,
+): Promise<Auction> {
+  const response = await graphqlClient.request<EditAuctionMutationResultDto>(
+    mutations.EDIT_AUCTION_MUTATION,
+    { id, input },
+  );
+
+  return mapAuctionPayload(response.editAuction);
 }
 
 async function closeAuction(auctionId: string): Promise<CloseAuctionResult> {
@@ -246,5 +290,6 @@ export const auctionsApi = {
   getAuctionFormOptions,
   getUserAuctions,
   createAuction,
+  editAuction,
   closeAuction,
 };

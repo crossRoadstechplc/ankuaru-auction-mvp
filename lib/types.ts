@@ -39,6 +39,12 @@ export interface LoginData {
   password: string;
 }
 
+export interface PriceTier {
+  minQty: string;
+  maxQty: string | null;
+  pricePerUnit: string;
+}
+
 export interface Auction {
   id: string;
   title: string;
@@ -71,14 +77,14 @@ export interface Auction {
   closedAt?: string;
   canBid?: boolean;
   hasRequestedBidAccess?: boolean;
-  // Creator information (populated from GraphQL)
+  priceTiers?: PriceTier[];
+  images?: string[];
   creator?: {
     id: string;
     username: string;
     fullName?: string;
     avatar?: string;
   };
-  // UI-specific fields for feed display
   tag?: string;
   tagColor?: string;
   bid?: string;
@@ -113,6 +119,8 @@ export interface AuctionReportTopBid {
   bidderId: string;
   bidderUsername?: string;
   bidderAvatar?: string | null;
+  quantity?: string;
+  amount?: string;
   revealedAmount?: string;
   revealedAt?: string;
   isValid?: boolean;
@@ -179,12 +187,32 @@ export interface CreateAuctionData {
   itemDescription: string;
   reservePrice: string;
   minBid: string;
+  priceTiers: PriceTier[];
   auctionType: "SELL" | "BUY";
   visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
   selectedUserIds?: string[];
   auctionImageUrl?: File | string | null;
+  auctionImages?: (File | string)[];
   startAt: string;
   endAt: string;
+}
+
+export interface EditAuctionData {
+  title?: string;
+  auctionCategory?: string;
+  productName?: string;
+  commodityType?: string;
+  grade?: string;
+  quantity?: string;
+  quantityUnit?: string;
+  priceTiers?: PriceTier[];
+  itemDescription?: string;
+  auctionImageUrl?: string | null;
+}
+
+export interface SubmitBidInput {
+  quantity: string;
+  amount: string;
 }
 
 export interface AuctionSelectOption {
@@ -217,6 +245,7 @@ export interface Bid {
   auctionId: string;
   bidderId: string;
   commitHash?: string;
+  quantity?: string;
   amount?: string;
   revealed?: boolean;
   bidderUsername?: string;

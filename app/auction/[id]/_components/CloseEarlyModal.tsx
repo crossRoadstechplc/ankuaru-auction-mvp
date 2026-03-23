@@ -1,6 +1,7 @@
 "use client";
 
 import { useCloseAuctionMutation } from "@/src/features/auctions/queries/hooks";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 interface CloseEarlyModalProps {
@@ -36,13 +37,13 @@ export function CloseEarlyModal({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-10 w-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
             <span className="material-symbols-outlined text-red-600 dark:text-red-400">
               block
             </span>
@@ -96,6 +97,7 @@ export function CloseEarlyModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

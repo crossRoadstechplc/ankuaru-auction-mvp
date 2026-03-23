@@ -1,3 +1,4 @@
+import { getBidTotal } from "@/lib/format";
 import {
   Auction,
   AuctionFormOptions,
@@ -6,6 +7,7 @@ import {
   AuctionReportTimelinePoint,
   AuctionReportTopBid,
   CloseAuctionResult,
+  PriceTier,
 } from "@/lib/types";
 import {
   AuctionFormOptionsDto,
@@ -130,6 +132,34 @@ function mapAuctionFormOptionList(value: unknown): AuctionSelectOption[] {
     .filter((entry): entry is AuctionSelectOption => entry !== null);
 }
 
+function mapPriceTier(value: unknown): PriceTier | null {
+  const dto = toJsonObject(value);
+  if (!dto) return null;
+  const minQty = toOptionalString(dto.minQty);
+  const pricePerUnit = toOptionalString(dto.pricePerUnit);
+  if (!minQty || !pricePerUnit) return null;
+  const rawMax = dto.maxQty;
+  const maxQty =
+    rawMax === null || rawMax === undefined || rawMax === ""
+      ? null
+      : (toOptionalString(rawMax) ?? null);
+  return { minQty, maxQty, pricePerUnit };
+}
+
+function mapPriceTiers(value: unknown): PriceTier[] {
+  const arr = toJsonArray(value);
+  return arr
+    .map((entry) => mapPriceTier(entry))
+    .filter((t): t is PriceTier => t !== null);
+}
+
+function mapImages(value: unknown): string[] {
+  const arr = toJsonArray(value);
+  return arr
+    .map((entry) => toOptionalString(entry))
+    .filter((s): s is string => !!s);
+}
+
 export function mapAuctionDto(value: unknown): Auction {
   const dto = toJsonObject(value) ?? {};
   const createdBy = toStringOr(
@@ -190,6 +220,14 @@ export function mapAuctionDto(value: unknown): Auction {
       dto.image ?? dto.auctionImageUrl ?? dto.auction_image_url,
     ),
     details: toOptionalString(dto.details),
+    priceTiers: mapPriceTiers(dto.priceTiers ?? dto.price_tiers).length > 0
+      ? mapPriceTiers(dto.priceTiers ?? dto.price_tiers)
+      : undefined,
+    images:
+      mapImages(dto.images ?? dto.auctionImages ?? dto.auction_images).length >
+      0
+        ? mapImages(dto.images ?? dto.auctionImages ?? dto.auction_images)
+        : undefined,
   };
 }
 
@@ -338,6 +376,8 @@ function mapAuctionReportBid(value: unknown): AuctionReportTopBid | null {
       dto.bidderUsername ?? bidder?.username ?? bidder?.fullName,
     ),
     bidderAvatar: toOptionalString(dto.bidderAvatar ?? bidder?.avatar),
+    quantity: toOptionalString(dto.quantity),
+    amount: toOptionalString(dto.amount ?? dto.bidAmount),
     revealedAmount: toOptionalString(
       dto.revealedAmount ?? dto.amount ?? dto.bidAmount,
     ),
@@ -382,15 +422,11 @@ export function mapAuctionReportPayload(value: unknown): AuctionReport {
     .map((entry) => mapAuctionReportBid(entry))
     .filter((entry): entry is AuctionReportTopBid => entry !== null)
     .sort((left, right) => {
-      const rightAmount = Number(
-        (right.revealedAmount ?? "0").replace(/,/g, "").trim(),
-      );
-      const leftAmount = Number(
-        (left.revealedAmount ?? "0").replace(/,/g, "").trim(),
-      );
+      const rightTotal = getBidTotal(right);
+      const leftTotal = getBidTotal(left);
 
-      if (rightAmount !== leftAmount) {
-        return rightAmount - leftAmount;
+      if (rightTotal !== leftTotal) {
+        return rightTotal - leftTotal;
       }
 
       const rightTime = new Date(right.revealedAt ?? 0).getTime();
@@ -405,10 +441,8 @@ export function mapAuctionReportPayload(value: unknown): AuctionReport {
     topBids.length > 0
       ? (
           topBids.reduce((sum, bid) => {
-            const numeric = Number(
-              (bid.revealedAmount ?? "0").replace(/,/g, "").trim(),
-            );
-            return Number.isFinite(numeric) ? sum + numeric : sum;
+            const total = getBidTotal(bid);
+            return Number.isFinite(total) ? sum + total : sum;
           }, 0) / topBids.length
         ).toString()
       : undefined;

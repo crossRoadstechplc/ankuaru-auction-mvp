@@ -61,13 +61,14 @@ async function getAuctionBids(id: string): Promise<Bid[]> {
 
 async function placeBid(
   auctionId: string,
+  quantity: string,
   amount: string,
 ): Promise<BidResponse> {
   const response = await graphqlClient.request<SubmitBidMutationResultDto>(
     mutations.SUBMIT_BID_MUTATION,
     {
       id: auctionId,
-      input: { amount },
+      input: { quantity, amount },
     },
   );
 

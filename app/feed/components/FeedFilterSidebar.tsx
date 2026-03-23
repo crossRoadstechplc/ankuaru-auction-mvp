@@ -33,7 +33,6 @@ interface FeedFilterSidebarProps {
 
 type FilterSectionProps = {
   title: string;
-  subtitle: string;
   options: FeedFilterOption[];
   selectedValues: string[];
   onToggle: (value: string) => void;
@@ -41,21 +40,17 @@ type FilterSectionProps = {
 
 function FilterSection({
   title,
-  subtitle,
   options,
   selectedValues,
   onToggle,
 }: FilterSectionProps) {
   return (
-    <section className="space-y-3">
-      <div>
-        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-          {title}
-        </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
-      </div>
+    <section className="space-y-1.5">
+      <h3 className="px-1 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        {title}
+      </h3>
 
-      <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+      <div className="space-y-0.5">
         {options.map((option) => {
           const isChecked = selectedValues.includes(option.id);
           const isDisabled = option.disabled || option.count === 0;
@@ -63,27 +58,31 @@ function FilterSection({
           return (
             <label
               key={option.id}
-              className={`flex cursor-pointer items-center justify-between gap-3 rounded-md border px-3 py-2.5 transition-all ${
+              className={`flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-[13px] transition-colors ${
                 isDisabled
-                  ? "cursor-not-allowed border-slate-200/70 bg-slate-100/70 opacity-60 dark:border-slate-800 dark:bg-slate-900/60"
+                  ? "cursor-not-allowed text-slate-400 opacity-50 dark:text-slate-500"
                   : isChecked
-                    ? "border-primary/40 bg-primary/5"
-                    : "border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
+                    ? "bg-slate-900 font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80"
               }`}
             >
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 items-center gap-2">
                 <input
                   type="checkbox"
                   checked={isChecked}
                   disabled={isDisabled}
                   onChange={() => onToggle(option.id)}
-                  className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
+                  className="h-3.5 w-3.5 rounded border-slate-400 text-slate-900 focus:ring-slate-400"
                 />
-                <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
-                  {option.label}
-                </span>
+                <span className="truncate">{option.label}</span>
               </div>
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <span
+                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
+                  isChecked
+                    ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900"
+                    : "bg-slate-200/80 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                }`}
+              >
                 {option.count}
               </span>
             </label>
@@ -116,33 +115,30 @@ export function FeedFilterSidebar({
   onClearAll,
 }: FeedFilterSidebarProps) {
   return (
-    <Card className="overflow-hidden rounded-[16px] border border-slate-200/80 bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950 xl:flex xl:max-h-[calc(100vh-7rem)] xl:flex-col">
-      <div className="border-b border-slate-200/80 bg-[linear-gradient(180deg,rgba(15,23,42,0.04)_0%,rgba(255,255,255,0)_100%)] p-5 dark:border-slate-800 dark:bg-[linear-gradient(180deg,rgba(148,163,184,0.12)_0%,rgba(15,23,42,0)_100%)]">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-              <span className="material-symbols-outlined text-sm">tune</span>
-              Market Filters
-            </div>
-            
-          </div>
-
+    <Card className="overflow-hidden rounded-xl border border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-950 xl:flex xl:max-h-[calc(100vh-6rem)] xl:flex-col">
+      <div className="border-b border-slate-200/60 bg-slate-50/80 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+            Filters
+          </span>
           {activeFilterCount > 0 ? (
             <button
               type="button"
               onClick={onClearAll}
-              className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="rounded px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-slate-200/80 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
             >
-              Clear all
+              Clear
             </button>
           ) : null}
         </div>
+        <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+          {resultCount} {resultCount === 1 ? "result" : "results"}
+        </p>
       </div>
 
-      <div className="space-y-6 p-5 xl:min-h-0 xl:overflow-y-auto">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4 p-3 xl:min-h-0 xl:overflow-y-auto xl:p-4">
         <FilterSection
           title="Category"
-          subtitle=""
           options={categories}
           selectedValues={selectedCategories}
           onToggle={onToggleCategory}
@@ -150,7 +146,6 @@ export function FeedFilterSidebar({
 
         <FilterSection
           title="Status"
-          subtitle=""
           options={statuses}
           selectedValues={selectedStatuses}
           onToggle={onToggleStatus}
@@ -158,15 +153,13 @@ export function FeedFilterSidebar({
 
         <FilterSection
           title="Quantity"
-          subtitle=""
           options={quantityRanges}
           selectedValues={selectedQuantityRanges}
           onToggle={onToggleQuantityRange}
         />
 
         <FilterSection
-          title="Price (Opening bid)"
-          subtitle=""
+          title="Price"
           options={priceRanges}
           selectedValues={selectedPriceRanges}
           onToggle={onTogglePriceRange}
@@ -174,17 +167,10 @@ export function FeedFilterSidebar({
 
         <FilterSection
           title="Origin"
-          subtitle=""
           options={origins}
           selectedValues={selectedOrigins}
           onToggle={onToggleOrigin}
         />
-
-        <div className="rounded-md border border-dashed border-slate-300 bg-slate-50/70 p-4 text-xs leading-5 text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
-          Search in the top bar already matches title, product name, creator,
-          commodity details, and description. Use this sidebar to tighten the
-          live result set.
-        </div>
       </div>
     </Card>
   );

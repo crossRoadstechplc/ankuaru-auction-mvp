@@ -2,9 +2,11 @@
 
 import { useCloseAuctionMutation } from "@/src/features/auctions/queries/hooks";
 import { useAuctionBidsQuery } from "@/src/features/bids/queries/hooks";
+import { getBidTotal } from "@/lib/format";
 import { CloseAuctionResult } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 interface RevealBidsModalProps {
@@ -62,7 +64,7 @@ export function RevealBidsModal({
     router.push("/dashboard");
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const isSell = auction.auctionType === "SELL";
 
@@ -74,14 +76,8 @@ export function RevealBidsModal({
     return res;
   });
 
-  // Debug: Log the bids data
-  console.log("[RevealBidsModal Debug] Raw bids data:", bids);
-  console.log("[RevealBidsModal Debug] Sorted bids:", sortedBids);
-  console.log("[RevealBidsModal Debug] First bid structure:", sortedBids[0]);
-  console.log("[RevealBidsModal Debug] Total bids count:", bids.length);
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
       <div
         className="bg-white dark:bg-slate-900 rounded-xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
         style={{ animation: "slideUp 0.3s ease-out" }}
@@ -165,7 +161,7 @@ export function RevealBidsModal({
                       Winning Bid
                     </p>
                     <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                      ETB ${closeResult?.winningBid || "0"}
+                      ETB {closeResult?.winningBid || "0"}
                     </p>
                   </div>
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
@@ -219,7 +215,7 @@ export function RevealBidsModal({
                       Reserve Price:
                     </span>{" "}
                     <span className="font-medium text-slate-900 dark:text-white">
-                      ETB ${closeResult?.reservePrice || auction.reservePrice}
+                      ETB {closeResult?.reservePrice || auction.reservePrice}
                     </span>
                   </div>
                   <div>
@@ -281,7 +277,7 @@ export function RevealBidsModal({
                     Reserve Price
                   </p>
                   <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    ETB ${auction.reservePrice}
+                    ETB {auction.reservePrice}
                   </p>
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
@@ -289,7 +285,7 @@ export function RevealBidsModal({
                     Min Bid
                   </p>
                   <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    ETB ${auction.minBid}
+                    ETB {auction.minBid}
                   </p>
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
@@ -389,9 +385,17 @@ export function RevealBidsModal({
                                     : "text-slate-900 dark:text-white"
                                 }`}
                               >
-                                {bid.revealedAmount
-                                  ? `ETB ${bid.revealedAmount}`
-                                  : "Hidden"}
+                                {bid.revealedAmount ?? bid.amount ? (
+                                  bid.quantity &&
+                                  bid.amount &&
+                                  parseFloat(bid.quantity) > 1 ? (
+                                    `${bid.quantity} × ETB ${bid.amount} = ETB ${getBidTotal(bid).toLocaleString()}`
+                                  ) : (
+                                    `ETB ${bid.revealedAmount ?? bid.amount}`
+                                  )
+                                ) : (
+                                  "Hidden"
+                                )}
                               </span>
                             </td>
                             <td className="px-4 py-3">
@@ -472,6 +476,7 @@ export function RevealBidsModal({
           animation: fadeIn 0.2s ease-out;
         }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }

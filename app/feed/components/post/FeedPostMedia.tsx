@@ -15,15 +15,15 @@ interface FeedPostMediaProps {
 function getStatusTone(status: string): string {
   switch (status) {
     case "SCHEDULED":
-      return "bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300";
+      return "bg-sky-100/90 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300";
     case "OPEN":
-      return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300";
+      return "bg-emerald-100/90 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300";
     case "REVEAL":
-      return "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300";
+      return "bg-amber-100/90 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300";
     case "CLOSED":
-      return "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300";
+      return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
     default:
-      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+      return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
   }
 }
 
@@ -36,51 +36,46 @@ export function FeedPostMedia({
   const imageUrl = getImageWithFallback
     ? getImageWithFallback(image)
     : image || "/placeholder.svg";
-  const statusTone = getStatusTone(status);
   const isClosed = status === "CLOSED";
+  const statusLabel = status === "CLOSED" ? "Closed" : status || "";
+  const typeLabel = auctionType === "SELL" ? "Sell" : "Buy";
 
   return (
-    <div className="md:pt-1">
+    <div className="flex flex-col items-end gap-1.5 self-stretch">
+      <div className="flex shrink-0 flex-wrap justify-end gap-1">
+        {status ? (
+          <span
+            className={`rounded px-1.5 py-0.5 text-card-meta font-bold uppercase tracking-wider ${getStatusTone(status)}`}
+          >
+            {statusLabel}
+          </span>
+        ) : null}
+        {auctionType ? (
+          <span className="rounded bg-slate-200/80 px-1.5 py-0.5 text-card-meta font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+            {typeLabel}
+          </span>
+        ) : null}
+      </div>
+
       <Dialog>
         <DialogTrigger
           render={
-            <button className="group relative block h-48 w-full overflow-hidden rounded-[12px] border border-slate-200/80 bg-slate-100 text-left ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900 md:h-full md:min-h-[214px]" />
+            <button className="relative block min-h-[80px] w-full flex-1 overflow-hidden rounded-lg border border-slate-200/50 bg-slate-100/80 text-left ring-offset-background transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900/60 md:min-h-[100px] md:w-[88px]" />
           }
         >
           <div
             className={`absolute inset-0 bg-cover bg-center ${
               isClosed ? "grayscale-[0.18] saturate-[0.82]" : ""
             }`}
-            style={{
-              backgroundImage: `url("${imageUrl}")`,
-            }}
+            style={{ backgroundImage: `url("${imageUrl}")` }}
           />
-
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.08)_0%,rgba(15,23,42,0.02)_36%,rgba(15,23,42,0.7)_100%)]" />
-
-          <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-            <span
-              className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] backdrop-blur-sm ${statusTone}`}
-            >
-              {status === "CLOSED" ? "Closed / Expired" : status}
-            </span>
-            <span className="rounded-full bg-black/55 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white backdrop-blur-sm">
-              {auctionType === "SELL" ? "Sell Lot" : "Buy Request"}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent" />
+          <div className="absolute bottom-1 right-1">
+            <span className="flex items-center gap-0.5 rounded bg-black/60 px-1 py-0.5 text-[8px] font-medium text-white">
+              <span className="material-symbols-outlined text-[9px]">zoom_in</span>
+              {isClosed ? "Inspect" : "Expand"}
             </span>
           </div>
-
-          <div className="absolute bottom-3 right-3">
-            <div className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md">
-              <span className="material-symbols-outlined text-sm">
-                zoom_in
-              </span>
-              <span className="whitespace-nowrap">
-                {isClosed ? "Inspect" : "Expand"}
-              </span>
-            </div>
-          </div>
-
-          <div className="absolute inset-x-0 top-0 h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_38%)]" />
         </DialogTrigger>
 
         <DialogContent className="flex h-[85vh] w-[95vw] max-w-4xl items-center justify-center overflow-hidden rounded-xl border-border/20 bg-black/95 p-0">

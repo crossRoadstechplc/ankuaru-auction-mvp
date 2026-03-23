@@ -19,6 +19,8 @@ export {
   
   // Auctions
   createAuctionDataSchema,
+  editAuctionDataSchema,
+  submitBidDataSchema,
   auctionSchema,
   
   // Bids
@@ -47,6 +49,8 @@ export type {
   RegisterData,
   AuthResponse,
   CreateAuctionData,
+  EditAuctionData,
+  SubmitBidData,
   Auction,
   CommitBidData,
   RevealBidData,

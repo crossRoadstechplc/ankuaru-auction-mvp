@@ -1,5 +1,6 @@
 type BidDraft = {
   amount: string;
+  quantity?: string;
   nonce: string;
 };
 
@@ -72,7 +73,7 @@ export function loadBidDraftFromUiStorage(
 
 export function saveBidDraftToUiStorage(
   identity: BidPersistenceIdentity,
-  draft: BidDraft,
+  draft: Partial<BidDraft> & { amount: string; nonce: string },
 ): void {
   const key = buildStorageKey(BID_DRAFT_PREFIX, identity);
   writeValue(key, JSON.stringify(draft));

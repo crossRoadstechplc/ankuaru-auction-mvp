@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Auction } from "@/lib/types";
 import { FeedPostHeader } from "./FeedPostHeader";
 import { FeedPostBody } from "./FeedPostBody";
+import { FeedPostProperties } from "./FeedPostProperties";
 import { FeedPostMedia } from "./FeedPostMedia";
 import { FeedPostMeta } from "./FeedPostMeta";
 import { FeedPostActions } from "./FeedPostActions";
@@ -30,7 +31,7 @@ export function FeedPostCard({
   onOpenCreatorProfileImage,
 }: FeedPostCardProps) {
   return (
-    <Card className="mx-auto w-full overflow-hidden rounded-[18px] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-950">
+    <Card className="w-full overflow-hidden rounded-xl border border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-950">
       <FeedPostHeader
         creatorId={auction.createdBy}
         creator={auction.creator}
@@ -41,15 +42,18 @@ export function FeedPostCard({
         onOpenProfileImage={onOpenCreatorProfileImage}
       />
 
-      <div className="grid gap-5 px-4 pb-5 md:grid-cols-[minmax(0,1fr)_188px] md:px-5 md:pb-5">
-        <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-2 px-3 pb-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-stretch md:gap-3 md:px-3 md:pb-3">
+        <div className="min-w-0 space-y-1.5">
           <FeedPostBody
             title={auction.title}
-            category={auction.auctionCategory}
             productName={auction.productName}
             region={auction.region}
-            commodityType={auction.commodityType}
             grade={auction.grade}
+          />
+
+          <FeedPostProperties
+            category={auction.auctionCategory}
+            commodityType={auction.commodityType}
             process={auction.process}
             transaction={auction.transaction}
             commodityBrand={auction.commodityBrand}
@@ -64,8 +68,11 @@ export function FeedPostCard({
             reservePrice={auction.reservePrice}
             quantity={auction.quantity}
             quantityUnit={auction.quantityUnit}
+            priceTiers={auction.priceTiers}
             startAt={auction.startAt}
             endAt={auction.endAt}
+            bidCount={auction.bidCount}
+            createdAt={auction.createdAt}
           />
         </div>
 

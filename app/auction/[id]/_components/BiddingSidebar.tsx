@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { useBiddingState } from "../../../../hooks/useBiddingState";
 import { useCountdownTimer } from "../../../../hooks/useCountdownTimer";
 import { useAuthStore } from "../../../../stores/auth.store";
+import { BidComposer } from "@/src/components/domain/auction/detail/bid-composer";
+import { getBidTotal } from "@/lib/format";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
 import { RevealBidsModal } from "./RevealBidsModal";
@@ -87,6 +89,8 @@ export function BiddingSidebar({
   const {
     bidAmount,
     setBidAmount,
+    bidQuantity,
+    setBidQuantity,
     localBid,
     hasPlacedBid,
     setHasPlacedBid,
@@ -196,9 +200,13 @@ export function BiddingSidebar({
     [auctionBidRequests],
   );
 
-  const handleBidSubmit = async () => {
-    if (!bidAmount || parseFloat(bidAmount) <= 0) {
+  const handleBidSubmit = async (quantity: string, amount: string) => {
+    if (!amount || parseFloat(amount) <= 0) {
       toast.warning("Please enter a valid bid amount");
+      return;
+    }
+    if (!quantity || parseFloat(quantity) <= 0) {
+      toast.warning("Please enter a valid quantity");
       return;
     }
 
@@ -207,7 +215,6 @@ export function BiddingSidebar({
       return;
     }
 
-    // Check if user has already placed a bid (both server state and local state)
     if (myBid || hasPlacedBid) {
       toast.error(
         "You have already placed a bid on this auction. Only one bid per auction is allowed.",
@@ -220,15 +227,17 @@ export function BiddingSidebar({
 
       await placeBidMutation.mutateAsync({
         auctionId: data.id,
-        amount: bidAmount,
+        quantity,
+        amount,
       });
 
       toast.success("Bid submitted. Your bid stays hidden until the reveal phase.");
 
       const nonce = Math.random().toString(36).substring(2, 15);
-      saveBidLocally(bidAmount, nonce);
+      saveBidLocally(amount, nonce, quantity);
 
       setBidAmount("");
+      setBidQuantity("");
 
       await refetchMyBid();
     } catch (error) {
@@ -236,6 +245,20 @@ export function BiddingSidebar({
       toast.error(getErrorMessage(error, "Failed to submit bid."));
     }
   };
+
+  const minBidForDisplay =
+    data.priceTiers && data.priceTiers.length > 0
+      ? (() => {
+          const lowest = data.priceTiers!.reduce(
+            (min, t) => {
+              const p = parseFloat(t.pricePerUnit);
+              return Number.isFinite(p) ? Math.min(min, p) : min;
+            },
+            Number.POSITIVE_INFINITY,
+          );
+          return Number.isFinite(lowest) ? lowest.toString() : data.minBid;
+        })()
+      : data.minBid;
 
   const handleRequestBidAccess = async () => {
     if (!userId) {
@@ -720,13 +743,24 @@ export function BiddingSidebar({
                   <p className="text-[10px] text-blue-600 dark:text-blue-300 font-bold uppercase mb-1">
                     Your Submitted Bid
                   </p>
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-black text-blue-900 dark:text-white">
-                      {myBid.amount || localBid?.amount || "Submitted"}
-                    </p>
-                    <span className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">
-                      ETB
-                    </span>
+                  <div className="flex flex-col gap-0.5">
+                    {myBid.quantity &&
+                    parseFloat(myBid.quantity) > 1 &&
+                    (myBid.amount || localBid?.amount) ? (
+                      <>
+                        <p className="text-sm text-blue-700 dark:text-blue-200">
+                          {myBid.quantity} × ETB {myBid.amount || localBid?.amount}/unit
+                        </p>
+                        <p className="text-2xl font-black text-blue-900 dark:text-white">
+                          = ETB {getBidTotal(myBid).toLocaleString()}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-2xl font-black text-blue-900 dark:text-white">
+                        {myBid.amount || localBid?.amount || "Submitted"}{" "}
+                        <span className="text-xs font-bold uppercase">ETB</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -758,16 +792,31 @@ export function BiddingSidebar({
                     Bid Submitted Successfully
                   </p>
                 </div>
-                <div className="flex items-baseline gap-2 mt-3">
-                  <p className="text-3xl font-black text-emerald-900 dark:text-white">
-                    {myBid.revealedAmount ||
-                      myBid.amount ||
-                      localBid?.amount ||
-                      "Pending"}
-                  </p>
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-300 uppercase">
-                    ETB
-                  </span>
+                <div className="flex flex-col gap-0.5 mt-3">
+                  {myBid.quantity &&
+                  parseFloat(myBid.quantity) > 1 &&
+                  (myBid.amount || myBid.revealedAmount || localBid?.amount) ? (
+                    <>
+                      <p className="text-sm text-emerald-700 dark:text-emerald-200">
+                        {myBid.quantity} × ETB{" "}
+                        {myBid.revealedAmount ||
+                          myBid.amount ||
+                          localBid?.amount}
+                        /unit
+                      </p>
+                      <p className="text-3xl font-black text-emerald-900 dark:text-white">
+                        = ETB {getBidTotal(myBid).toLocaleString()}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-3xl font-black text-emerald-900 dark:text-white">
+                      {myBid.revealedAmount ||
+                        myBid.amount ||
+                        localBid?.amount ||
+                        "Pending"}{" "}
+                      <span className="text-xs font-bold uppercase">ETB</span>
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
@@ -805,60 +854,23 @@ export function BiddingSidebar({
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 font-display">
-                    {isSell ? "Your New Bid" : "Your New Bid"}
-                  </label>
-                  <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void handleBidSubmit();
-                    }}
-                  >
-                    <div className="relative">
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-400 font-bold ">
-                        ETB
-                      </span>
-                      <input
-                        className="ml-12 w-full pl-8 pr-4 py-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 focus:border-primary focus:ring-0 text-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        type="number"
-                        placeholder="Enter amount"
-                        value={bidAmount}
-                        onChange={(e) => setBidAmount(e.target.value)}
-                        disabled={
-                          placeBidMutation.isPending || !!myBid || hasPlacedBid
-                        }
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="w-full bg-primary hover:bg-primary-dark text-white py-5 rounded-xl font-black text-lg shadow-xl shadow-primary/30 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={
-                        placeBidMutation.isPending || !!myBid || hasPlacedBid
-                      }
-                    >
-                      {placeBidMutation.isPending ? (
-                        <>
-                          <span className="material-symbols-outlined animate-spin">
-                            refresh
-                          </span>
-                          Submitting...
-                        </>
-                      ) : myBid || hasPlacedBid ? (
-                        <>
-                          <span className="material-symbols-outlined">
-                            check_circle
-                          </span>
-                          Bid Already Placed
-                        </>
-                      ) : (
-                        <>{isSell ? "Submit Your Bid" : "Submit Your Bid"}</>
-                      )}
-                    </button>
-                  </form>
-                </div>
-              </div>
+              <BidComposer
+                auctionType={data.auctionType}
+                minBid={minBidForDisplay}
+                bidAmount={bidAmount}
+                onBidAmountChange={setBidAmount}
+                bidQuantity={bidQuantity}
+                onBidQuantityChange={setBidQuantity}
+                onSubmit={handleBidSubmit}
+                isSubmitting={placeBidMutation.isPending}
+                isDisabled={!!myBid || hasPlacedBid}
+                hasPlacedBid={!!myBid || hasPlacedBid}
+                existingBidAmount={myBid?.amount ?? localBid?.amount}
+                existingBidQuantity={myBid?.quantity}
+                priceTiers={data.priceTiers}
+                auctionQuantity={data.quantity}
+                quantityUnit={data.quantityUnit}
+              />
             </>
           )}
         </Card>

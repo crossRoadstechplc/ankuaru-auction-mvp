@@ -22,6 +22,10 @@ export type CreateAuctionMutationResultDto = {
   createAuction: unknown;
 };
 
+export type EditAuctionMutationResultDto = {
+  editAuction: unknown;
+};
+
 export type CloseAuctionMutationResultDto = {
   closeAuction: unknown;
 };

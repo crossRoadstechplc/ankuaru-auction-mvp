@@ -161,7 +161,7 @@ export function FeedAuctionGrid({
 
   return (
     <div className="w-full">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {auctions.map((auction, index) => (
           <div
             key={auction.id}
@@ -182,12 +182,12 @@ export function FeedAuctionGrid({
 
       {/* Load More */}
       {hasMore && (
-        <div className="flex justify-center pt-8 pb-4 w-full">
+        <div className="flex justify-center pt-6 pb-3 w-full">
           <Button
             variant="outline"
             onClick={onLoadMore}
             disabled={isLoading}
-            className="h-12 rounded-full border-border/60 px-8"
+            className="h-9 rounded-lg border-slate-200/80 px-5 text-sm dark:border-slate-700"
           >
             <span className="font-semibold">
               {isLoading ? "Loading..." : "Load more lots"}
@@ -201,11 +201,9 @@ export function FeedAuctionGrid({
 
       {/* End of Results */}
       {!hasMore && auctions.length > 0 && showEndMessage && (
-        <div className="flex justify-center pt-8 pb-4 w-full">
-          <div className="flex flex-col items-center gap-2 rounded-full border border-border/40 bg-muted/30 px-6 py-2 text-muted-foreground">
-            <span className="text-sm font-medium">
-              You&apos;ve reached the end of the current market board.
-            </span>
+        <div className="flex justify-center pt-6 pb-3 w-full">
+          <div className="rounded-lg border border-slate-200/60 bg-slate-50/80 px-4 py-2 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+            You&apos;ve reached the end of the market board.
           </div>
         </div>
       )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { getBidTotal } from "@/lib/format";
 import { Auction, Bid } from "../../../../lib/types";
 import { useMyBidQuery } from "@/src/features/bids/queries/hooks";
 import { useCountdownTimer } from "../../../../hooks/useCountdownTimer";
@@ -10,8 +12,14 @@ interface BidActivityProps {
   isCreator: boolean;
 }
 
-function formatBidAmount(amount?: string | null): string {
-  return amount ? `ETB ${amount}` : "Hidden";
+function formatBidDisplay(bid: Bid): string {
+  if (!bid.revealedAmount && !bid.amount) return "Hidden";
+  const qty = bid.quantity ? parseFloat(bid.quantity) : NaN;
+  const amt = bid.amount ? parseFloat(bid.amount) : NaN;
+  if (Number.isFinite(qty) && qty > 1 && Number.isFinite(amt)) {
+    return `${bid.quantity} × ETB ${bid.amount} = ETB ${getBidTotal(bid).toLocaleString()}`;
+  }
+  return `ETB ${bid.revealedAmount ?? bid.amount ?? "—"}`;
 }
 
 function getReserveStatus(
@@ -61,9 +69,10 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
       return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
     }
 
-    const leftAmount = parseFloat(left.revealedAmount || "0");
-    const rightAmount = parseFloat(right.revealedAmount || "0");
-    return isSell ? rightAmount - leftAmount : leftAmount - rightAmount;
+    const leftTotal = getBidTotal(left);
+    const rightTotal = getBidTotal(right);
+    const cmp = isSell ? rightTotal - leftTotal : leftTotal - rightTotal;
+    return cmp !== 0 ? cmp : new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
   });
 
   const bidCount = data.bidCount ?? 0;
@@ -77,42 +86,20 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
 
   const participantAnalysisContent = (
     <>
-      <div className="border-b border-slate-200/70 px-5 py-4 dark:border-slate-800 sm:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
-              <span className="material-symbols-outlined text-2xl text-slate-500 dark:text-slate-400">
-                shield_person
-              </span>
-            </div>
-            <div>
-              <h4 className="text-base font-black text-slate-900 dark:text-white">
-                Bid activity stays private
-              </h4>
-              <p className="mt-1 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Participant identities and bid details stay hidden until reveal.
-                You can only track the overall activity and your own bid state.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-5 sm:p-6">
-        <p className="mb-4 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
-          Analysis
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+      <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+        Participant identities and bid details stay hidden until reveal.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-[12px] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Bidders competing
             </p>
-            <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">
+            <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
               {bidCount}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+          <div className="rounded-[12px] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Reserve status
             </p>
             <p className="mt-2 text-lg font-bold tracking-tight">
@@ -131,16 +118,16 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
               )}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+          <div className="rounded-[12px] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Time remaining
             </p>
             <p className="mt-2 text-lg font-bold text-slate-900 dark:text-white">
               {timeLabel}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+          <div className="rounded-[12px] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Your bid
             </p>
             <p className="mt-2 text-lg font-bold">
@@ -157,8 +144,8 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
           </div>
         </div>
 
-        <div className="mt-5">
-          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+        <div className="mt-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Bid activity
           </p>
           <div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
@@ -173,44 +160,35 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
             {bidCount} {bidCount === 1 ? "bid" : "bids"} recorded
           </p>
         </div>
-      </div>
     </>
   );
 
   return (
-    <section className="overflow-hidden rounded-[18px] border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <CollapsibleSection
+      title="Bid activity"
+      icon="analytics"
+      defaultOpen={false}
+      badge={
+        isCreator ? (
+          <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+            Creator view
+          </span>
+        ) : null
+      }
+    >
       {isCreator ? (
         <>
-          <div className="border-b border-slate-200/70 bg-slate-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/30 sm:px-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="flex items-center gap-2 text-lg font-black text-slate-900 dark:text-white">
-                  <span className="material-symbols-outlined text-primary">
-                    analytics
-                  </span>
-                  Bid activity
-                </h3>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {bids.length} {bids.length === 1 ? "bid" : "bids"} recorded.
-                  {" "}
-                  {isRevealed
-                    ? isSell
-                      ? "Sorted by highest amount."
-                      : "Sorted by lowest amount."
-                    : "Sorted by latest submission."}
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/8 px-3 py-1.5 text-xs font-semibold text-primary">
-                <span className="material-symbols-outlined text-base">
-                  gavel
-                </span>
-                Creator view
-              </div>
-            </div>
-          </div>
+          <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+            {bids.length} {bids.length === 1 ? "bid" : "bids"} recorded.
+            {isRevealed
+              ? isSell
+                ? " Sorted by highest amount."
+                : " Sorted by lowest amount."
+              : " Sorted by latest submission."}
+          </p>
 
           {sortedBids.length === 0 ? (
-            <div className="px-6 py-14 text-center">
+            <div className="py-10 text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
                 <span className="material-symbols-outlined text-2xl text-slate-400">
                   person_off
@@ -224,14 +202,17 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left">
-                <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 dark:bg-slate-800/40">
+            <div className="overflow-x-auto -mx-1">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:bg-slate-800/40">
                   <tr>
-                    <th className="px-5 py-4 sm:px-6">Bidder</th>
-                    <th className="px-5 py-4 sm:px-6">Amount</th>
-                    <th className="px-5 py-4 sm:px-6">Status</th>
-                    <th className="px-5 py-4 text-right sm:px-6">Submitted</th>
+                    <th className="px-3 py-3">Bidder</th>
+                    <th className="px-3 py-3">Amount</th>
+                    {data.priceTiers && data.priceTiers.length > 0 ? (
+                      <th className="px-3 py-3">Qty</th>
+                    ) : null}
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3 text-right">Submitted</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800">
@@ -245,7 +226,7 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
                           isLeader ? "bg-amber-50/50 dark:bg-amber-900/10" : ""
                         }`}
                       >
-                        <td className="px-5 py-4 sm:px-6">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${isLeader ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"}`}>
                               <span className="material-symbols-outlined text-base">
@@ -266,14 +247,19 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4 sm:px-6">
+                        <td className="px-3 py-3">
                           <span className={`text-sm font-bold ${isLeader ? "text-amber-700 dark:text-amber-300" : "text-slate-900 dark:text-white"}`}>
                             {isRevealed
-                              ? formatBidAmount(bid.revealedAmount)
+                              ? formatBidDisplay(bid)
                               : "Hidden until reveal"}
                           </span>
                         </td>
-                        <td className="px-5 py-4 sm:px-6">
+                        {data.priceTiers && data.priceTiers.length > 0 ? (
+                          <td className="px-3 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            {bid.quantity ?? "—"}
+                          </td>
+                        ) : null}
+                        <td className="px-3 py-3">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${
                             isLeader
                               ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
@@ -286,7 +272,7 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
                               : "Submitted"}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-right text-xs text-slate-500 dark:text-slate-400 sm:px-6">
+                        <td className="px-3 py-3 text-right text-xs text-slate-500 dark:text-slate-400">
                           {new Date(bid.createdAt).toLocaleString()}
                         </td>
                       </tr>
@@ -300,6 +286,6 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
       ) : (
         participantAnalysisContent
       )}
-    </section>
+    </CollapsibleSection>
   );
 }

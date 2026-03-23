@@ -26,6 +26,7 @@ function mapBidDto(value: unknown): Bid {
     auctionId: toStringOr(dto.auctionId),
     bidderId: toStringOr(dto.bidderId),
     commitHash: toOptionalString(dto.commitHash),
+    quantity: toOptionalString(dto.quantity),
     amount: normalizedAmount,
     revealed:
       revealedFlag ??

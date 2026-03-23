@@ -212,18 +212,28 @@ CreateAuctionInput {
   itemDescription: String!
   reservePrice: String!
   minBid: String!
+  priceTiers: [PriceTierInput!]!
   auctionType: AuctionType!
   visibility: AuctionVisibility!
   startAt: DateTime!
   endAt: DateTime!
+  auctionImageUrl: Upload (multipart)
+  auctionImages: [Upload] (multipart, optional)
+}
+
+PriceTierInput {
+  minQty: String!
+  maxQty: String (null for unbounded)
+  pricePerUnit: String!
 }
 
 EditAuctionInput {
-  title: String
-  itemDescription: String
+  title, auctionCategory, productName, commodityType, grade
+  quantity, quantityUnit, priceTiers, itemDescription, auctionImageUrl
 }
 
 SubmitBidInput {
-  amount: String!
+  quantity: String!
+  amount: String!  // price per unit
 }
 */

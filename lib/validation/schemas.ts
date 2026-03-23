@@ -86,6 +86,15 @@ export const authResponseSchema = z.object({
 // Auction Schemas
 // ==========================================
 
+const priceTierSchema = z.object({
+  minQty: z.string().min(1, "Min quantity is required"),
+  maxQty: z.string().nullable(),
+  pricePerUnit: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, "Price per unit must be a valid number")
+    .refine((val) => parseFloat(val) > 0, "Price per unit must be greater than 0"),
+});
+
 /**
  * Auction creation and management schemas
  */
@@ -126,6 +135,10 @@ export const createAuctionDataSchema = z
     selectedUserIds: z
       .array(z.string().uuid("Invalid user ID format"))
       .optional(),
+    priceTiers: z
+      .array(priceTierSchema)
+      .min(1, "At least one price tier is required")
+      .optional(),
     startAt: z
       .string()
       .datetime("Invalid start date and time")
@@ -143,7 +156,48 @@ export const createAuctionDataSchema = z
   })
   .refine((data) => new Date(data.endAt) > new Date(data.startAt), {
     message: "End date must be after start date",
-  });
+  })
+  .refine(
+    (data) => {
+      const tiers = data.priceTiers;
+      if (!tiers || tiers.length === 0) return true;
+      for (let i = 0; i < tiers.length; i++) {
+        const t = tiers[i];
+        const min = parseFloat(t.minQty);
+        if (!Number.isFinite(min) || min < 0) return false;
+        if (t.maxQty != null) {
+          const max = parseFloat(t.maxQty);
+          if (!Number.isFinite(max) || max < min) return false;
+        }
+      }
+      return true;
+    },
+    { message: "Price tiers must have valid min/max quantities" },
+  );
+
+/**
+ * Edit auction schema (mirrors editable fields)
+ */
+export const editAuctionDataSchema = z.object({
+  title: z
+    .string()
+    .min(5, "Title must be at least 5 characters")
+    .max(200, "Title must be less than 200 characters")
+    .optional(),
+  auctionCategory: z
+    .string()
+    .min(1, "Category is required")
+    .max(50, "Category must be less than 50 characters")
+    .optional(),
+  itemDescription: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .max(2000, "Description must be less than 2000 characters")
+    .optional(),
+  quantity: z.string().optional(),
+  quantityUnit: z.string().max(20).optional(),
+  priceTiers: z.array(priceTierSchema).optional(),
+});
 
 export const auctionSchema = z.object({
   id: z.string().uuid("Invalid auction ID"),
@@ -363,6 +417,8 @@ export type LoginData = z.infer<typeof loginDataSchema>;
 export type RegisterData = z.infer<typeof registerDataSchema>;
 export type AuthResponse = z.infer<typeof authResponseSchema>;
 export type CreateAuctionData = z.infer<typeof createAuctionDataSchema>;
+export type EditAuctionData = z.infer<typeof editAuctionDataSchema>;
+export type SubmitBidData = z.infer<typeof submitBidDataSchema>;
 export type Auction = z.infer<typeof auctionSchema>;
 export type CommitBidData = z.infer<typeof commitBidDataSchema>;
 export type RevealBidData = z.infer<typeof revealBidDataSchema>;

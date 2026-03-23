@@ -8,8 +8,10 @@ import { LoadingState } from "@/src/components/ui/loading-state";
 import { UserAvatar } from "@/src/components/domain/user/user-avatar";
 import { useAuctionReportQuery } from "@/src/features/auctions/queries/hooks";
 import { AuctionReport } from "@/lib/types";
+import { getBidTotal, formatBidDisplayValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
+import { createPortal } from "react-dom";
 
 interface FinalReportModalProps {
   auction: {
@@ -64,15 +66,11 @@ function shortId(value?: string | null): string {
 
 function sortTopBids(report: AuctionReport): AuctionReport["topBids"] {
   return [...report.topBids].sort((left, right) => {
-    const leftAmount = Number(
-      (left.revealedAmount ?? "0").replace(/,/g, "").trim(),
-    );
-    const rightAmount = Number(
-      (right.revealedAmount ?? "0").replace(/,/g, "").trim(),
-    );
+    const rightTotal = getBidTotal(right);
+    const leftTotal = getBidTotal(left);
 
-    if (rightAmount !== leftAmount) {
-      return rightAmount - leftAmount;
+    if (rightTotal !== leftTotal) {
+      return rightTotal - leftTotal;
     }
 
     return (
@@ -157,14 +155,17 @@ export function FinalReportModal({
     winnerBid?.bidderUsername || shortId(reportAuction.winnerId) || "Winner";
   const winnerAmount =
     reportAuction.winningBid || winnerBid?.revealedAmount || auction.winningBid;
+  const winnerDisplay = winnerBid
+    ? formatBidDisplayValue(winnerBid)
+    : formatEtbValue(winnerAmount);
   const hasReportError = error instanceof Error;
 
-  if (!isOpen) {
+  if (!isOpen || typeof document === "undefined") {
     return null;
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-border/60 bg-gradient-to-r from-primary/8 via-background to-background px-6 py-5">
           <div className="min-w-0 space-y-2">
@@ -240,7 +241,7 @@ export function FinalReportModal({
                           Winning bid
                         </p>
                         <p className="mt-1 text-2xl font-black tracking-tight text-primary">
-                          {formatEtbValue(winnerAmount)}
+                          {winnerDisplay}
                         </p>
                       </div>
                       <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
@@ -405,8 +406,8 @@ export function FinalReportModal({
                             </div>
 
                             <div className="flex shrink-0 flex-col items-end gap-2">
-                              <p className="text-lg font-black tracking-tight text-foreground">
-                                {formatEtbValue(bid.revealedAmount)}
+                              <p className="text-right text-lg font-black tracking-tight text-foreground">
+                                {formatBidDisplayValue(bid)}
                               </p>
                               <Badge variant={statusVariant} className="px-2.5 py-1 text-[10px]">
                                 {statusLabel}
@@ -454,7 +455,7 @@ export function FinalReportModal({
                           Winning bid
                         </p>
                         <p className="mt-1 text-2xl font-black tracking-tight text-success">
-                          {formatEtbValue(winnerAmount)}
+                          {winnerDisplay}
                         </p>
                       </div>
                     </div>
@@ -480,6 +481,7 @@ export function FinalReportModal({
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -9,6 +9,7 @@ import { useUserInfoQuery } from "@/src/features/profile/queries/hooks";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { EditAuctionModal } from "./_components/EditAuctionModal";
 import { UserRating } from "../../../lib/types";
 import { useAuthStore } from "../../../stores/auth.store";
 import { AuctionDetailsCard } from "./_components/AuctionDetailsCard";
@@ -30,6 +31,7 @@ function AuctionDetailContent() {
       : document.visibilityState === "visible",
   );
   const [isAuctionIdCopied, setIsAuctionIdCopied] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -192,76 +194,79 @@ function AuctionDetailContent() {
       <Header />
 
       <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 py-6 lg:px-6">
-        <div className="mb-6 rounded-[18px] border border-slate-200/80 bg-white/92 p-5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/92 md:p-6">
-          <nav className="mb-5 flex items-center gap-2 text-sm font-medium">
-            <Link
-              className="text-slate-400 transition-colors hover:text-primary"
-              href="/feed"
-            >
-              Feed
-            </Link>
-            <span className="material-symbols-outlined text-xs text-slate-300">
-              chevron_right
-            </span>
-            <span className="truncate text-slate-900 dark:text-white">
-              {auction.title}
-            </span>
-          </nav>
-
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
+        <div className="mb-4 rounded-[14px] border border-slate-200/80 bg-white/92 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/92 md:px-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <nav className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <Link
+                  className="transition-colors hover:text-primary"
+                  href="/feed"
+                >
+                  Feed
+                </Link>
+                <span className="material-symbols-outlined text-[10px]">
+                  chevron_right
+                </span>
+                <span className="truncate">{auction.title}</span>
+              </nav>
               <div className="flex flex-wrap items-center gap-2">
                 {isOwner ? (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-primary">
-                    <span className="material-symbols-outlined text-sm">
-                      admin_panel_settings
+                  <>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                      <span className="material-symbols-outlined text-xs">
+                        admin_panel_settings
+                      </span>
+                      Creator
                     </span>
-                    Creator
-                  </div>
+                    {auction.status === "SCHEDULED" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowEditModal(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                      >
+                        <span className="material-symbols-outlined text-sm">
+                          edit
+                        </span>
+                        Edit
+                      </button>
+                    )}
+                  </>
                 ) : null}
-                <div
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] ${
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
                     isSell
                       ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                       : "bg-sky-500/10 text-sky-700 dark:text-sky-300"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm">
+                  <span className="material-symbols-outlined text-xs">
                     {isSell ? "sell" : "shopping_cart"}
                   </span>
-                  {isSell ? "Sell auction" : "Buy request"}
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  <span className="material-symbols-outlined text-sm">
-                    flag
-                  </span>
+                  {isSell ? "Sell" : "Buy"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                   {auction.status}
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white md:text-3xl">
-                  {auction.title}
-                </h1>
+                </span>
                 <button
                   type="button"
                   onClick={handleCopyAuctionId}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
-                  <span className="material-symbols-outlined text-base">
+                  <span className="material-symbols-outlined text-sm">
                     {isAuctionIdCopied ? "check_circle" : "content_copy"}
                   </span>
-                  {isAuctionIdCopied
-                    ? "Copied"
-                    : `Auction ID: ${auction.id.slice(0, 10)}...`}
+                  {isAuctionIdCopied ? "Copied" : `${auction.id.slice(0, 8)}...`}
                 </button>
               </div>
+              <h1 className="mt-2 truncate text-lg font-bold tracking-tight text-slate-900 dark:text-white sm:text-xl">
+                {auction.title}
+              </h1>
             </div>
-
             <Link
               href="/feed"
-              className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              <span className="material-symbols-outlined text-base">
+              <span className="material-symbols-outlined text-sm">
                 arrow_back
               </span>
               Back to feed
@@ -298,6 +303,16 @@ function AuctionDetailContent() {
           </div>
         </div>
       </main>
+
+      {showEditModal && auction && (
+        <EditAuctionModal
+          auction={auction}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={async () => {
+            await refetchAuction();
+          }}
+        />
+      )}
 
       <Footer />
     </PageShell>

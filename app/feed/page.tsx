@@ -5,7 +5,8 @@ import Header from "@/components/layout/Header";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageSection } from "@/components/layout/page-section";
 import { PageShell } from "@/components/layout/page-shell";
-import { Auction } from "@/lib/types";
+import { getLowestTierPrice } from "@/lib/format";
+import type { Auction } from "@/lib/types";
 import { useAuctionsQuery } from "@/src/features/auctions/queries/hooks";
 import {
   useMyFollowingQuery,
@@ -25,10 +26,11 @@ import PublicUserProfileModal from "../profile/components/PublicUserProfileModal
 import ProfileImageModal from "../profile/components/ProfileImageModal";
 
 const DISPLAY_PAGE_SIZE = 6;
-const STATUS_SORT_ORDER = ["SCHEDULED", "OPEN", "REVEAL", "CLOSED"] as const;
+const CLOSED_HIDE_AFTER_DAYS = 10;
+const STATUS_SORT_ORDER = ["OPEN", "SCHEDULED", "REVEAL", "CLOSED"] as const;
 const STATUS_SORT_PRIORITY: Record<(typeof STATUS_SORT_ORDER)[number], number> = {
-  SCHEDULED: 0,
-  OPEN: 1,
+  OPEN: 0,
+  SCHEDULED: 1,
   REVEAL: 2,
   CLOSED: 3,
 };
@@ -89,8 +91,8 @@ function parseMinBidValue(minBid?: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function getPriceRangeId(minBid?: string): PriceRangeId | null {
-  const value = parseMinBidValue(minBid);
+function getPriceRangeId(priceValue?: string): PriceRangeId | null {
+  const value = parseMinBidValue(priceValue);
 
   if (value === null) {
     return null;
@@ -109,6 +111,12 @@ function getPriceRangeId(minBid?: string): PriceRangeId | null {
   }
 
   return "1000-plus";
+}
+
+/** Price for filter: lowest tier when priceTiers exist, else minBid */
+function getAuctionPriceForFilter(auction: Auction): string | undefined {
+  const tierPrice = getLowestTierPrice(auction.priceTiers);
+  return tierPrice ?? auction.minBid;
 }
 
 function buildFilterOptions(
@@ -131,24 +139,9 @@ function sortAuctionsForBoard(left: Auction, right: Auction): number {
     return leftPriority - rightPriority;
   }
 
-  const leftTime =
-    left.status === "CLOSED"
-      ? new Date(left.endAt || left.createdAt || 0).getTime()
-      : new Date(left.endAt || left.createdAt || 0).getTime();
-  const rightTime =
-    right.status === "CLOSED"
-      ? new Date(right.endAt || right.createdAt || 0).getTime()
-      : new Date(right.endAt || right.createdAt || 0).getTime();
-
-  if (left.status === "CLOSED" && right.status === "CLOSED") {
-    return rightTime - leftTime;
-  }
-
-  if (leftTime !== rightTime) {
-    return leftTime - rightTime;
-  }
-
-  return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+  return (
+    new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime()
+  );
 }
 
 function toggleSelection(current: string[], nextValue: string): string[] {
@@ -223,6 +216,15 @@ export default function FeedPage() {
 
     return [...(auctions as Auction[])]
       .filter((auction) => {
+        if (auction.status === "CLOSED") {
+          const closedAt = auction.endAt || auction.createdAt || "";
+          const closedTime = new Date(closedAt).getTime();
+          const cutoffTime = Date.now() - CLOSED_HIDE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+          if (closedTime < cutoffTime) {
+            return false;
+          }
+        }
+
         if (!normalizedSearch) {
           return true;
         }
@@ -309,7 +311,7 @@ export default function FeedPage() {
     const counts = new Map<string, number>();
 
     searchMatchingAuctions.forEach((auction) => {
-      const priceRange = getPriceRangeId(auction.minBid);
+      const priceRange = getPriceRangeId(getAuctionPriceForFilter(auction));
 
       if (!priceRange) {
         return;
@@ -345,7 +347,7 @@ export default function FeedPage() {
       .filter((auction) => {
         const categoryLabel = auction.auctionCategory?.trim() || "Uncategorized";
         const quantityRange = getQuantityRangeId(auction.quantity);
-        const priceRange = getPriceRangeId(auction.minBid);
+        const priceRange = getPriceRangeId(getAuctionPriceForFilter(auction));
         const originLabel = (auction.region || "").trim() || "Unspecified";
 
         if (
@@ -442,8 +444,8 @@ export default function FeedPage() {
     <PageShell>
       <Header />
       <PageContainer className="max-w-[1480px]">
-        <PageSection className="gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
-          <div className="space-y-6">
+        <PageSection className="gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(280px,30%)] xl:items-start xl:gap-6">
+          <div className="min-w-0 space-y-4">
             <FeedComposerBar
               searchTerm={searchTerm}
               displayName={myProfile?.fullName}

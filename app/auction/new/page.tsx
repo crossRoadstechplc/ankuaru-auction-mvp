@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   AuctionSelectOption,
   CreateAuctionData,
+  PriceTier,
   User,
 } from "../../../lib/types";
 import { useAuthStore } from "../../../stores/auth.store";
@@ -56,8 +57,7 @@ const FIELD_SECTION_MAP: Record<FormFieldName, FormSection> = {
   quantity: "details",
   quantityUnit: "details",
   itemDescription: "commercial",
-  reservePrice: "commercial",
-  minBid: "commercial",
+  priceTiers: "commercial",
   auctionType: "details",
   visibility: "access",
   auctionImageUrl: "details",
@@ -177,8 +177,7 @@ const INITIAL_AUCTION_FORM_DATA: CreateAuctionData = (() => {
     quantity: "",
     quantityUnit: "",
     itemDescription: "",
-    reservePrice: "",
-    minBid: "",
+    priceTiers: [{ minQty: "1", maxQty: null, pricePerUnit: "" }],
     auctionType: "SELL",
     visibility: "PUBLIC",
     auctionImageUrl: null,
@@ -270,6 +269,9 @@ export default function PostAuctionPage() {
     (!!formData.auctionCategory || categoryOptions.length === 0);
   const selectedAuctionImage =
     formData.auctionImageUrl instanceof File ? formData.auctionImageUrl : null;
+  const selectedAuctionImages = (formData.auctionImages ?? []).filter(
+    (v): v is File => typeof File !== "undefined" && v instanceof File,
+  );
   const filteredFollowers = useMemo(() => {
     const query = selectedBidderSearch.trim().toLowerCase();
 
@@ -366,8 +368,7 @@ export default function PostAuctionPage() {
       quantity: '[name="quantity"]',
       quantityUnit: '[name="quantityUnit"]',
       itemDescription: '[name="itemDescription"]',
-      reservePrice: '[name="reservePrice"]',
-      minBid: '[name="minBid"]',
+      priceTiers: '[data-field-anchor="priceTiers"]',
       auctionType: '[data-field-anchor="auctionType"]',
       visibility: '[data-field-anchor="selectedVisibility"]',
       auctionImageUrl: '[name="auctionImageUrl"]',
@@ -499,11 +500,12 @@ export default function PostAuctionPage() {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextFile = e.target.files?.[0] ?? null;
+    const files = e.target.files ? Array.from(e.target.files) : [];
 
     setFormData((prev) => ({
       ...prev,
-      auctionImageUrl: nextFile,
+      auctionImageUrl: files[0] ?? null,
+      auctionImages: files.length > 0 ? files : undefined,
     }));
 
     clearFieldErrors("auctionImageUrl");
@@ -511,6 +513,47 @@ export default function PostAuctionPage() {
     if (error) {
       setError(null);
     }
+  };
+
+  const updatePriceTier = (
+    index: number,
+    field: keyof PriceTier,
+    value: string | null,
+  ) => {
+    setFormData((prev) => {
+      const next = [...(prev.priceTiers ?? [])];
+      if (!next[index]) return prev;
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, priceTiers: next };
+    });
+    if (error) setError(null);
+  };
+
+  const addPriceTier = () => {
+    setFormData((prev) => {
+      const existing = prev.priceTiers ?? [];
+      const last = existing[existing.length - 1];
+      const nextMin =
+        last?.maxQty && last.maxQty.trim()
+          ? String(parseInt(last.maxQty, 10) + 1)
+          : "1";
+      return {
+        ...prev,
+        priceTiers: [
+          ...existing,
+          { minQty: nextMin, maxQty: null, pricePerUnit: "" },
+        ],
+      };
+    });
+    if (error) setError(null);
+  };
+
+  const removePriceTier = (index: number) => {
+    setFormData((prev) => {
+      const next = (prev.priceTiers ?? []).filter((_, i) => i !== index);
+      return { ...prev, priceTiers: next.length > 0 ? next : [{ minQty: "1", maxQty: null, pricePerUnit: "" }] };
+    });
+    if (error) setError(null);
   };
 
   const toggleSelectedUser = (user: User) => {
@@ -596,7 +639,7 @@ export default function PostAuctionPage() {
 
     const requiredFieldChecks: Array<{
       field: FormFieldName;
-      value: string | null | undefined;
+      value: string | null | undefined | PriceTier[];
       message: string;
     }> = [
       {
@@ -625,14 +668,9 @@ export default function PostAuctionPage() {
         message: "Enter the description.",
       },
       {
-        field: "reservePrice",
-        value: formData.reservePrice,
-        message: "Enter the reserve price.",
-      },
-      {
-        field: "minBid",
-        value: formData.minBid,
-        message: "Enter the initial bid.",
+        field: "priceTiers",
+        value: formData.priceTiers,
+        message: "Add at least one price tier.",
       },
       {
         field: "startAt",
@@ -646,9 +684,13 @@ export default function PostAuctionPage() {
       },
     ];
 
-    const missingRequiredField = requiredFieldChecks.find(
-      ({ value }) => !value?.trim(),
-    );
+    const missingRequiredField = requiredFieldChecks.find(({ field, value }) => {
+      if (field === "priceTiers") {
+        const tiers = value as PriceTier[] | undefined;
+        return !tiers?.length || tiers.every((t) => !t.pricePerUnit?.trim());
+      }
+      return typeof value === "string" ? !value?.trim() : !value;
+    });
 
     if (missingRequiredField) {
       showFieldError(
@@ -683,25 +725,41 @@ export default function PostAuctionPage() {
       }
     }
 
-    const reservePrice = Number(formData.reservePrice);
-    const minBid = Number(formData.minBid);
+    const tiers = formData.priceTiers ?? [];
+    const auctionQty = formData.quantity?.trim()
+      ? parseFloat(formData.quantity)
+      : null;
 
-    if (!Number.isFinite(reservePrice) || reservePrice <= 0) {
-      showFieldError("reservePrice", "Reserve price must be greater than zero.");
+    if (tiers.length === 0) {
+      showFieldError("priceTiers", "Add at least one price tier.");
       return;
     }
-
-    if (!Number.isFinite(minBid) || minBid <= 0) {
-      showFieldError("minBid", "Initial bid must be greater than zero.");
-      return;
-    }
-
-    if (reservePrice < minBid) {
-      showFieldError(
-        "reservePrice",
-        "Reserve price must be greater than or equal to the initial bid.",
-      );
-      return;
+    for (let i = 0; i < tiers.length; i++) {
+      const t = tiers[i];
+      const minQ = Number(t.minQty);
+      const maxQ = t.maxQty?.trim() ? Number(t.maxQty) : null;
+      const price = Number(t.pricePerUnit);
+      if (!Number.isFinite(minQ) || minQ < 1) {
+        showFieldError("priceTiers", `Tier ${i + 1}: Min quantity must be ≥ 1.`);
+        return;
+      }
+      if (maxQ !== null) {
+        if (!Number.isFinite(maxQ) || maxQ < minQ) {
+          showFieldError("priceTiers", `Tier ${i + 1}: Max quantity must be ≥ min.`);
+          return;
+        }
+        if (auctionQty !== null && Number.isFinite(auctionQty) && maxQ > auctionQty) {
+          showFieldError(
+            "priceTiers",
+            `Tier ${i + 1}: Max (${maxQ}) exceeds total quantity (${auctionQty}).`,
+          );
+          return;
+        }
+      }
+      if (!Number.isFinite(price) || price <= 0) {
+        showFieldError("priceTiers", `Tier ${i + 1}: Price per unit must be > 0.`);
+        return;
+      }
     }
 
     const startAt = new Date(formData.startAt);
@@ -737,7 +795,22 @@ export default function PostAuctionPage() {
     try {
       setError(null);
 
-      // Prepare auction data based on active tab
+      // Derive minBid and reservePrice from lowest price tier (backend may require them)
+      const lowestPrice =
+        tiers.length > 0
+          ? tiers.reduce(
+              (min, t) => {
+                const p = parseFloat(t.pricePerUnit);
+                return Number.isFinite(p) && p > 0 && (min === 0 || p < min)
+                  ? p
+                  : min;
+              },
+              0 as number,
+            )
+          : 0;
+      const derivedMinBid = lowestPrice > 0 ? String(lowestPrice) : "0";
+      const derivedReservePrice = derivedMinBid;
+
       const baseAuctionData: CreateAuctionData = {
         title: formData.title,
         auctionCategory: formData.auctionCategory,
@@ -753,13 +826,15 @@ export default function PostAuctionPage() {
         quantity: formData.quantity,
         quantityUnit: formData.quantityUnit || undefined,
         itemDescription: formData.itemDescription,
-        reservePrice: formData.reservePrice,
-        minBid: formData.minBid,
+        reservePrice: derivedReservePrice,
+        minBid: derivedMinBid,
+        priceTiers: formData.priceTiers,
         auctionType: activeTab.toUpperCase() as "SELL" | "BUY",
         visibility: selectedVisibility,
         selectedUserIds:
           selectedVisibility === "SELECTED" ? selectedUserIds : undefined,
         auctionImageUrl: formData.auctionImageUrl || undefined,
+        auctionImages: formData.auctionImages,
         startAt: effectiveStartAt.toISOString(),
         endAt: endAt.toISOString(),
       };
@@ -1325,7 +1400,7 @@ export default function PostAuctionPage() {
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          Quantity
+                          Total quantity available
                           <span className="text-red-500 ml-1">*</span>
                         </label>
                         <input
@@ -1337,9 +1412,12 @@ export default function PostAuctionPage() {
                           value={formData.quantity ?? ""}
                           onChange={handleChange}
                           required
-                          min="0"
+                          min="1"
                           aria-invalid={Boolean(fieldErrors.quantity)}
                         />
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Total amount you are selling. Used as the upper limit for price tiers in Commercial Terms.
+                        </p>
                         {renderFieldError("quantity")}
                       </div>
 
@@ -1348,13 +1426,14 @@ export default function PostAuctionPage() {
                           <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                             Product Image
                           </label>
-                          {selectedAuctionImage && (
+                          {(selectedAuctionImage || selectedAuctionImages.length > 0) && (
                             <button
                               type="button"
                               onClick={() =>
                                 setFormData((prev) => ({
                                   ...prev,
                                   auctionImageUrl: null,
+                                  auctionImages: undefined,
                                 }))
                               }
                               className="text-xs font-semibold text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
@@ -1370,34 +1449,35 @@ export default function PostAuctionPage() {
                           </span>
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                              {selectedAuctionImage
-                                ? "Change product image"
-                                : "Upload a product image"}
+                              {selectedAuctionImages.length > 0
+                                ? "Change product images"
+                                : "Upload product images"}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              PNG, JPG, and WEBP are supported.
+                              PNG, JPG, and WEBP. Multiple images supported.
                             </p>
                           </div>
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                            {selectedAuctionImage
+                            {selectedAuctionImages.length > 0
                               ? "Choose another file"
-                              : "Choose file"}
+                              : "Choose files"}
                           </span>
                           <input
                             accept="image/*"
                             className="sr-only"
                             disabled={isSubmitting}
-                            key={selectedAuctionImage?.name ?? "empty"}
+                            key={selectedAuctionImages.map((f) => f.name).join(",") || "empty"}
                             name="auctionImageUrl"
                             onChange={handleImageChange}
                             type="file"
+                            multiple
                           />
                         </label>
 
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {selectedAuctionImage
-                            ? `Selected image: ${selectedAuctionImage.name}`
-                            : "Optional. The selected image will be sent when the auction is created."}
+                          {selectedAuctionImages.length > 0
+                            ? `Selected: ${selectedAuctionImages.length} image(s)${selectedAuctionImages.length > 1 ? " — " + selectedAuctionImages.map((f) => f.name).join(", ") : " — " + selectedAuctionImages[0]?.name}`
+                            : "Optional. Images will be sent when the auction is created."}
                         </p>
                       </div>
 
@@ -1434,30 +1514,132 @@ export default function PostAuctionPage() {
                       <div>
                         <h2 className="text-lg font-bold">Commercial Terms</h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                          Set pricing and timing.
+                          Set price tiers, description, and timing.
                         </p>
                       </div>
                     </div>
 
+                    {formData.quantity?.trim() ? (
+                      <div className="mb-5 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/30 dark:bg-primary/10">
+                        <span className="material-symbols-outlined text-primary text-lg">
+                          inventory
+                        </span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                          Total available: {formData.quantity}
+                          {formData.quantityUnit ? ` ${formData.quantityUnit}` : ""}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          — Tier max quantities should not exceed this
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mb-5 flex items-center gap-2 rounded-lg border border-amber-200/80 bg-amber-50/80 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-900/20">
+                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg">
+                          info
+                        </span>
+                        <span className="text-sm text-slate-700 dark:text-slate-200">
+                          Set <strong>Total quantity available</strong> in Product Details first — it defines the cap for your price tiers.
+                        </span>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          Reserve Price
-                          <span className="text-red-500 ml-1">*</span>
-                        </label>
-                        <input
-                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                          placeholder="e.g. 1000"
-                          type="number"
-                          id="reservePrice"
-                          name="reservePrice"
-                          value={formData.reservePrice}
-                          onChange={handleChange}
-                          required
-                          min="0"
-                          aria-invalid={Boolean(fieldErrors.reservePrice)}
-                        />
-                        {renderFieldError("reservePrice")}
+                      <div
+                        className="md:col-span-2"
+                        data-field-anchor="priceTiers"
+                      >
+                        <div className="mb-3 flex items-center justify-between">
+                          <div>
+                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                              Price tiers (quantity ranges + price per unit)
+                              <span className="text-red-500 ml-1">*</span>
+                            </label>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                              Define ranges: bidders choose quantity and pay that tier&apos;s price per unit. Last tier: leave Max empty for &quot;rest&quot;.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={addPriceTier}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            Add tier
+                          </button>
+                        </div>
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                          <div className="grid grid-cols-[minmax(70px,1fr)_minmax(70px,1fr)_minmax(100px,1.5fr)_auto] gap-2 border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400 sm:grid-cols-[80px_100px_1fr_40px]">
+                            <span>Min qty</span>
+                            <span>Max qty</span>
+                            <span>Price per unit (ETB)</span>
+                            <span className="w-8" />
+                          </div>
+                          {(formData.priceTiers ?? []).map((tier, index) => (
+                            <div
+                              key={index}
+                              className="grid grid-cols-[minmax(70px,1fr)_minmax(70px,1fr)_minmax(100px,1.5fr)_auto] gap-2 border-b border-slate-100 px-3 py-2 last:border-b-0 dark:border-slate-800 sm:grid-cols-[80px_100px_1fr_40px]"
+                            >
+                              <input
+                                className="rounded border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950"
+                                placeholder="1"
+                                type="number"
+                                min="1"
+                                value={tier.minQty}
+                                onChange={(e) =>
+                                  updatePriceTier(index, "minQty", e.target.value)
+                                }
+                                aria-label={`Tier ${index + 1} min quantity`}
+                              />
+                              <input
+                                className="rounded border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950"
+                                placeholder={index === (formData.priceTiers ?? []).length - 1 ? "Rest" : "e.g. 50"}
+                                type="number"
+                                min="0"
+                                max={
+                                  formData.quantity?.trim() &&
+                                  Number.isFinite(parseFloat(formData.quantity))
+                                    ? parseFloat(formData.quantity)
+                                    : undefined
+                                }
+                                value={tier.maxQty ?? ""}
+                                onChange={(e) =>
+                                  updatePriceTier(
+                                    index,
+                                    "maxQty",
+                                    e.target.value.trim() || null,
+                                  )
+                                }
+                                aria-label={`Tier ${index + 1} max quantity (empty = rest, max ${formData.quantity ?? "—"})`}
+                              />
+                              <input
+                                className="rounded border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium dark:border-slate-700 dark:bg-slate-950"
+                                placeholder="e.g. 5.00"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={tier.pricePerUnit}
+                                onChange={(e) =>
+                                  updatePriceTier(index, "pricePerUnit", e.target.value)
+                                }
+                                aria-label={`Tier ${index + 1} price per unit`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removePriceTier(index)}
+                                disabled={(formData.priceTiers ?? []).length <= 1}
+                                className="flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-950/50"
+                                aria-label="Remove tier"
+                              >
+                                <span className="material-symbols-outlined text-base">
+                                  close
+                                </span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-450">
+                          Example: Min 1, Max 50, 5.00 ETB = buyers of 1–50 units pay 5 ETB/unit. Min 51, Max empty, 4.50 ETB = buyers of 51+ pay 4.50 ETB/unit.
+                        </p>
                       </div>
 
                       <div className="md:col-span-2 flex flex-col gap-1.5">
@@ -1477,25 +1659,6 @@ export default function PostAuctionPage() {
                           aria-invalid={Boolean(fieldErrors.itemDescription)}
                         />
                         {renderFieldError("itemDescription")}
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          Initial Bid
-                          <span className="text-red-500 ml-1">*</span>
-                        </label>
-                        <input
-                          className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
-                          placeholder="e.g. 100"
-                          type="number"
-                          id="minBid"
-                          name="minBid"
-                          value={formData.minBid}
-                          onChange={handleChange}
-                          required
-                          aria-invalid={Boolean(fieldErrors.minBid)}
-                        />
-                        {renderFieldError("minBid")}
                       </div>
 
                       <div className="flex flex-col gap-1.5">
@@ -1538,9 +1701,50 @@ export default function PostAuctionPage() {
                 )}
 
                 {activeFormSection === "access" && bidAccessCard}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveFormSection(
+                        activeFormSection === "commercial"
+                          ? "details"
+                          : activeFormSection === "access"
+                            ? "commercial"
+                            : "details",
+                      )
+                    }
+                    disabled={activeFormSection === "details"}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400 dark:hover:bg-slate-800"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      chevron_left
+                    </span>
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveFormSection(
+                        activeFormSection === "details"
+                          ? "commercial"
+                          : activeFormSection === "commercial"
+                            ? "access"
+                            : "access",
+                      )
+                    }
+                    disabled={activeFormSection === "access"}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400 dark:hover:bg-slate-800"
+                  >
+                    Next
+                    <span className="material-symbols-outlined text-base">
+                      chevron_right
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-5 xl:sticky xl:top-24">
+              <div className="space-y-5 sticky top-20 self-start">
                 <div className="rounded-[16px] border border-slate-900/5 bg-slate-950 p-5 text-white shadow-[0_24px_80px_-52px_rgba(15,23,42,0.8)] dark:border-slate-800 dark:bg-slate-950">
                   <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-300/90">
                     <span className="material-symbols-outlined text-base">
@@ -1576,12 +1780,30 @@ export default function PostAuctionPage() {
                             : "Selected bidders"}
                       </span>
                     </div>
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
                       <span className="text-white/60">Quantity</span>
                       <span className="text-right font-semibold">
                         {[formData.quantity, formData.quantityUnit]
                           .filter(Boolean)
                           .join(" ") || "Not set"}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-4">
+                      <span className="text-white/60">Price tiers</span>
+                      <span className="text-right font-semibold">
+                        {(() => {
+                          const tiers = (formData.priceTiers ?? []).filter(
+                            (t) => t.pricePerUnit?.trim(),
+                          );
+                          if (tiers.length === 0) return "Not set";
+                          const lowest = tiers.reduce((min, t) => {
+                            const p = parseFloat(t.pricePerUnit);
+                            return Number.isFinite(p) && p > 0 && (min === 0 || p < min)
+                              ? p
+                              : min;
+                          }, 0 as number);
+                          return lowest > 0 ? `From ETB ${lowest}/unit` : "Not set";
+                        })()}
                       </span>
                     </div>
                   </div>

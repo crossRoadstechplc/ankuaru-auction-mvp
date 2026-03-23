@@ -118,11 +118,13 @@ export function usePlaceBidMutation() {
   return useMutation({
     mutationFn: ({
       auctionId,
+      quantity,
       amount,
     }: {
       auctionId: string;
+      quantity: string;
       amount: string;
-    }) => bidsApi.placeBid(auctionId, amount),
+    }) => bidsApi.placeBid(auctionId, quantity, amount),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: auctionsQueryKeys.detail(variables.auctionId),

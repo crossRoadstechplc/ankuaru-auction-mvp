@@ -5,6 +5,7 @@ import {
   AuctionFormOptionsParams,
   AuctionReport,
   CreateAuctionData,
+  EditAuctionData,
 } from "@/lib/types";
 import { auctionsApi } from "@/src/features/auctions/api/auctions.api";
 import { auctionsQueryKeys } from "@/src/features/auctions/queries/queryKeys";
@@ -165,6 +166,33 @@ export function useCreateAuctionMutation() {
         queryKey: auctionsQueryKeys.list(),
         type: "all",
       });
+    },
+  });
+}
+
+export function useEditAuctionMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: EditAuctionData;
+    }) => auctionsApi.editAuction(id, input),
+    onSuccess: (auction) => {
+      queryClient.setQueryData(
+        auctionsQueryKeys.detail(auction.id),
+        auction,
+      );
+      queryClient.invalidateQueries({
+        queryKey: auctionsQueryKeys.detail(auction.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: auctionsQueryKeys.byUser(auction.createdBy),
+      });
+      queryClient.invalidateQueries({ queryKey: auctionsQueryKeys.list() });
     },
   });
 }

@@ -10,6 +10,7 @@ import { useAuthStore } from "../stores/auth.store";
 
 interface BidData {
   amount: string;
+  quantity?: string;
   nonce: string;
 }
 
@@ -18,6 +19,7 @@ export function useBiddingState(auctionId: string) {
   const { data: myBid, refetch: refetchMyBid } = useMyBidQuery(auctionId);
 
   const [bidAmount, setBidAmount] = useState("");
+  const [bidQuantity, setBidQuantity] = useState("");
   const [bidDraftOverrides, setBidDraftOverrides] = useState<
     Record<string, BidData>
   >({});
@@ -29,7 +31,7 @@ export function useBiddingState(auctionId: string) {
 
   // Helper to save bid details
   const saveBidLocally = useCallback(
-    (amount: string, nonce: string) => {
+    (amount: string, nonce: string, quantity?: string) => {
       if (!userId) return;
 
       saveBidDraftToUiStorage(
@@ -37,11 +39,11 @@ export function useBiddingState(auctionId: string) {
           auctionId,
           userId,
         },
-        { amount, nonce },
+        { amount, nonce, quantity },
       );
       setBidDraftOverrides((previous) => ({
         ...previous,
-        [identityKey]: { amount, nonce },
+        [identityKey]: { amount, nonce, quantity },
       }));
     },
     [auctionId, identityKey, userId],
@@ -107,6 +109,8 @@ export function useBiddingState(auctionId: string) {
   return {
     bidAmount,
     setBidAmount,
+    bidQuantity,
+    setBidQuantity,
     localBid,
     hasPlacedBid,
     setHasPlacedBid,

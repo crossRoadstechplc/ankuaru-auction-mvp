@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/src/components/ui/empty-state";
 import { LoadingState } from "@/src/components/ui/loading-state";
 import type { Auction, User, UserProfileDetails } from "@/lib/types";
+import { resolveAuctionDisplayPrice } from "@/lib/format";
 import { getImageWithFallback } from "@/lib/imageUtils";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ interface InstagramProfileLayoutProps {
   onTabChange: (tab: ProfileTab) => void;
   actions?: ReactNode;
   compact?: boolean;
+  followersHref?: string;
+  followingHref?: string;
 }
 
 function formatCount(value: number) {
@@ -33,12 +36,9 @@ function formatCount(value: number) {
   return value.toLocaleString();
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+
+function formatPrice(value: number): string {
+  return `ETB ${value.toLocaleString()}`;
 }
 
 function formatJoinDate(value?: string) {
@@ -70,6 +70,8 @@ export default function InstagramProfileLayout({
   onTabChange,
   actions,
   compact = false,
+  followersHref,
+  followingHref,
 }: InstagramProfileLayoutProps) {
   const displayName = profile.fullName || profile.username || "Marketplace User";
   const avatarUrl = profile.avatar || profile.profileImageUrl;
@@ -79,10 +81,34 @@ export default function InstagramProfileLayout({
     "followingCount" in profile ? profile.followingCount : 0;
   const bio = profile.bio?.trim();
 
+  const StatLink = ({
+    value,
+    label,
+    href,
+  }: {
+    value: number | string;
+    label: string;
+    href?: string;
+  }) => {
+    const content = (
+      <>
+        <strong className="mr-1 font-semibold">{formatCount(Number(value))}</strong>
+        {label}
+      </>
+    );
+    if (href) {
+      return (
+        <Link href={href} className="transition-colors hover:text-primary hover:underline">
+          {content}
+        </Link>
+      );
+    }
+    return <span>{content}</span>;
+  };
+
   return (
-    <div className="overflow-hidden rounded-[32px] border border-border/70 bg-card text-card-foreground shadow-[0_24px_80px_rgba(0,0,0,0.14)]">
-      <div className="relative overflow-hidden border-b border-border/70">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.14),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(34,197,94,0.12),_transparent_32%),linear-gradient(180deg,rgba(61,127,93,0.06),rgba(255,255,255,0))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(34,197,94,0.18),_transparent_32%),linear-gradient(180deg,rgba(15,23,42,0.15),rgba(11,15,20,0))]" />
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white text-card-foreground shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="relative overflow-hidden border-b border-slate-200/60 dark:border-slate-800">
         <div
           className={cn(
             "relative mx-auto max-w-5xl",
@@ -126,20 +152,18 @@ export default function InstagramProfileLayout({
                     <strong className="mr-1 font-semibold">
                       {formatCount(auctions.length)}
                     </strong>
-                    posts
+                    auctions
                   </span>
-                  <span>
-                    <strong className="mr-1 font-semibold">
-                      {formatCount(followersCount)}
-                    </strong>
-                    followers
-                  </span>
-                  <span>
-                    <strong className="mr-1 font-semibold">
-                      {formatCount(followingCount)}
-                    </strong>
-                    following
-                  </span>
+                  <StatLink
+                    value={followersCount}
+                    label="followers"
+                    href={followersHref}
+                  />
+                  <StatLink
+                    value={followingCount}
+                    label="following"
+                    href={followingHref}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -167,22 +191,14 @@ export default function InstagramProfileLayout({
       </div>
 
       <div className="mx-auto w-full max-w-5xl">
-        <div className="flex items-center justify-center border-b border-border/70">
-          <button
-            type="button"
-            onClick={() => onTabChange("posts")}
-            className={cn(
-              "flex min-w-[160px] items-center justify-center gap-2 border-t-2 px-4 py-4 text-xs font-semibold uppercase tracking-[0.24em]",
-              activeTab === "posts"
-                ? "border-foreground text-foreground dark:border-white dark:text-white"
-                : "border-transparent text-muted-foreground",
-            )}
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              grid_on
+        <div className="flex items-center justify-between border-b border-slate-200/60 px-5 py-4 dark:border-slate-800">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+            Posted Auctions
+            <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
+              ({auctions.length} {auctions.length === 1 ? "item" : "items"})
             </span>
-            <span>Posted Auctions</span>
-          </button>
+          </h2>
+          <span className="material-symbols-outlined text-slate-400">grid_on</span>
         </div>
 
         <div className="p-1.5 sm:p-2">
@@ -198,7 +214,7 @@ export default function InstagramProfileLayout({
               )}
             >
               {auctions.map((auction) => {
-                const price = resolveAuctionValue(auction);
+                const price = resolveAuctionDisplayPrice(auction);
 
                 return (
                   <Link
@@ -227,7 +243,7 @@ export default function InstagramProfileLayout({
                           {auction.auctionCategory || "Auction"}
                         </span>
                         <span className="whitespace-nowrap font-semibold text-white">
-                          {formatCurrency(price)}
+                          {formatPrice(price)}
                         </span>
                       </div>
                     </div>
