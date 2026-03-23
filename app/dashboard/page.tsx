@@ -330,12 +330,12 @@ export default function DashboardPage() {
               ) : (
                 <div>
                   {myBids.slice(0, 5).map((bid) => {
-                    const auc = bid.auction;
+                    const auc = bid.auction as typeof bid.auction & { currentBid?: string; minBid?: string };
                     const isRevealed = bid.revealedAmount !== null;
                     const displayAmount =
                       isRevealed && bid.revealedAmount
                         ? bid.revealedAmount
-                        : auc.currentBid || auc.minBid;
+                        : auc.currentBid || auc.minBid || "—";
 
                     return (
                       <Link

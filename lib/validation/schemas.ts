@@ -240,6 +240,20 @@ export const auctionSchema = z.object({
 // ==========================================
 
 /**
+ * Submit bid input (quantity and amount)
+ */
+export const submitBidDataSchema = z.object({
+  quantity: z
+    .string()
+    .min(1, "Quantity is required")
+    .refine((val) => /^\d+(\.\d+)?$/.test(val) && parseFloat(val) > 0, "Quantity must be greater than 0"),
+  amount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine((val) => /^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) > 0, "Amount must be greater than 0"),
+});
+
+/**
  * Bid submission and management schemas
  */
 export const commitBidDataSchema = z.object({
