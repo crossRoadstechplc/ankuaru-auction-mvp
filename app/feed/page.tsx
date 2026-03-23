@@ -153,6 +153,7 @@ function toggleSelection(current: string[], nextValue: string): string[] {
 export default function FeedPage() {
   const router = useRouter();
   const [displayLimit, setDisplayLimit] = useState(DISPLAY_PAGE_SIZE);
+  const [isFilterSidebarVisible, setIsFilterSidebarVisible] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedQuantityRanges, setSelectedQuantityRanges] = useState<string[]>(
@@ -444,7 +445,7 @@ export default function FeedPage() {
     <PageShell>
       <Header />
       <PageContainer className="max-w-[1480px]">
-        <PageSection className="gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(280px,30%)] xl:items-start xl:gap-6">
+        <PageSection className={`gap-4 xl:grid xl:items-start xl:gap-6 ${isFilterSidebarVisible ? "xl:grid-cols-[minmax(0,1fr)_minmax(280px,30%)]" : "xl:grid-cols-[minmax(0,1fr)_auto]"}`}>
           <div className="min-w-0 space-y-4">
             <FeedComposerBar
               searchTerm={searchTerm}
@@ -475,11 +476,13 @@ export default function FeedPage() {
             />
           </div>
 
+          {isFilterSidebarVisible ? (
           <aside className="xl:sticky xl:top-24">
             <FeedFilterSidebar
               totalCount={searchMatchingAuctions.length}
               resultCount={filteredAndSortedAuctions.length}
               activeFilterCount={activeFilterCount}
+              onCollapse={() => setIsFilterSidebarVisible(false)}
               categories={categoryOptions}
               statuses={statusOptions}
               quantityRanges={quantityRangeOptions}
@@ -530,6 +533,18 @@ export default function FeedPage() {
               }}
             />
           </aside>
+          ) : (
+          <aside className="xl:sticky xl:top-24 hidden xl:block">
+            <button
+              type="button"
+              onClick={() => setIsFilterSidebarVisible(true)}
+              className="flex h-12 w-10 items-center justify-center rounded-l-xl border border-r-0 border-slate-200/60 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+              aria-label="Show filters"
+            >
+              <span className="material-symbols-outlined text-xl">chevron_left</span>
+            </button>
+          </aside>
+          )}
         </PageSection>
       </PageContainer>
       <PublicUserProfileModal

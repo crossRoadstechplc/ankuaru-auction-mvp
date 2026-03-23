@@ -1,10 +1,8 @@
 "use client";
 
 import { PageContainer } from "@/components/layout/page-container";
-import { PageHeader } from "@/components/layout/page-header";
-import { PageSection } from "@/components/layout/page-section";
 import { PageShell } from "@/components/layout/page-shell";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { useAuthStore } from "@/stores/auth.store";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -30,27 +28,18 @@ export default function UserProfilePage() {
 
   return (
     <PageShell>
-      <PageContainer className="space-y-8 py-8 md:py-10">
-        <PageHeader
-          title="Trader Profile"
-          description="Detailed marketplace activity, followers, and posted lots."
-          actions={
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => router.push("/feed")}
-            >
-              <span className="material-symbols-outlined text-sm">
-                arrow_back
-              </span>
-              Back to Feed
-            </Button>
-          }
-        />
+      <PageContainer className="py-0">
+        <Link
+          href="/feed"
+          className="inline-flex items-center gap-1.5 px-4 pt-6 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white sm:px-6"
+        >
+          <span className="material-symbols-outlined text-base">arrow_back</span>
+          Back to Feed
+        </Link>
 
-        <PageSection>
+        <div className="mt-4 px-4 sm:px-6 pb-8">
           <PublicUserProfileView userId={userId} variant="page" />
-        </PageSection>
+        </div>
       </PageContainer>
     </PageShell>
   );

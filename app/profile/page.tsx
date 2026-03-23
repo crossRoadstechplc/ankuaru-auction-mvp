@@ -19,10 +19,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAuthStore } from "../../stores/auth.store";
 import EditProfileModal from "./components/EditProfileModal";
-import InstagramProfileLayout from "./components/InstagramProfileLayout";
+import { ProfileHeader } from "./components/ProfileHeader";
+import { ProfileTabs, type ProfileTab } from "./components/ProfileTabs";
+import { ProfileContent } from "./components/ProfileContent";
 
 export default function ProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("auctions");
   const { isAuthenticated } = useAuthStore();
 
   const { data: profile, isLoading: profileLoading } = useMyProfileQuery();
@@ -36,6 +39,18 @@ export default function ProfilePage() {
 
   const updateProfileMutation = useUpdateMyProfileMutation();
   const removeProfileImageMutation = useRemoveMyProfileImageMutation();
+
+  const pendingRequestsCount = followRequests.filter(
+    (r) => String(r.status || "").toUpperCase() === "PENDING",
+  ).length;
+
+  const tabs = [
+    { id: "auctions" as const, label: "Auctions", count: myAuctions.length },
+    { id: "followers" as const, label: "Followers", count: followers.length },
+    { id: "following" as const, label: "Following", count: following.length },
+    { id: "requests" as const, label: "Requests", count: pendingRequestsCount },
+    { id: "blocked" as const, label: "Blocked", count: blockedUsers.length },
+  ];
 
   if (!isAuthenticated) {
     return (
@@ -67,76 +82,71 @@ export default function ProfilePage() {
     return null;
   }
 
+  const profileWithRating = {
+    ...profile,
+    rating: ratingSummary?.user?.averageRating
+      ? parseFloat(ratingSummary.user.averageRating)
+      : profile.rating,
+  };
+
   return (
     <PageShell>
-      <PageContainer className="space-y-6 py-6 md:py-8">
+      <PageContainer className="py-0">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          className="inline-flex items-center gap-1.5 px-4 pt-6 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white sm:px-6"
         >
           <span className="material-symbols-outlined text-base">arrow_back</span>
           Back to home
         </Link>
 
-        <InstagramProfileLayout
-          profile={{
-            ...profile,
-            followersCount: followers.length,
-            followingCount: following.length,
-            rating: ratingSummary?.user?.averageRating
-              ? parseFloat(ratingSummary.user.averageRating)
-              : profile.rating,
-          }}
-          auctions={myAuctions}
-          isLoadingAuctions={myAuctionsLoading}
-          activeTab="posts"
-          onTabChange={() => {}}
-          actions={
-            <div className="flex flex-wrap justify-center gap-2 sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(true)}
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                <span className="material-symbols-outlined text-base">edit</span>
-                Edit Profile
-              </button>
-              <Link
-                href="/profile/settings"
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                <span className="material-symbols-outlined text-base">settings</span>
-                Settings
-              </Link>
-              <Link
-                href="/profile/requests"
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                <span className="material-symbols-outlined text-base">group_add</span>
-                Requests
-                {followRequests.length > 0 && (
-                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
-                    {followRequests.length}
-                  </span>
-                )}
-              </Link>
-              <Link
-                href="/profile/blocked"
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                <span className="material-symbols-outlined text-base">block</span>
-                Blocked
-                {blockedUsers.length > 0 && (
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                    {blockedUsers.length}
-                  </span>
-                )}
-              </Link>
-            </div>
-          }
-          followersHref="/profile/followers"
-          followingHref="/profile/following"
-        />
+        <div className="mt-4 px-4 pb-8 sm:px-6">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <ProfileHeader
+            profile={profileWithRating}
+            auctionsCount={myAuctions.length}
+            followersCount={followers.length}
+            followingCount={following.length}
+            actions={
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <span className="material-symbols-outlined text-base">edit</span>
+                  Edit
+                </button>
+                <Link
+                  href="/profile/settings"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <span className="material-symbols-outlined text-base">settings</span>
+                  Settings
+                </Link>
+              </>
+            }
+          />
+
+          <ProfileTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={tabs}
+          />
+
+          <div className="min-h-[240px]">
+            <ProfileContent
+              activeTab={activeTab}
+              auctions={myAuctions}
+              isLoadingAuctions={myAuctionsLoading}
+              followers={followers}
+              following={following}
+              followRequests={followRequests}
+              blockedUsers={blockedUsers}
+            />
+          </div>
+        </div>
+        </div>
       </PageContainer>
 
       {isEditModalOpen && (

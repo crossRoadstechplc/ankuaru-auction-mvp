@@ -1,11 +1,6 @@
 "use client";
 
-import { PanelCard } from "@/components/layout/panel-card";
 import { Button } from "@/components/ui/button";
-import {
-  FollowersList,
-  FollowingList,
-} from "@/src/components/domain/follow/follow-lists";
 import { EmptyState } from "@/src/components/ui/empty-state";
 import { LoadingState } from "@/src/components/ui/loading-state";
 import { useUserAuctionsQuery } from "@/src/features/auctions/queries/hooks";
@@ -18,9 +13,11 @@ import {
 } from "@/src/features/profile/queries/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import InstagramProfileLayout from "./InstagramProfileLayout";
+import { ProfileHeader } from "./ProfileHeader";
+import { ProfileTabs } from "./ProfileTabs";
+import { PublicProfileContent, type PublicProfileTab } from "./PublicProfileContent";
 
 interface PublicUserProfileViewProps {
   userId: string;
@@ -34,9 +31,10 @@ export default function PublicUserProfileView({
   const router = useRouter();
   const authUserId = useAuthStore((state) => state.userId);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const [activeGridTab, setActiveGridTab] = useState<"posts">("posts");
+  const [activeTab, setActiveTab] = useState<PublicProfileTab>("auctions");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [optimisticRequestedId, setOptimisticRequestedId] = useState<string | null>(null);
+
   const { data: profile, isLoading, error } = useUserProfileDetailsQuery(
     userId,
     !!userId,
@@ -49,30 +47,25 @@ export default function PublicUserProfileView({
   const unfollowUserMutation = useUnfollowUserMutation();
 
   const isOwner = !!authUserId && authUserId === userId;
+
   const followingIds = useMemo(
-    () => following.map((user) => user.id),
+    () => following.map((u) => u.id),
     [following],
   );
   const requestedIds = useMemo(() => {
     if (!authUserId) return [];
-    return sentFollowRequests
-      .filter(
-        (request) =>
-          String(request.status || "").toUpperCase() === "PENDING",
-      )
-      .map((request) => {
-        const requestedUserId =
-          request.requester?.id === authUserId
-            ? request.target?.id
-            : request.target?.id || request.requester?.id;
-        return requestedUserId;
-      })
-      .filter((requestUserId): requestUserId is string => !!requestUserId);
+    const ids: string[] = [];
+    for (const req of sentFollowRequests) {
+      if (String(req.status || "").toUpperCase() !== "PENDING") continue;
+      const targetId =
+        req.requester?.id === authUserId ? req.target?.id : req.requester?.id;
+      if (targetId) ids.push(targetId);
+    }
+    return ids;
   }, [sentFollowRequests, authUserId]);
+
   const isFollowing = followingIds.includes(userId);
   const isRequested = requestedIds.includes(userId);
-  const effectiveIsRequested =
-    isRequested || (optimisticRequestedId === userId && !isFollowing);
   const effectiveRequestedIds = useMemo(
     () =>
       optimisticRequestedId && !requestedIds.includes(optimisticRequestedId)
@@ -80,48 +73,29 @@ export default function PublicUserProfileView({
         : requestedIds,
     [requestedIds, optimisticRequestedId],
   );
-  const postedLotsCount = auctions.length;
-
-  useEffect(() => {
-    if (isRequested || isFollowing) {
-      setOptimisticRequestedId(null);
-    }
-  }, [isRequested, isFollowing]);
 
   const handleFollowToggle = async (
     targetUserId: string,
     shouldUnfollow = false,
   ) => {
-    if (!targetUserId || actionLoadingId === targetUserId) {
-      return;
-    }
-
+    if (!targetUserId || actionLoadingId === targetUserId) return;
     if (!isAuthenticated) {
       router.push("/login");
       return;
     }
-
     try {
       setActionLoadingId(targetUserId);
-
       if (shouldUnfollow) {
         await unfollowUserMutation.mutateAsync(targetUserId);
       } else {
         await followUserMutation.mutateAsync(targetUserId);
-        setOptimisticRequestedId(targetUserId);
+        if (targetUserId === userId) setOptimisticRequestedId(targetUserId);
       }
-    } catch (actionError) {
-      console.error("Profile follow action failed:", actionError);
+    } catch {
       toast.error("Failed to update follow status. Please try again.");
     } finally {
-      setActionLoadingId((current) =>
-        current === targetUserId ? null : current,
-      );
+      setActionLoadingId((prev) => (prev === targetUserId ? null : prev));
     }
-  };
-
-  const handleOpenFullProfile = () => {
-    router.push(isOwner ? "/profile" : `/profile/${userId}`);
   };
 
   if (isLoading) {
@@ -157,168 +131,86 @@ export default function PublicUserProfileView({
     );
   }
 
-  const actions = (
-    <div className="flex flex-wrap justify-center gap-2 sm:justify-end">
-      {!isOwner ? (
-        isFollowing ? (
-          <>
-            <span className="inline-flex items-center rounded-xl border border-border/70 bg-card px-3 py-2 text-sm font-semibold text-foreground">
-              <span className="material-symbols-outlined mr-1 text-sm">
-                check
-              </span>
-              Following
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={actionLoadingId === userId}
-              onClick={() => void handleFollowToggle(userId, true)}
-              className="gap-1.5"
-            >
-              <span className="material-symbols-outlined text-sm">
-                person_remove
-              </span>
-              {actionLoadingId === userId ? "..." : "Unfollow"}
-            </Button>
-          </>
-        ) : effectiveIsRequested ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            className="gap-1.5"
-          >
-            <span className="material-symbols-outlined text-sm">schedule</span>
-            Requested
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            disabled={actionLoadingId === userId}
-            onClick={() => void handleFollowToggle(userId)}
-            className="gap-1.5"
-          >
-            <span className="material-symbols-outlined text-sm">person_add</span>
-            {actionLoadingId === userId ? "Following..." : "Follow"}
-          </Button>
-        )
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => router.push("/profile")}
-          className="gap-1.5"
-        >
-          <span className="material-symbols-outlined text-sm">account_circle</span>
-          My Profile
-        </Button>
-      )}
+  const tabs = [
+    { id: "auctions" as const, label: "Auctions", count: auctions.length },
+    { id: "followers" as const, label: "Followers", count: profile.followersCount },
+    { id: "following" as const, label: "Following", count: profile.followingCount },
+  ];
 
-      {variant === "modal" ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleOpenFullProfile}
-          className="gap-1.5"
-        >
-          <span className="material-symbols-outlined text-sm">open_in_new</span>
-          Open Page
-        </Button>
-      ) : null}
-    </div>
+  const headerActions = isOwner ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => router.push("/profile")}
+      className="gap-1.5"
+    >
+      <span className="material-symbols-outlined text-base">account_circle</span>
+      My Profile
+    </Button>
+  ) : isFollowing ? (
+    <>
+      <span className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+        <span className="material-symbols-outlined mr-1 text-sm">check</span>
+        Following
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={actionLoadingId === userId}
+        onClick={() => void handleFollowToggle(userId, true)}
+        className="h-9 gap-1.5"
+      >
+        <span className="material-symbols-outlined text-sm">person_remove</span>
+        {actionLoadingId === userId ? "..." : "Unfollow"}
+      </Button>
+    </>
+  ) : isRequested || optimisticRequestedId === userId ? (
+    <Button variant="outline" size="sm" disabled className="h-9 gap-1.5">
+      <span className="material-symbols-outlined text-sm">schedule</span>
+      Requested
+    </Button>
+  ) : (
+    <Button
+      size="sm"
+      disabled={actionLoadingId === userId}
+      onClick={() => void handleFollowToggle(userId)}
+      className="h-9 gap-1.5"
+    >
+      <span className="material-symbols-outlined text-sm">person_add</span>
+      {actionLoadingId === userId ? "..." : "Follow"}
+    </Button>
   );
 
   return (
-    <div className="space-y-6">
-      <InstagramProfileLayout
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <ProfileHeader
         profile={profile}
-        auctions={auctions}
-        isLoadingAuctions={isLoadingAuctions}
-        activeTab={activeGridTab}
-        onTabChange={setActiveGridTab}
-        actions={actions}
-        compact={variant === "modal"}
+        auctionsCount={auctions.length}
+        followersCount={profile.followersCount}
+        followingCount={profile.followingCount}
+        actions={headerActions}
       />
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <PanelCard
-          title="Followers"
-          description="Users who follow this profile."
-          bodyClassName="p-0"
-        >
-          <div className="p-6">
-            <FollowersList
-              followers={profile.followers.map((user) => ({
-                userId: user.id,
-                username: user.username,
-                displayName: user.fullName,
-                avatarUrl: user.avatar || user.profileImageUrl,
-              }))}
-              followingIds={followingIds}
-              requestedIds={effectiveRequestedIds}
-              loadingIds={actionLoadingId ? [actionLoadingId] : []}
-              onFollow={(targetUserId) => void handleFollowToggle(targetUserId)}
-              onUnfollow={(targetUserId) =>
-                void handleFollowToggle(targetUserId, true)
-              }
-            />
-          </div>
-        </PanelCard>
+      <ProfileTabs<PublicProfileTab>
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        tabs={tabs}
+      />
 
-        <PanelCard
-          title="Following"
-          description="Accounts this user currently follows."
-          bodyClassName="p-0"
-        >
-          <div className="p-6">
-            <FollowingList
-              following={profile.following.map((user) => ({
-                userId: user.id,
-                username: user.username,
-                displayName: user.fullName,
-                avatarUrl: user.avatar || user.profileImageUrl,
-              }))}
-              loadingIds={actionLoadingId ? [actionLoadingId] : []}
-              onUnfollow={(targetUserId) =>
-                void handleFollowToggle(targetUserId, true)
-              }
-            />
-          </div>
-        </PanelCard>
+      <div className="min-h-[240px]">
+        <PublicProfileContent
+          activeTab={activeTab}
+          auctions={auctions}
+          isLoadingAuctions={isLoadingAuctions}
+          followers={profile.followers}
+          following={profile.following}
+          followingIds={followingIds}
+          requestedIds={effectiveRequestedIds}
+          loadingIds={actionLoadingId ? [actionLoadingId] : []}
+          onFollow={(id) => void handleFollowToggle(id)}
+          onUnfollow={(id) => void handleFollowToggle(id, true)}
+        />
       </div>
-
-      <PanelCard
-        title="Marketplace Snapshot"
-        description="Quick trust and activity metrics."
-        bodyClassName="space-y-3"
-      >
-        <div className="grid gap-3 text-sm sm:grid-cols-4">
-          <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-            <p className="text-muted-foreground">Lots posted</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">
-              {postedLotsCount}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-            <p className="text-muted-foreground">Followers</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">
-              {profile.followersCount}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-            <p className="text-muted-foreground">Following</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">
-              {profile.followingCount}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-            <p className="text-muted-foreground">Reviews</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">
-              {profile.ratingsCount}
-            </p>
-          </div>
-        </div>
-      </PanelCard>
     </div>
   );
 }

@@ -13,6 +13,7 @@ interface FeedFilterSidebarProps {
   totalCount: number;
   resultCount: number;
   activeFilterCount: number;
+  onCollapse?: () => void;
   categories: FeedFilterOption[];
   statuses: FeedFilterOption[];
   quantityRanges: FeedFilterOption[];
@@ -97,6 +98,7 @@ export function FeedFilterSidebar({
   totalCount,
   resultCount,
   activeFilterCount,
+  onCollapse,
   categories,
   statuses,
   quantityRanges,
@@ -121,6 +123,17 @@ export function FeedFilterSidebar({
           <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Filters
           </span>
+          <div className="flex items-center gap-1">
+          {onCollapse ? (
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-200/80 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              aria-label="Hide filters"
+            >
+              <span className="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+          ) : null}
           {activeFilterCount > 0 ? (
             <button
               type="button"
@@ -130,6 +143,7 @@ export function FeedFilterSidebar({
               Clear
             </button>
           ) : null}
+          </div>
         </div>
         <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
           {resultCount} {resultCount === 1 ? "result" : "results"}
