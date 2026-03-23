@@ -14,6 +14,9 @@ interface BidData {
   nonce: string;
 }
 
+/** Local draft bid from overrides or persistence - has amount for display */
+export type LocalBid = { amount: string; quantity?: string; nonce: string } | null;
+
 export function useBiddingState(auctionId: string) {
   const userId = useAuthStore((state) => state.userId);
   const { data: myBid, refetch: refetchMyBid } = useMyBidQuery(auctionId);
@@ -65,7 +68,7 @@ export function useBiddingState(auctionId: string) {
     return loadBidLocally();
   }, [loadBidLocally]);
 
-  const localBid = identityKey
+  const localBid: LocalBid = identityKey
     ? (bidDraftOverrides[identityKey] ?? persistedLocalBid)
     : null;
 
