@@ -12,7 +12,7 @@ import {
 } from "@/src/features/bids/queries/hooks";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useBiddingState } from "../../../../hooks/useBiddingState";
+import { useBiddingState, type LocalBid } from "../../../../hooks/useBiddingState";
 import { useCountdownTimer } from "../../../../hooks/useCountdownTimer";
 import { useAuthStore } from "../../../../stores/auth.store";
 import { BidComposer } from "@/src/components/domain/auction/detail/bid-composer";
@@ -245,6 +245,9 @@ export function BiddingSidebar({
       toast.error(getErrorMessage(error, "Failed to submit bid."));
     }
   };
+
+  const existingBidAmount = (myBid?.amount ?? (localBid as LocalBid)?.amount) as string | undefined;
+  const existingBidQuantity = (myBid?.quantity ?? (localBid as LocalBid)?.quantity) as string | undefined;
 
   const minBidForDisplay =
     data.priceTiers && data.priceTiers.length > 0
@@ -865,8 +868,8 @@ export function BiddingSidebar({
                 isSubmitting={placeBidMutation.isPending}
                 isDisabled={!!myBid || hasPlacedBid}
                 hasPlacedBid={!!myBid || hasPlacedBid}
-                existingBidAmount={myBid?.amount ?? localBid?.amount}
-                existingBidQuantity={myBid?.quantity}
+                existingBidAmount={existingBidAmount}
+                existingBidQuantity={existingBidQuantity}
                 priceTiers={data.priceTiers}
                 auctionQuantity={data.quantity}
                 quantityUnit={data.quantityUnit}
