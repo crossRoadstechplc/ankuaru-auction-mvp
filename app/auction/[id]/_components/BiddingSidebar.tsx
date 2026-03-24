@@ -15,7 +15,11 @@ import { toast } from "sonner";
 import { useBiddingState, type LocalBid } from "../../../../hooks/useBiddingState";
 import { useCountdownTimer } from "../../../../hooks/useCountdownTimer";
 import { useAuthStore } from "../../../../stores/auth.store";
-import { BidComposer } from "@/src/components/domain/auction/detail/bid-composer";
+import {
+  BidComposer,
+  bidTotalMeetsStartingMinimum,
+  getTierForQuantity,
+} from "@/src/components/domain/auction/detail/bid-composer";
 import { getBidTotal } from "@/lib/format";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
@@ -28,6 +32,11 @@ interface BiddingSidebarProps {
   data: Auction;
   isCreator: boolean;
   onAuctionUpdate?: () => void;
+}
+
+function parseMoney(value: string): number {
+  const n = parseFloat(String(value).replace(/,/g, "").trim());
+  return Number.isFinite(n) ? n : NaN;
 }
 
 function normalizeRequestStatus(status?: string): string {
@@ -80,6 +89,8 @@ export function BiddingSidebar({
   onAuctionUpdate,
 }: BiddingSidebarProps) {
   const isSell = data.auctionType === "SELL";
+  const listingCurrency =
+    data.currency?.trim().toUpperCase() === "USD" ? "USD" : "ETB";
   const userId = useAuthStore((state) => state.userId);
   const isCreator = isCreatorProp || userId === data.createdBy;
 
@@ -201,13 +212,40 @@ export function BiddingSidebar({
   );
 
   const handleBidSubmit = async (quantity: string, amount: string) => {
-    if (!amount || parseFloat(amount) <= 0) {
+    const amtNum = parseMoney(amount);
+    if (!amount?.trim() || !Number.isFinite(amtNum) || amtNum <= 0) {
       toast.warning("Please enter a valid bid amount");
       return;
     }
     if (!quantity || parseFloat(quantity) <= 0) {
       toast.warning("Please enter a valid quantity");
       return;
+    }
+
+    const hasTierPricing = !!(data.priceTiers && data.priceTiers.length > 0);
+    if (!hasTierPricing) {
+      const minNum = parseMoney(data.minBid);
+      if (Number.isFinite(minNum) && amtNum + 1e-9 < minNum) {
+        toast.error(
+          `Amount must be at least ${listingCurrency} ${data.minBid}.`,
+        );
+        return;
+      }
+    } else {
+      const tier = getTierForQuantity(data.priceTiers!, quantity);
+      if (tier) {
+        const floor = parseMoney(tier.pricePerUnit);
+        const qtyN = parseFloat(quantity);
+        if (Number.isFinite(floor) && Number.isFinite(qtyN) && qtyN > 0) {
+          if (!bidTotalMeetsStartingMinimum(qtyN, amtNum, floor)) {
+            const startingTotal = qtyN * floor;
+            toast.error(
+              `Bid total must be at least ${listingCurrency} ${startingTotal.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 0 })} (${quantity} × ${listingCurrency} ${tier.pricePerUnit} minimum per unit).`,
+            );
+            return;
+          }
+        }
+      }
     }
 
     if (!userId) {
@@ -752,16 +790,20 @@ export function BiddingSidebar({
                     (myBid.amount || localBid?.amount) ? (
                       <>
                         <p className="text-sm text-blue-700 dark:text-blue-200">
-                          {myBid.quantity} × ETB {myBid.amount || localBid?.amount}/unit
+                          {myBid.quantity} × {listingCurrency}{" "}
+                          {myBid.amount || localBid?.amount}/unit
                         </p>
                         <p className="text-2xl font-black text-blue-900 dark:text-white">
-                          = ETB {getBidTotal(myBid).toLocaleString()}
+                          = {listingCurrency}{" "}
+                          {getBidTotal(myBid).toLocaleString()}
                         </p>
                       </>
                     ) : (
                       <p className="text-2xl font-black text-blue-900 dark:text-white">
                         {myBid.amount || localBid?.amount || "Submitted"}{" "}
-                        <span className="text-xs font-bold uppercase">ETB</span>
+                        <span className="text-xs font-bold uppercase">
+                          {listingCurrency}
+                        </span>
                       </p>
                     )}
                   </div>
@@ -801,14 +843,15 @@ export function BiddingSidebar({
                   (myBid.amount || myBid.revealedAmount || localBid?.amount) ? (
                     <>
                       <p className="text-sm text-emerald-700 dark:text-emerald-200">
-                        {myBid.quantity} × ETB{" "}
+                        {myBid.quantity} × {listingCurrency}{" "}
                         {myBid.revealedAmount ||
                           myBid.amount ||
                           localBid?.amount}
                         /unit
                       </p>
                       <p className="text-3xl font-black text-emerald-900 dark:text-white">
-                        = ETB {getBidTotal(myBid).toLocaleString()}
+                        = {listingCurrency}{" "}
+                        {getBidTotal(myBid).toLocaleString()}
                       </p>
                     </>
                   ) : (
@@ -817,7 +860,9 @@ export function BiddingSidebar({
                         myBid.amount ||
                         localBid?.amount ||
                         "Pending"}{" "}
-                      <span className="text-xs font-bold uppercase">ETB</span>
+                      <span className="text-xs font-bold uppercase">
+                        {listingCurrency}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -852,7 +897,7 @@ export function BiddingSidebar({
                     {data.currentBid || data.minBid}
                   </p>
                   <span className="text-xs font-bold text-slate-400 uppercase">
-                    ETB
+                    {listingCurrency}
                   </span>
                 </div>
               </div>
@@ -873,6 +918,7 @@ export function BiddingSidebar({
                 priceTiers={data.priceTiers}
                 auctionQuantity={data.quantity}
                 quantityUnit={data.quantityUnit}
+                currency={listingCurrency}
               />
             </>
           )}

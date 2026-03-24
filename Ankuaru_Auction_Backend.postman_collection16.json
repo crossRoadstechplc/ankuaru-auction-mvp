@@ -93,6 +93,10 @@
     {
       "key": "bidRequestId",
       "value": ""
+    },
+    {
+      "key": "winnerBidderId",
+      "value": ""
     }
   ],
   "item": [
@@ -986,7 +990,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"mutation CreateAuction($input: CreateAuctionInput!) { createAuction(input: $input) }\",\n  \"variables\": {\n    \"input\": {\n      \"title\": \"Postman Grains Auction\",\n      \"auctionCategory\": \"Grains and Cereals\",\n      \"productName\": \"Teff\",\n      \"commodityType\": \"white\",\n      \"grade\": \"1\",\n      \"quantity\": \"1000\",\n      \"quantityUnit\": \"KG\",\n      \"priceTiers\": [\n        { \"minQty\": \"50\", \"maxQty\": \"99\", \"pricePerUnit\": \"5.00\" },\n        { \"minQty\": \"100\", \"maxQty\": null, \"pricePerUnit\": \"4.80\" }\n      ],\n      \"itemDescription\": \"Teff sample from Postman\",\n      \"reservePrice\": \"1000\",\n      \"minBid\": \"100\",\n      \"auctionType\": \"SELL\",\n      \"visibility\": \"PUBLIC\",\n      \"startAt\": \"2026-03-10T09:00:00.000Z\",\n      \"endAt\": \"2026-03-10T10:00:00.000Z\"\n    }\n  }\n}"
+              "raw": "{\n  \"query\": \"mutation CreateAuction($input: CreateAuctionInput!) { createAuction(input: $input) }\",\n  \"variables\": {\n    \"input\": {\n      \"title\": \"Postman Grains Auction\",\n      \"auctionCategory\": \"Grains and Cereals\",\n      \"lotType\": \"FLEXIBLE\",\n      \"winnerPriority\": \"PRICE\",\n      \"currency\": \"ETB\",\n      \"productName\": \"Teff\",\n      \"commodityType\": \"white\",\n      \"grade\": \"1\",\n      \"quantity\": \"1000\",\n      \"quantityUnit\": \"KG\",\n      \"priceTiers\": [\n        { \"minQty\": \"50\", \"maxQty\": \"99\", \"pricePerUnit\": \"5.00\" },\n        { \"minQty\": \"100\", \"maxQty\": null, \"pricePerUnit\": \"4.80\" }\n      ],\n      \"itemDescription\": \"Teff sample from Postman\",\n      \"reservePrice\": \"1000\",\n      \"minBid\": \"100\",\n      \"auctionType\": \"SELL\",\n      \"visibility\": \"PUBLIC\",\n      \"startAt\": \"2026-03-10T09:00:00.000Z\",\n      \"endAt\": \"2026-03-10T10:00:00.000Z\"\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -1016,7 +1020,7 @@
                 {
                   "key": "operations",
                   "type": "text",
-                  "value": "{\"query\":\"mutation CreateAuction($input: CreateAuctionInput!) { createAuction(input: $input) }\",\"variables\":{\"input\":{\"title\":\"Postman FormData Auction\",\"auctionCategory\":\"Grains and Cereals\",\"productName\":\"Teff\",\"commodityType\":\"white\",\"grade\":\"1\",\"quantity\":\"1000\",\"quantityUnit\":\"KG\",\"priceTiers\":[{\"minQty\":\"50\",\"maxQty\":\"99\",\"pricePerUnit\":\"5.00\"},{\"minQty\":\"100\",\"maxQty\":null,\"pricePerUnit\":\"4.80\"}],\"itemDescription\":\"Form-data create auction sample\",\"reservePrice\":\"1000\",\"minBid\":\"100\",\"auctionType\":\"SELL\",\"visibility\":\"PUBLIC\",\"startAt\":\"2026-03-10T09:00:00.000Z\",\"endAt\":\"2026-03-10T10:00:00.000Z\",\"auctionImageUrl\":null}}}"
+                  "value": "{\"query\":\"mutation CreateAuction($input: CreateAuctionInput!) { createAuction(input: $input) }\",\"variables\":{\"input\":{\"title\":\"Postman FormData Auction\",\"auctionCategory\":\"Grains and Cereals\",\"lotType\":\"FLEXIBLE\",\"winnerPriority\":\"PRICE\",\"currency\":\"ETB\",\"productName\":\"Teff\",\"commodityType\":\"white\",\"grade\":\"1\",\"quantity\":\"1000\",\"quantityUnit\":\"KG\",\"priceTiers\":[{\"minQty\":\"50\",\"maxQty\":\"99\",\"pricePerUnit\":\"5.00\"},{\"minQty\":\"100\",\"maxQty\":null,\"pricePerUnit\":\"4.80\"}],\"itemDescription\":\"Form-data create auction sample\",\"reservePrice\":\"1000\",\"minBid\":\"100\",\"auctionType\":\"SELL\",\"visibility\":\"PUBLIC\",\"startAt\":\"2026-03-10T09:00:00.000Z\",\"endAt\":\"2026-03-10T10:00:00.000Z\",\"auctionImageUrl\":null}}}"
                 },
                 {
                   "key": "map",
@@ -1058,7 +1062,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"mutation EditAuction($id: ID!, $input: EditAuctionInput!) { editAuction(id: $id, input: $input) }\",\n  \"variables\": {\n    \"id\": \"{{auctionId}}\",\n    \"input\": {\n      \"title\": \"Postman Auction (Edited)\",\n      \"auctionCategory\": \"Grains and Cereals\",\n      \"productName\": \"Wheat\",\n      \"commodityType\": \"white\",\n      \"grade\": \"2\",\n      \"quantity\": \"1200\",\n      \"quantityUnit\": \"KG\",\n      \"priceTiers\": [\n        { \"minQty\": \"50\", \"maxQty\": \"99\", \"pricePerUnit\": \"5.10\" },\n        { \"minQty\": \"100\", \"maxQty\": null, \"pricePerUnit\": \"4.90\" }\n      ],\n      \"itemDescription\": \"Updated grains details from Postman\",\n      \"auctionImageUrl\": \"{{auctionImageUrl}}\"\n    }\n  }\n}"
+              "raw": "{\n  \"query\": \"mutation EditAuction($id: ID!, $input: EditAuctionInput!) { editAuction(id: $id, input: $input) }\",\n  \"variables\": {\n    \"id\": \"{{auctionId}}\",\n    \"input\": {\n      \"title\": \"Postman Auction (Edited)\",\n      \"auctionCategory\": \"Grains and Cereals\",\n      \"lotType\": \"SEALED\",\n      \"winnerPriority\": \"MANUAL\",\n      \"currency\": \"USD\",\n      \"productName\": \"Wheat\",\n      \"commodityType\": \"white\",\n      \"grade\": \"2\",\n      \"quantity\": \"1200\",\n      \"quantityUnit\": \"KG\",\n      \"priceTiers\": [\n        { \"minQty\": \"50\", \"maxQty\": \"99\", \"pricePerUnit\": \"5.10\" },\n        { \"minQty\": \"100\", \"maxQty\": null, \"pricePerUnit\": \"4.90\" }\n      ],\n      \"itemDescription\": \"Updated grains details from Postman\",\n      \"auctionImageUrl\": \"{{auctionImageUrl}}\"\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -1328,7 +1332,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"mutation CloseAuction($id: ID!) { closeAuction(id: $id) }\",\n  \"variables\": {\n    \"id\": \"{{auctionId}}\"\n  }\n}"
+              "raw": "{\n  \"query\": \"mutation CloseAuction($id: ID!, $input: CloseAuctionInput) { closeAuction(id: $id, input: $input) }\",\n  \"variables\": {\n    \"id\": \"{{auctionId}}\",\n    \"input\": {\n      \"winnerBidderId\": \"{{winnerBidderId}}\"\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",

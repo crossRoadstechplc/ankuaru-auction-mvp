@@ -9,7 +9,7 @@ import { profileApi } from "@/src/features/profile/api/profile.api";
 import { useMyFollowersQuery } from "@/src/features/profile/queries/hooks";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AuctionSelectOption,
@@ -38,7 +38,16 @@ type ProductOptionFieldDefinition = {
   emptyText: string;
 };
 
-type FormSection = "details" | "commercial" | "access";
+type FormSection = "details" | "commercial" | "winnerPriority" | "access";
+
+function formSectionsForLot(
+  lotType: CreateAuctionData["lotType"],
+): FormSection[] {
+  if (lotType === "SEALED") {
+    return ["details", "commercial", "access"];
+  }
+  return ["details", "commercial", "winnerPriority", "access"];
+}
 
 type FormFieldName = keyof CreateAuctionData | "selectedUserIds";
 
@@ -59,6 +68,9 @@ const FIELD_SECTION_MAP: Record<FormFieldName, FormSection> = {
   itemDescription: "commercial",
   reservePrice: "commercial",
   minBid: "commercial",
+  lotType: "details",
+  currency: "commercial",
+  winnerPriority: "winnerPriority",
   priceTiers: "commercial",
   auctionType: "details",
   visibility: "access",
@@ -183,6 +195,9 @@ const INITIAL_AUCTION_FORM_DATA: CreateAuctionData = (() => {
     reservePrice: "",
     minBid: "",
     priceTiers: [{ minQty: "1", maxQty: null, pricePerUnit: "" }],
+    lotType: "FLEXIBLE",
+    winnerPriority: "PRICE",
+    currency: "ETB",
     auctionType: "SELL",
     visibility: "PUBLIC",
     auctionImageUrl: null,
@@ -195,6 +210,7 @@ const INITIAL_AUCTION_FORM_DATA: CreateAuctionData = (() => {
 export default function PostAuctionPage() {
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
+  const requestedLotType = searchParams.get("lotType");
   const [activeTab, setActiveTab] = useState<"sell" | "buy">(
     requestedTab === "buy" ? "buy" : "sell",
   );
@@ -211,9 +227,15 @@ export default function PostAuctionPage() {
     null,
   );
   const [isAddingSelectedUser, setIsAddingSelectedUser] = useState(false);
-  const [formData, setFormData] = useState<CreateAuctionData>(
-    INITIAL_AUCTION_FORM_DATA,
-  );
+  const [formData, setFormData] = useState<CreateAuctionData>(() => ({
+    ...INITIAL_AUCTION_FORM_DATA,
+    lotType:
+      requestedLotType === "SEALED"
+        ? "SEALED"
+        : requestedLotType === "FLEXIBLE"
+          ? "FLEXIBLE"
+          : INITIAL_AUCTION_FORM_DATA.lotType,
+  }));
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<FormFieldName, string>>
@@ -227,6 +249,16 @@ export default function PostAuctionPage() {
     error: followersErrorState,
   } = useMyFollowersQuery();
   const createAuctionMutation = useCreateAuctionMutation();
+
+  useEffect(() => {
+    if (
+      formData.lotType === "SEALED" &&
+      activeFormSection === "winnerPriority"
+    ) {
+      setActiveFormSection("commercial");
+    }
+  }, [formData.lotType, activeFormSection]);
+
   const formOptionsParams = useMemo(
     () => ({
       category: formData.auctionCategory || undefined,
@@ -374,8 +406,11 @@ export default function PostAuctionPage() {
       quantity: '[name="quantity"]',
       quantityUnit: '[name="quantityUnit"]',
       itemDescription: '[name="itemDescription"]',
-      reservePrice: '[data-field-anchor="priceTiers"]',
-      minBid: '[data-field-anchor="priceTiers"]',
+      reservePrice: '[name="reservePrice"]',
+      minBid: '[name="minBid"]',
+      lotType: '[data-field-anchor="lotType"]',
+      currency: '[name="currency"]',
+      winnerPriority: '[data-field-anchor="winnerPriority"]',
       priceTiers: '[data-field-anchor="priceTiers"]',
       auctionType: '[data-field-anchor="auctionType"]',
       visibility: '[data-field-anchor="selectedVisibility"]',
@@ -676,11 +711,31 @@ export default function PostAuctionPage() {
         value: formData.itemDescription,
         message: "Enter the description.",
       },
-      {
-        field: "priceTiers",
-        value: formData.priceTiers,
-        message: "Add at least one price tier.",
-      },
+      ...(formData.lotType === "SEALED"
+        ? [
+            {
+              field: "minBid" as const,
+              value: formData.minBid,
+              message: "Enter the minimum bid.",
+            },
+            {
+              field: "reservePrice" as const,
+              value: formData.reservePrice,
+              message: "Enter the reserve price.",
+            },
+          ]
+        : [
+            {
+              field: "priceTiers" as const,
+              value: formData.priceTiers,
+              message: "Add at least one price tier.",
+            },
+            {
+              field: "winnerPriority" as const,
+              value: formData.winnerPriority,
+              message: "Choose winner priority.",
+            },
+          ]),
       {
         field: "startAt",
         value: formData.startAt,
@@ -706,6 +761,17 @@ export default function PostAuctionPage() {
         missingRequiredField.field,
         missingRequiredField.message,
       );
+      return;
+    }
+
+    const flexWinnerPriorities = ["PRICE", "MANUAL", "QUANTITY"] as const;
+    if (
+      formData.lotType === "FLEXIBLE" &&
+      !flexWinnerPriorities.includes(
+        formData.winnerPriority as (typeof flexWinnerPriorities)[number],
+      )
+    ) {
+      showFieldError("winnerPriority", "Choose winner priority.");
       return;
     }
 
@@ -739,35 +805,64 @@ export default function PostAuctionPage() {
       ? parseFloat(formData.quantity)
       : null;
 
-    if (tiers.length === 0) {
-      showFieldError("priceTiers", "Add at least one price tier.");
-      return;
-    }
-    for (let i = 0; i < tiers.length; i++) {
-      const t = tiers[i];
-      const minQ = Number(t.minQty);
-      const maxQ = t.maxQty?.trim() ? Number(t.maxQty) : null;
-      const price = Number(t.pricePerUnit);
-      if (!Number.isFinite(minQ) || minQ < 1) {
-        showFieldError("priceTiers", `Tier ${i + 1}: Min quantity must be ≥ 1.`);
+    if (formData.lotType === "SEALED") {
+      const minBidN = Number(formData.minBid);
+      const reserveN = Number(formData.reservePrice);
+      if (!Number.isFinite(minBidN) || minBidN <= 0) {
+        showFieldError("minBid", "Minimum bid must be a number greater than 0.");
         return;
       }
-      if (maxQ !== null) {
-        if (!Number.isFinite(maxQ) || maxQ < minQ) {
-          showFieldError("priceTiers", `Tier ${i + 1}: Max quantity must be ≥ min.`);
-          return;
-        }
-        if (auctionQty !== null && Number.isFinite(auctionQty) && maxQ > auctionQty) {
+      if (!Number.isFinite(reserveN) || reserveN <= 0) {
+        showFieldError(
+          "reservePrice",
+          "Reserve price must be a number greater than 0.",
+        );
+        return;
+      }
+    } else {
+      if (tiers.length === 0) {
+        showFieldError("priceTiers", "Add at least one price tier.");
+        return;
+      }
+      for (let i = 0; i < tiers.length; i++) {
+        const t = tiers[i];
+        const minQ = Number(t.minQty);
+        const maxQ = t.maxQty?.trim() ? Number(t.maxQty) : null;
+        const price = Number(t.pricePerUnit);
+        if (!Number.isFinite(minQ) || minQ < 1) {
           showFieldError(
             "priceTiers",
-            `Tier ${i + 1}: Max (${maxQ}) exceeds total quantity (${auctionQty}).`,
+            `Tier ${i + 1}: Min quantity must be ≥ 1.`,
           );
           return;
         }
-      }
-      if (!Number.isFinite(price) || price <= 0) {
-        showFieldError("priceTiers", `Tier ${i + 1}: Price per unit must be > 0.`);
-        return;
+        if (maxQ !== null) {
+          if (!Number.isFinite(maxQ) || maxQ < minQ) {
+            showFieldError(
+              "priceTiers",
+              `Tier ${i + 1}: Max quantity must be ≥ min.`,
+            );
+            return;
+          }
+          if (
+            auctionQty !== null &&
+            Number.isFinite(auctionQty) &&
+            maxQ > auctionQty
+          ) {
+            showFieldError(
+              "priceTiers",
+              `Tier ${i + 1}: Max (${maxQ}) exceeds total quantity (${auctionQty}).`,
+            );
+            return;
+          }
+        }
+        if (!Number.isFinite(price) || price <= 0) {
+          showFieldError(
+            "priceTiers",
+            `Tier ${i + 1}: Price per unit must be > 0.`,
+          );
+          return;
+        }
       }
     }
 
@@ -804,7 +899,6 @@ export default function PostAuctionPage() {
     try {
       setError(null);
 
-      // Derive minBid and reservePrice from lowest price tier (backend may require them)
       const lowestPrice =
         tiers.length > 0
           ? tiers.reduce(
@@ -817,8 +911,18 @@ export default function PostAuctionPage() {
               0 as number,
             )
           : 0;
-      const derivedMinBid = lowestPrice > 0 ? String(lowestPrice) : "0";
-      const derivedReservePrice = derivedMinBid;
+      const derivedMinBid =
+        formData.lotType === "FLEXIBLE"
+          ? lowestPrice > 0
+            ? String(lowestPrice)
+            : "0"
+          : formData.minBid.trim();
+      const derivedReservePrice =
+        formData.lotType === "FLEXIBLE"
+          ? lowestPrice > 0
+            ? String(lowestPrice)
+            : "0"
+          : formData.reservePrice.trim();
 
       const baseAuctionData: CreateAuctionData = {
         title: formData.title,
@@ -835,9 +939,15 @@ export default function PostAuctionPage() {
         quantity: formData.quantity,
         quantityUnit: formData.quantityUnit || undefined,
         itemDescription: formData.itemDescription,
+        lotType: formData.lotType,
+        currency: formData.currency,
+        winnerPriority:
+          formData.lotType === "FLEXIBLE"
+            ? formData.winnerPriority
+            : undefined,
         reservePrice: derivedReservePrice,
         minBid: derivedMinBid,
-        priceTiers: formData.priceTiers,
+        priceTiers: formData.lotType === "SEALED" ? [] : formData.priceTiers,
         auctionType: activeTab.toUpperCase() as "SELL" | "BUY",
         visibility: selectedVisibility,
         selectedUserIds:
@@ -1182,6 +1292,47 @@ export default function PostAuctionPage() {
                 Buy Auction
               </button>
             </div>
+
+            <div className="mt-8 border-t border-slate-200/80 pt-6 dark:border-slate-700/80">
+            
+            <div
+              className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm dark:border-slate-800 dark:bg-slate-950/60"
+              data-field-anchor="lotType"
+              tabIndex={-1}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, lotType: "FLEXIBLE" }));
+                  if (error) setError(null);
+                }}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
+                  formData.lotType === "FLEXIBLE"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+              >
+                Flexible lot
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, lotType: "SEALED" }));
+                  setActiveFormSection((s) =>
+                    s === "winnerPriority" ? "commercial" : s,
+                  );
+                  if (error) setError(null);
+                }}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
+                  formData.lotType === "SEALED"
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+              >
+                Sealed lot
+              </button>
+            </div>
+            </div>
           </div>
 
           <div className="overflow-hidden bg-white dark:bg-slate-950/40">
@@ -1204,41 +1355,32 @@ export default function PostAuctionPage() {
             >
               <div className="space-y-5">
                 <div className="flex w-full flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-950/60 sm:inline-flex sm:w-auto sm:flex-nowrap">
-                  <button
-                    type="button"
-                    onClick={() => setActiveFormSection("details")}
-                    className={`flex-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
-                      activeFormSection === "details"
-                        ? "bg-primary text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    {activeTab === "sell"
-                      ? "Product Details"
-                      : "Requirement Details"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveFormSection("commercial")}
-                    className={`flex-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
-                      activeFormSection === "commercial"
-                        ? "bg-primary text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    Commercial Terms
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveFormSection("access")}
-                    className={`flex-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
-                      activeFormSection === "access"
-                        ? "bg-primary text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    Bid Access
-                  </button>
+                  {formSectionsForLot(formData.lotType).map((section) => {
+                    const label =
+                      section === "details"
+                        ? activeTab === "sell"
+                          ? "Product Details"
+                          : "Requirement Details"
+                        : section === "commercial"
+                          ? "Commercial Terms"
+                          : section === "winnerPriority"
+                            ? "Winner Priority"
+                            : "Bid Access";
+                    return (
+                      <button
+                        key={section}
+                        type="button"
+                        onClick={() => setActiveFormSection(section)}
+                        className={`flex-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all md:text-xs ${
+                          activeFormSection === section
+                            ? "bg-primary text-white shadow-sm"
+                            : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Section 1: Product Basics */}
@@ -1523,7 +1665,8 @@ export default function PostAuctionPage() {
                       <div>
                         <h2 className="text-lg font-bold">Commercial Terms</h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                          Set price tiers, description, and timing.
+                          Set pricing in {formData.currency}, description, and
+                          timing.
                         </p>
                       </div>
                     </div>
@@ -1553,6 +1696,69 @@ export default function PostAuctionPage() {
                     )}
 
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <div className="md:col-span-2 flex flex-col gap-1.5">
+                        <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Currency
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <select
+                          className="w-full max-w-xs rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                          name="currency"
+                          value={formData.currency}
+                          onChange={handleChange}
+                          required
+                          aria-invalid={Boolean(fieldErrors.currency)}
+                        >
+                          <option value="ETB">ETB — Ethiopian Birr</option>
+                          <option value="USD">USD — US Dollar</option>
+                        </select>
+                        {renderFieldError("currency")}
+                      </div>
+
+                      {formData.lotType === "SEALED" && (
+                        <>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                              Minimum bid ({formData.currency})
+                              <span className="text-red-500 ml-1">*</span>
+                            </label>
+                            <input
+                              className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                              placeholder="e.g. 100"
+                              type="number"
+                              id="minBid"
+                              name="minBid"
+                              value={formData.minBid}
+                              onChange={handleChange}
+                              min="0"
+                              step="0.01"
+                              aria-invalid={Boolean(fieldErrors.minBid)}
+                            />
+                            {renderFieldError("minBid")}
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                              Reserve price ({formData.currency})
+                              <span className="text-red-500 ml-1">*</span>
+                            </label>
+                            <input
+                              className="w-full rounded-lg border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:ring-primary dark:border-slate-800 dark:bg-slate-900 outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                              placeholder="e.g. 1000"
+                              type="number"
+                              id="reservePrice"
+                              name="reservePrice"
+                              value={formData.reservePrice}
+                              onChange={handleChange}
+                              min="0"
+                              step="0.01"
+                              aria-invalid={Boolean(fieldErrors.reservePrice)}
+                            />
+                            {renderFieldError("reservePrice")}
+                          </div>
+                        </>
+                      )}
+
+                      {formData.lotType === "FLEXIBLE" && (
                       <div
                         className="md:col-span-2"
                         data-field-anchor="priceTiers"
@@ -1580,7 +1786,7 @@ export default function PostAuctionPage() {
                           <div className="grid grid-cols-[minmax(70px,1fr)_minmax(70px,1fr)_minmax(100px,1.5fr)_auto] gap-2 border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400 sm:grid-cols-[80px_100px_1fr_40px]">
                             <span>Min qty</span>
                             <span>Max qty</span>
-                            <span>Price per unit (ETB)</span>
+                            <span>Price per unit ({formData.currency})</span>
                             <span className="w-8" />
                           </div>
                           {(formData.priceTiers ?? []).map((tier, index) => (
@@ -1647,9 +1853,10 @@ export default function PostAuctionPage() {
                           ))}
                         </div>
                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-450">
-                          Example: Min 1, Max 50, 5.00 ETB = buyers of 1–50 units pay 5 ETB/unit. Min 51, Max empty, 4.50 ETB = buyers of 51+ pay 4.50 ETB/unit.
+                          Example: Min 1, Max 50, 5.00 {formData.currency} = buyers of 1–50 units pay 5 {formData.currency}/unit. Min 51, Max empty, 4.50 {formData.currency} = buyers of 51+ pay 4.50 {formData.currency}/unit.
                         </p>
                       </div>
+                      )}
 
                       <div className="md:col-span-2 flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -1709,47 +1916,125 @@ export default function PostAuctionPage() {
                   </div>
                 )}
 
+                {activeFormSection === "winnerPriority" &&
+                  formData.lotType === "FLEXIBLE" && (
+                    <div
+                      className="rounded-[16px] border border-slate-200/80 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 md:p-6"
+                      data-field-anchor="winnerPriority"
+                      tabIndex={-1}
+                    >
+                      <div className="mb-6 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary">
+                          emoji_events
+                        </span>
+                        <div>
+                          <h2 className="text-lg font-bold">Winner priority</h2>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            How the winning bid is chosen when the lot closes.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {(
+                          [
+                            {
+                              value: "PRICE" as const,
+                              label: "Price first",
+                              description:
+                                "The highest valid bid wins when the auction ends.",
+                              icon: "payments",
+                            },
+                            {
+                              value: "QUANTITY" as const,
+                              label: "Quantity first",
+                              description:
+                                "Priority goes to bids by quantity (how much they commit to buy), per platform rules.",
+                              icon: "scale",
+                            },
+                            {
+                              value: "MANUAL" as const,
+                              label: "Manual choice",
+                              description:
+                                "You review bids and select the winner yourself.",
+                              icon: "person_search",
+                            },
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                winnerPriority: opt.value,
+                              }));
+                              clearFieldErrors("winnerPriority");
+                              if (error) setError(null);
+                            }}
+                            className={`flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all ${
+                              formData.winnerPriority === opt.value
+                                ? "border-primary bg-primary/5"
+                                : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/50"
+                            }`}
+                          >
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <span className="material-symbols-outlined">
+                                {opt.icon}
+                              </span>
+                            </div>
+                            <h3 className="text-sm font-bold">{opt.label}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {opt.description}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                      {renderFieldError("winnerPriority")}
+                    </div>
+                  )}
+
                 {activeFormSection === "access" && bidAccessCard}
 
                 <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setActiveFormSection(
-                        activeFormSection === "commercial"
-                          ? "details"
-                          : activeFormSection === "access"
-                            ? "commercial"
-                            : "details",
-                      )
-                    }
-                    disabled={activeFormSection === "details"}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400 dark:hover:bg-slate-800"
-                  >
-                    <span className="material-symbols-outlined text-base">
-                      chevron_left
-                    </span>
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setActiveFormSection(
-                        activeFormSection === "details"
-                          ? "commercial"
-                          : activeFormSection === "commercial"
-                            ? "access"
-                            : "access",
-                      )
-                    }
-                    disabled={activeFormSection === "access"}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400 dark:hover:bg-slate-800"
-                  >
-                    Next
-                    <span className="material-symbols-outlined text-base">
-                      chevron_right
-                    </span>
-                  </button>
+                  {(() => {
+                    const sections = formSectionsForLot(formData.lotType);
+                    const idx = sections.indexOf(activeFormSection);
+                    const safeIdx = idx < 0 ? 0 : idx;
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (safeIdx > 0) {
+                              setActiveFormSection(sections[safeIdx - 1]!);
+                            }
+                          }}
+                          disabled={safeIdx <= 0}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400 dark:hover:bg-slate-800"
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            chevron_left
+                          </span>
+                          Previous
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (safeIdx < sections.length - 1) {
+                              setActiveFormSection(sections[safeIdx + 1]!);
+                            }
+                          }}
+                          disabled={safeIdx >= sections.length - 1}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400 dark:hover:bg-slate-800"
+                        >
+                          Next
+                          <span className="material-symbols-outlined text-base">
+                            chevron_right
+                          </span>
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1780,6 +2065,32 @@ export default function PostAuctionPage() {
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                      <span className="text-white/60">Lot type</span>
+                      <span className="text-right font-semibold">
+                        {formData.lotType === "SEALED"
+                          ? "Sealed"
+                          : "Flexible"}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                      <span className="text-white/60">Currency</span>
+                      <span className="text-right font-semibold">
+                        {formData.currency}
+                      </span>
+                    </div>
+                    {formData.lotType === "FLEXIBLE" && (
+                      <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
+                        <span className="text-white/60">Winner priority</span>
+                        <span className="text-right font-semibold">
+                          {formData.winnerPriority === "MANUAL"
+                            ? "Manual choice"
+                            : formData.winnerPriority === "QUANTITY"
+                              ? "Quantity first"
+                              : "Price first"}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-3">
                       <span className="text-white/60">Bid access</span>
                       <span className="text-right font-semibold">
                         {selectedVisibility === "PUBLIC"
@@ -1798,21 +2109,35 @@ export default function PostAuctionPage() {
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-4">
-                      <span className="text-white/60">Price tiers</span>
+                      <span className="text-white/60">
+                        {formData.lotType === "SEALED"
+                          ? "Min / reserve"
+                          : "Price tiers"}
+                      </span>
                       <span className="text-right font-semibold">
-                        {(() => {
-                          const tiers = (formData.priceTiers ?? []).filter(
-                            (t) => t.pricePerUnit?.trim(),
-                          );
-                          if (tiers.length === 0) return "Not set";
-                          const lowest = tiers.reduce((min, t) => {
-                            const p = parseFloat(t.pricePerUnit);
-                            return Number.isFinite(p) && p > 0 && (min === 0 || p < min)
-                              ? p
-                              : min;
-                          }, 0 as number);
-                          return lowest > 0 ? `From ETB ${lowest}/unit` : "Not set";
-                        })()}
+                        {formData.lotType === "SEALED"
+                          ? [formData.minBid, formData.reservePrice].every(
+                              (v) => v?.trim(),
+                            )
+                            ? `${formData.currency} ${formData.minBid} / ${formData.reservePrice}`
+                            : "Not set"
+                          : (() => {
+                              const tiers = (formData.priceTiers ?? []).filter(
+                                (t) => t.pricePerUnit?.trim(),
+                              );
+                              if (tiers.length === 0) return "Not set";
+                              const lowest = tiers.reduce((min, t) => {
+                                const p = parseFloat(t.pricePerUnit);
+                                return Number.isFinite(p) &&
+                                  p > 0 &&
+                                  (min === 0 || p < min)
+                                  ? p
+                                  : min;
+                              }, 0 as number);
+                              return lowest > 0
+                                ? `From ${formData.currency} ${lowest}/unit`
+                                : "Not set";
+                            })()}
                       </span>
                     </div>
                   </div>

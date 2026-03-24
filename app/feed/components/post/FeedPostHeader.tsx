@@ -16,6 +16,8 @@ import { useAuthStore } from "@/stores/auth.store";
 
 interface FeedPostHeaderProps {
   creatorId: string;
+  /** When set, shows a compact Flexible / Sealed pill (omit for legacy listings). */
+  lotType?: "FLEXIBLE" | "SEALED";
   creator?: {
     id: string;
     username: string;
@@ -52,6 +54,7 @@ function pickReadableIdentity(
 
 export function FeedPostHeader({
   creatorId,
+  lotType,
   creator,
   createdAt,
   isFollowing,
@@ -146,7 +149,7 @@ export function FeedPostHeader({
 
   return (
     <div className="flex items-center justify-between gap-2 border-b border-slate-200/50 px-3 py-2 dark:border-slate-800/80">
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <button
           type="button"
           onClick={handleProfileImageOpen}
@@ -165,56 +168,69 @@ export function FeedPostHeader({
           </Avatar>
         </button>
 
-        <button
-          type="button"
-          onClick={handleProfileOpen}
-          disabled={!onOpenProfile}
-          title={onOpenProfile ? "Open profile" : undefined}
-          className="min-w-0 truncate text-left text-card-body font-semibold text-slate-900 transition-colors hover:text-primary dark:text-white"
-        >
-          {displayName}
-        </button>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-x-2 sm:gap-y-0">
+          <button
+            type="button"
+            onClick={handleProfileOpen}
+            disabled={!onOpenProfile}
+            title={onOpenProfile ? "Open profile" : undefined}
+            className="min-w-0 w-fit max-w-full truncate text-left text-card-body font-semibold text-slate-900 transition-colors hover:text-primary dark:text-white sm:max-w-[min(100%,16rem)]"
+          >
+            {displayName}
+          </button>
+
+          {canShowFollowButton ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={isFollowing || effectiveIsRequested ? "outline" : "default"}
+                onClick={() => {
+                  if (!effectiveIsRequested) void handleFollowToggle();
+                }}
+                disabled={isFollowActionLoading || effectiveIsRequested}
+                className={`h-7 shrink-0 rounded-lg px-2.5 text-card-meta font-semibold ${
+                  isFollowing
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                    : effectiveIsRequested
+                      ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                      : "bg-primary text-primary-foreground"
+                }`}
+              >
+                {isFollowing ? (
+                  <UserCheck className="mr-1 size-3.5" />
+                ) : effectiveIsRequested ? (
+                  <span className="material-symbols-outlined mr-1 text-sm">schedule</span>
+                ) : (
+                  <UserPlus className="mr-1 size-3.5" />
+                )}
+                {isFollowActionLoading
+                  ? "..."
+                  : isFollowing
+                    ? "Following"
+                    : effectiveIsRequested
+                      ? "Requested"
+                      : "Follow"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        {lotType === "SEALED" ? (
+          <span className="rounded-md border border-slate-300/80 bg-slate-100/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
+            Sealed
+          </span>
+        ) : lotType === "FLEXIBLE" ? (
+          <span className="rounded-md border border-emerald-200/90 bg-emerald-50/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+            Flexible
+          </span>
+        ) : null}
         {formattedTime ? (
           <span className="text-card-meta font-medium text-slate-500 dark:text-slate-400">
             {formattedTime}
           </span>
-        ) : null}
-
-        {canShowFollowButton ? (
-          <Button
-            type="button"
-            size="sm"
-            variant={isFollowing || effectiveIsRequested ? "outline" : "default"}
-            onClick={() => {
-              if (!effectiveIsRequested) void handleFollowToggle();
-            }}
-            disabled={isFollowActionLoading || effectiveIsRequested}
-            className={`h-7 shrink-0 rounded-lg px-2.5 text-card-meta font-semibold ${
-              isFollowing
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                : effectiveIsRequested
-                  ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                  : "bg-primary text-primary-foreground"
-            }`}
-          >
-            {isFollowing ? (
-              <UserCheck className="mr-1 size-3.5" />
-            ) : effectiveIsRequested ? (
-              <span className="material-symbols-outlined mr-1 text-sm">schedule</span>
-            ) : (
-              <UserPlus className="mr-1 size-3.5" />
-            )}
-            {isFollowActionLoading
-              ? "..."
-              : isFollowing
-                ? "Following"
-                : effectiveIsRequested
-                  ? "Requested"
-                  : "Follow"}
-          </Button>
         ) : null}
       </div>
     </div>

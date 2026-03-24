@@ -223,6 +223,23 @@ export function mapAuctionDto(value: unknown): Auction {
     priceTiers: mapPriceTiers(dto.priceTiers ?? dto.price_tiers).length > 0
       ? mapPriceTiers(dto.priceTiers ?? dto.price_tiers)
       : undefined,
+    lotType:
+      toStringOr(dto.lotType ?? dto.lot_type).toUpperCase() === "SEALED"
+        ? "SEALED"
+        : toStringOr(dto.lotType ?? dto.lot_type).toUpperCase() === "FLEXIBLE"
+          ? "FLEXIBLE"
+          : undefined,
+    winnerPriority: (() => {
+      const w = toStringOr(
+        dto.winnerPriority ?? dto.winner_priority,
+      ).toUpperCase();
+      if (w === "MANUAL") return "MANUAL";
+      if (w === "QUANTITY") return "QUANTITY";
+      if (w === "PRICE") return "PRICE";
+      return undefined;
+    })(),
+    currency:
+      toStringOr(dto.currency).toUpperCase() === "USD" ? "USD" : "ETB",
     images:
       mapImages(dto.images ?? dto.auctionImages ?? dto.auction_images).length >
       0

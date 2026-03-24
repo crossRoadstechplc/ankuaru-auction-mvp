@@ -78,6 +78,9 @@ export interface Auction {
   canBid?: boolean;
   hasRequestedBidAccess?: boolean;
   priceTiers?: PriceTier[];
+  lotType?: "FLEXIBLE" | "SEALED";
+  winnerPriority?: "PRICE" | "MANUAL" | "QUANTITY";
+  currency?: string;
   images?: string[];
   creator?: {
     id: string;
@@ -187,6 +190,9 @@ export interface CreateAuctionData {
   itemDescription: string;
   reservePrice: string;
   minBid: string;
+  lotType: "FLEXIBLE" | "SEALED";
+  winnerPriority?: "PRICE" | "MANUAL" | "QUANTITY";
+  currency: "ETB" | "USD";
   priceTiers: PriceTier[];
   auctionType: "SELL" | "BUY";
   visibility: "PUBLIC" | "FOLLOWERS" | "SELECTED";
@@ -205,6 +211,11 @@ export interface EditAuctionData {
   grade?: string;
   quantity?: string;
   quantityUnit?: string;
+  lotType?: "FLEXIBLE" | "SEALED";
+  winnerPriority?: "PRICE" | "MANUAL" | "QUANTITY";
+  currency?: "ETB" | "USD";
+  minBid?: string;
+  reservePrice?: string;
   priceTiers?: PriceTier[];
   itemDescription?: string;
   auctionImageUrl?: string | null;

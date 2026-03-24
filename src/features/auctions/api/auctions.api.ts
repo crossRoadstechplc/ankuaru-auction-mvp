@@ -136,16 +136,16 @@ async function createAuctionWithImageUpload(
   };
   const body = new FormData();
 
+  const variablesInput = {
+    ...buildCreateAuctionInput(inputWithoutFile),
+    auctionImageUrl: null,
+  };
   body.append(
     "operations",
     JSON.stringify({
       query: mutations.CREATE_AUCTION_MUTATION,
       variables: {
-        input: {
-          ...inputWithoutFile,
-          priceTiers: input.priceTiers ?? [],
-          auctionImageUrl: null,
-        },
+        input: variablesInput,
       },
     }),
   );
@@ -222,10 +222,15 @@ async function createAuctionWithImageUpload(
 function buildCreateAuctionInput(
   input: CreateAuctionData,
 ): Record<string, unknown> {
-  const base = {
+  const priceTiers =
+    input.lotType === "SEALED" ? [] : (input.priceTiers ?? []);
+  const base: Record<string, unknown> = {
     ...input,
-    priceTiers: input.priceTiers ?? [],
+    priceTiers,
   };
+  if (input.lotType === "SEALED") {
+    delete base.winnerPriority;
+  }
   if (isFileUpload(input.auctionImageUrl)) {
     return { ...base, auctionImageUrl: undefined };
   }

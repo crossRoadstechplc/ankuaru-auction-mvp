@@ -212,6 +212,9 @@ CreateAuctionInput {
   itemDescription: String!
   reservePrice: String!
   minBid: String!
+  lotType: LotType! (FLEXIBLE | SEALED)
+  currency: AuctionCurrency! (ETB | USD)
+  winnerPriority: WinnerPriority (PRICE | MANUAL | QUANTITY; FLEXIBLE only)
   priceTiers: [PriceTierInput!]!
   auctionType: AuctionType!
   visibility: AuctionVisibility!
@@ -230,6 +233,7 @@ PriceTierInput {
 EditAuctionInput {
   title, auctionCategory, productName, commodityType, grade
   quantity, quantityUnit, priceTiers, itemDescription, auctionImageUrl
+  lotType, currency, winnerPriority (FLEXIBLE), minBid, reservePrice (SEALED)
 }
 
 SubmitBidInput {

@@ -48,6 +48,11 @@ const PRICE_RANGE_DEFINITIONS = [
   { id: "1000-plus", label: "1000+ ETB" },
 ] as const;
 
+const LOT_TYPE_DEFINITIONS = [
+  { id: "SEALED", label: "Sealed" },
+  { id: "FLEXIBLE", label: "Flexible" },
+] as const;
+
 type QuantityRangeId = (typeof QUANTITY_RANGE_DEFINITIONS)[number]["id"];
 type PriceRangeId = (typeof PRICE_RANGE_DEFINITIONS)[number]["id"];
 
@@ -119,6 +124,11 @@ function getAuctionPriceForFilter(auction: Auction): string | undefined {
   return tierPrice ?? auction.minBid;
 }
 
+/** FLEXIBLE when explicitly set; otherwise treat as sealed (includes legacy listings without lotType). */
+function getLotTypeFilterId(auction: Auction): "SEALED" | "FLEXIBLE" {
+  return auction.lotType === "FLEXIBLE" ? "FLEXIBLE" : "SEALED";
+}
+
 function buildFilterOptions(
   entries: Array<{ id: string; label: string }>,
 ): FeedFilterOption[] {
@@ -161,6 +171,7 @@ export default function FeedPage() {
   );
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
+  const [selectedLotTypes, setSelectedLotTypes] = useState<string[]>([]);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(
     null,
   );
@@ -343,6 +354,20 @@ export default function FeedPage() {
       }))
       .sort((left, right) => left.label.localeCompare(right.label));
   }, [searchMatchingAuctions]);
+  const lotTypeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    searchMatchingAuctions.forEach((auction) => {
+      const lotTypeId = getLotTypeFilterId(auction);
+      counts.set(lotTypeId, (counts.get(lotTypeId) ?? 0) + 1);
+    });
+
+    return LOT_TYPE_DEFINITIONS.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      count: counts.get(entry.id) ?? 0,
+    }));
+  }, [searchMatchingAuctions]);
   const filteredAndSortedAuctions = useMemo(() => {
     return [...searchMatchingAuctions]
       .filter((auction) => {
@@ -386,6 +411,13 @@ export default function FeedPage() {
           return false;
         }
 
+        if (
+          selectedLotTypes.length > 0 &&
+          !selectedLotTypes.includes(getLotTypeFilterId(auction))
+        ) {
+          return false;
+        }
+
         return true;
       })
       .sort(sortAuctionsForBoard);
@@ -396,6 +428,7 @@ export default function FeedPage() {
     selectedStatuses,
     selectedPriceRanges,
     selectedOrigins,
+    selectedLotTypes,
   ]);
   const filteredAuctions = filteredAndSortedAuctions.slice(0, displayLimit);
   const activeFilterCount =
@@ -403,7 +436,8 @@ export default function FeedPage() {
     selectedStatuses.length +
     selectedQuantityRanges.length +
     selectedPriceRanges.length +
-    selectedOrigins.length;
+    selectedOrigins.length +
+    selectedLotTypes.length;
 
   // Check if there are more auctions to load
   const hasMore = filteredAndSortedAuctions.length > filteredAuctions.length;
@@ -488,11 +522,13 @@ export default function FeedPage() {
               quantityRanges={quantityRangeOptions}
               priceRanges={priceRangeOptions}
               origins={originOptions}
+              lotTypes={lotTypeOptions}
               selectedCategories={selectedCategories}
               selectedStatuses={selectedStatuses}
               selectedQuantityRanges={selectedQuantityRanges}
               selectedPriceRanges={selectedPriceRanges}
               selectedOrigins={selectedOrigins}
+              selectedLotTypes={selectedLotTypes}
               onToggleCategory={(categoryId) => {
                 setDisplayLimit(DISPLAY_PAGE_SIZE);
                 setSelectedCategories((current) =>
@@ -523,6 +559,12 @@ export default function FeedPage() {
                   toggleSelection(current, originId),
                 );
               }}
+              onToggleLotType={(lotTypeId) => {
+                setDisplayLimit(DISPLAY_PAGE_SIZE);
+                setSelectedLotTypes((current) =>
+                  toggleSelection(current, lotTypeId),
+                );
+              }}
               onClearAll={() => {
                 setDisplayLimit(DISPLAY_PAGE_SIZE);
                 setSelectedCategories([]);
@@ -530,6 +572,7 @@ export default function FeedPage() {
                 setSelectedQuantityRanges([]);
                 setSelectedPriceRanges([]);
                 setSelectedOrigins([]);
+                setSelectedLotTypes([]);
               }}
             />
           </aside>

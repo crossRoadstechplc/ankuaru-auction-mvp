@@ -19,16 +19,19 @@ interface FeedFilterSidebarProps {
   quantityRanges: FeedFilterOption[];
   priceRanges: FeedFilterOption[];
   origins: FeedFilterOption[];
+  lotTypes: FeedFilterOption[];
   selectedCategories: string[];
   selectedStatuses: string[];
   selectedQuantityRanges: string[];
   selectedPriceRanges: string[];
   selectedOrigins: string[];
+  selectedLotTypes: string[];
   onToggleCategory: (categoryId: string) => void;
   onToggleStatus: (statusId: string) => void;
   onToggleQuantityRange: (quantityRangeId: string) => void;
   onTogglePriceRange: (priceRangeId: string) => void;
   onToggleOrigin: (originId: string) => void;
+  onToggleLotType: (lotTypeId: string) => void;
   onClearAll: () => void;
 }
 
@@ -104,16 +107,19 @@ export function FeedFilterSidebar({
   quantityRanges,
   priceRanges,
   origins,
+  lotTypes,
   selectedCategories,
   selectedStatuses,
   selectedQuantityRanges,
   selectedPriceRanges,
   selectedOrigins,
+  selectedLotTypes,
   onToggleCategory,
   onToggleStatus,
   onToggleQuantityRange,
   onTogglePriceRange,
   onToggleOrigin,
+  onToggleLotType,
   onClearAll,
 }: FeedFilterSidebarProps) {
   return (
@@ -163,6 +169,13 @@ export function FeedFilterSidebar({
           options={statuses}
           selectedValues={selectedStatuses}
           onToggle={onToggleStatus}
+        />
+
+        <FilterSection
+          title="Lot type"
+          options={lotTypes}
+          selectedValues={selectedLotTypes}
+          onToggle={onToggleLotType}
         />
 
         <FilterSection

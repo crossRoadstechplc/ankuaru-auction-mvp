@@ -13,6 +13,8 @@ interface FeedPostMetaProps {
   quantity?: string;
   quantityUnit?: string;
   priceTiers?: PriceTier[];
+  /** From auction listing; defaults to ETB when absent */
+  currency?: string;
   startAt: string;
   endAt: string;
   bidCount?: number;
@@ -36,16 +38,19 @@ export function FeedPostMeta({
   quantity,
   quantityUnit,
   priceTiers,
+  currency: currencyProp,
   startAt,
   endAt,
   bidCount,
   createdAt,
 }: FeedPostMetaProps) {
+  const currency =
+    currencyProp?.trim().toUpperCase() === "USD" ? "USD" : "ETB";
   const [showPriceTiers, setShowPriceTiers] = useState(false);
   const lowestTierPrice = getLowestTierPrice(priceTiers);
   const startingPriceDisplay = lowestTierPrice
-    ? `From ETB ${formatNumericValue(lowestTierPrice) || lowestTierPrice}/unit`
-    : `ETB ${formatNumericValue(minBid) || minBid}`;
+    ? `From ${currency} ${formatNumericValue(lowestTierPrice) || lowestTierPrice}/unit`
+    : `${currency} ${formatNumericValue(minBid) || minBid}`;
   const quantityDisplay = quantity
     ? `${formatNumericValue(quantity) || quantity}${quantityUnit ? ` ${quantityUnit}` : ""}`
     : "—";
@@ -102,7 +107,7 @@ export function FeedPostMeta({
             ) : null}
             {hasReserve ? (
               <span className="inline-flex items-center rounded bg-slate-200/80 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                Reserve: ETB {formatNumericValue(reservePrice)}
+                Reserve: {currency} {formatNumericValue(reservePrice)}
               </span>
             ) : null}
           </div>
@@ -163,7 +168,7 @@ export function FeedPostMeta({
                   {tier.maxQty ? ` – ${formatNumericValue(tier.maxQty)}` : "+"} units
                 </span>
                 <span className="font-semibold text-slate-800 dark:text-slate-100">
-                  ETB {formatNumericValue(tier.pricePerUnit)}/unit
+                  {currency} {formatNumericValue(tier.pricePerUnit)}/unit
                 </span>
               </div>
             ))}

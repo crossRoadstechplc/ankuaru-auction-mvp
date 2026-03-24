@@ -34,6 +34,7 @@ export function FeedPostCard({
     <Card className="w-full overflow-hidden rounded-xl border border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-950">
       <FeedPostHeader
         creatorId={auction.createdBy}
+        lotType={auction.lotType}
         creator={auction.creator}
         createdAt={auction.createdAt}
         isFollowing={isFollowingCreator}
@@ -69,6 +70,7 @@ export function FeedPostCard({
             quantity={auction.quantity}
             quantityUnit={auction.quantityUnit}
             priceTiers={auction.priceTiers}
+            currency={auction.currency}
             startAt={auction.startAt}
             endAt={auction.endAt}
             bidCount={auction.bidCount}

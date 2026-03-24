@@ -112,20 +112,15 @@ export const createAuctionDataSchema = z
       .string()
       .min(10, "Description must be at least 10 characters")
       .max(2000, "Description must be less than 2000 characters"),
-    reservePrice: z
-      .string()
-      .regex(/^\d+(\.\d{1,2})?$/, "Reserve price must be a valid number")
-      .refine(
-        (val) => parseFloat(val) > 0,
-        "Reserve price must be greater than 0",
-      ),
-    minBid: z
-      .string()
-      .regex(/^\d+(\.\d{1,2})?$/, "Minimum bid must be a valid number")
-      .refine(
-        (val) => parseFloat(val) > 0,
-        "Minimum bid must be greater than 0",
-      ),
+    lotType: z.enum(["FLEXIBLE", "SEALED"], {
+      message: "Lot type must be FLEXIBLE or SEALED",
+    }),
+    currency: z.enum(["ETB", "USD"], {
+      message: "Currency must be ETB or USD",
+    }),
+    winnerPriority: z.enum(["PRICE", "MANUAL", "QUANTITY"]).optional(),
+    reservePrice: z.string(),
+    minBid: z.string(),
     auctionType: z.enum(["SELL", "BUY"], {
       message: "Auction type must be either SELL or BUY",
     }),
@@ -135,10 +130,7 @@ export const createAuctionDataSchema = z
     selectedUserIds: z
       .array(z.string().uuid("Invalid user ID format"))
       .optional(),
-    priceTiers: z
-      .array(priceTierSchema)
-      .min(1, "At least one price tier is required")
-      .optional(),
+    priceTiers: z.array(priceTierSchema).default([]),
     startAt: z
       .string()
       .datetime("Invalid start date and time")
@@ -157,47 +149,125 @@ export const createAuctionDataSchema = z
   .refine((data) => new Date(data.endAt) > new Date(data.startAt), {
     message: "End date must be after start date",
   })
-  .refine(
-    (data) => {
-      const tiers = data.priceTiers;
-      if (!tiers || tiers.length === 0) return true;
+  .superRefine((data, ctx) => {
+    if (data.lotType === "FLEXIBLE") {
+      if (!data.winnerPriority) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Winner priority is required for flexible lots",
+          path: ["winnerPriority"],
+        });
+      }
+      const tiers = data.priceTiers ?? [];
+      if (tiers.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "At least one price tier is required",
+          path: ["priceTiers"],
+        });
+        return;
+      }
       for (let i = 0; i < tiers.length; i++) {
         const t = tiers[i];
         const min = parseFloat(t.minQty);
-        if (!Number.isFinite(min) || min < 0) return false;
+        if (!Number.isFinite(min) || min < 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Price tiers must have valid min/max quantities",
+            path: ["priceTiers"],
+          });
+          return;
+        }
         if (t.maxQty != null) {
           const max = parseFloat(t.maxQty);
-          if (!Number.isFinite(max) || max < min) return false;
+          if (!Number.isFinite(max) || max < min) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Price tiers must have valid min/max quantities",
+              path: ["priceTiers"],
+            });
+            return;
+          }
         }
       }
-      return true;
-    },
-    { message: "Price tiers must have valid min/max quantities" },
-  );
+    }
+
+    if (data.lotType === "SEALED") {
+      const money = (val: string, path: "minBid" | "reservePrice", label: string) => {
+        if (!/^\d+(\.\d{1,2})?$/.test(val) || parseFloat(val) <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${label} must be a valid amount greater than 0`,
+            path: [path],
+          });
+        }
+      };
+      money(data.minBid, "minBid", "Minimum bid");
+      money(data.reservePrice, "reservePrice", "Reserve price");
+    }
+  });
 
 /**
  * Edit auction schema (mirrors editable fields)
  */
-export const editAuctionDataSchema = z.object({
-  title: z
-    .string()
-    .min(5, "Title must be at least 5 characters")
-    .max(200, "Title must be less than 200 characters")
-    .optional(),
-  auctionCategory: z
-    .string()
-    .min(1, "Category is required")
-    .max(50, "Category must be less than 50 characters")
-    .optional(),
-  itemDescription: z
-    .string()
-    .min(10, "Description must be at least 10 characters")
-    .max(2000, "Description must be less than 2000 characters")
-    .optional(),
-  quantity: z.string().optional(),
-  quantityUnit: z.string().max(20).optional(),
-  priceTiers: z.array(priceTierSchema).optional(),
-});
+export const editAuctionDataSchema = z
+  .object({
+    title: z
+      .string()
+      .min(5, "Title must be at least 5 characters")
+      .max(200, "Title must be less than 200 characters")
+      .optional(),
+    auctionCategory: z
+      .string()
+      .min(1, "Category is required")
+      .max(50, "Category must be less than 50 characters")
+      .optional(),
+    itemDescription: z
+      .string()
+      .min(10, "Description must be at least 10 characters")
+      .max(2000, "Description must be less than 2000 characters")
+      .optional(),
+    quantity: z.string().optional(),
+    quantityUnit: z.string().max(20).optional(),
+    lotType: z.enum(["FLEXIBLE", "SEALED"]).optional(),
+    currency: z.enum(["ETB", "USD"]).optional(),
+    winnerPriority: z.enum(["PRICE", "MANUAL", "QUANTITY"]).optional(),
+    minBid: z.string().optional(),
+    reservePrice: z.string().optional(),
+    priceTiers: z.array(priceTierSchema).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.lotType === "FLEXIBLE" && data.winnerPriority === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Winner priority is required when lot type is FLEXIBLE",
+        path: ["winnerPriority"],
+      });
+    }
+    if (data.lotType === "SEALED") {
+      if (data.minBid !== undefined && data.minBid !== "") {
+        if (!/^\d+(\.\d{1,2})?$/.test(data.minBid) || parseFloat(data.minBid) <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Minimum bid must be a valid amount greater than 0",
+            path: ["minBid"],
+          });
+        }
+      }
+      if (data.reservePrice !== undefined && data.reservePrice !== "") {
+        if (
+          !/^\d+(\.\d{1,2})?$/.test(data.reservePrice) ||
+          parseFloat(data.reservePrice) <= 0
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Reserve price must be a valid amount greater than 0",
+            path: ["reservePrice"],
+          });
+        }
+      }
+    }
+  });
 
 export const auctionSchema = z.object({
   id: z.string().uuid("Invalid auction ID"),
