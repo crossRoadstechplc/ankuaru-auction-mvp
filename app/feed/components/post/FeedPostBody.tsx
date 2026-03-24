@@ -43,8 +43,6 @@ export function FeedPostBody({
   commodityClass,
   commoditySize,
   commodityBrand,
-  quantity,
-  quantityUnit,
   process,
   transaction,
 }: FeedPostBodyProps) {
