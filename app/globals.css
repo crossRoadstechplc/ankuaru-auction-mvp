@@ -48,6 +48,9 @@
   --card-body: 0.875rem;
   --card-caption: 0.75rem;
   --card-meta: 0.6875rem;
+
+  /* Feed market pulse marquee — higher = slower (wide ticker needs long duration) */
+  --market-ticker-duration: 900s;
 }
 
 .dark {
@@ -219,7 +222,7 @@
 }
 
 .market-ticker-track {
-  animation: marketTicker 160s linear infinite;
+  animation: marketTicker var(--market-ticker-duration) linear infinite;
   will-change: transform;
 }
 

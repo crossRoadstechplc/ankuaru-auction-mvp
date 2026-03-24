@@ -123,7 +123,7 @@ export function FeedFilterSidebar({
   onClearAll,
 }: FeedFilterSidebarProps) {
   return (
-    <Card className="overflow-hidden rounded-xl border border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-950 xl:flex xl:max-h-[calc(100vh-6rem)] xl:flex-col">
+    <Card className="flex max-h-full min-h-0 w-full flex-col overflow-hidden rounded-none border-0 bg-white shadow-none dark:bg-slate-950 max-xl:h-full max-xl:max-h-full max-xl:rounded-l-2xl max-xl:border-l max-xl:border-slate-200/80 xl:h-auto xl:max-h-none xl:rounded-xl xl:border xl:border-slate-200/60 xl:shadow-sm xl:overflow-visible dark:max-xl:border-slate-800 dark:xl:border-slate-800">
       <div className="border-b border-slate-200/60 bg-slate-50/80 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
@@ -156,7 +156,7 @@ export function FeedFilterSidebar({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-4 p-3 xl:min-h-0 xl:overflow-y-auto xl:p-4">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4 p-3 max-xl:min-h-0 max-xl:flex-1 max-xl:overflow-y-auto max-xl:overscroll-y-contain xl:p-4">
         <FilterSection
           title="Category"
           options={categories}

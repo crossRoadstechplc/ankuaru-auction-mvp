@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/src/components/domain/user/user-avatar";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,6 +15,9 @@ interface FeedComposerBarProps {
   searchTerm: string;
   resultCount?: number;
   isLoading?: boolean;
+  onToggleFilters?: () => void;
+  filtersOpen?: boolean;
+  activeFilterCount?: number;
 }
 
 type PostFlow = "sell" | "buy" | null;
@@ -26,6 +30,9 @@ export function FeedComposerBar({
   searchTerm,
   resultCount,
   isLoading,
+  onToggleFilters,
+  filtersOpen,
+  activeFilterCount = 0,
 }: FeedComposerBarProps) {
   const personaName = displayName || username || "Marketplace user";
   const searchLabel = searchTerm.trim();
@@ -70,6 +77,33 @@ export function FeedComposerBar({
 
           <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
             <div className="flex flex-wrap items-center justify-end gap-2">
+              {onToggleFilters ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onToggleFilters}
+                  aria-expanded={filtersOpen}
+                  aria-label="Toggle auction filters"
+                  className="relative h-7 shrink-0 gap-1.5 rounded-lg border-slate-200/80 px-2.5 text-xs dark:border-slate-700 xl:hidden"
+                >
+                  <Image
+                    src="/filter.png"
+                    alt=""
+                    width={16}
+                    height={16}
+                    className="size-3.5 object-contain"
+                    aria-hidden
+                  />
+                  Filters
+                  {activeFilterCount > 0 ? (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-600 px-1 text-[9px] font-bold tabular-nums text-white">
+                      {activeFilterCount > 99 ? "99+" : activeFilterCount}
+                    </span>
+                  ) : null}
+                </Button>
+              ) : null}
+
               <Button
                 asChild
                 variant="outline"

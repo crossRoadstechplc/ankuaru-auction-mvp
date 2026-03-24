@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { getLowestTierPrice } from "@/lib/format";
 import type { PriceTier } from "@/lib/types";
@@ -82,15 +83,16 @@ export function FeedPostMeta({
   const highlight =
     isEndsSoon ? "Ends soon" : isNew ? "New" : isPopular ? "Popular" : null;
 
+  const labelClass =
+    "text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400";
+
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3 sm:gap-x-4">
-        <div>
-          <p className="text-card-meta font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Starting Price
-          </p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
+      <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-x-4">
+        <div className="min-w-0">
+          <p className={labelClass}>Starting price</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            <p className="text-base font-bold leading-tight tracking-tight text-slate-900 sm:text-lg dark:text-white">
               {startingPriceDisplay}
             </p>
             {hasPriceTiers ? (
@@ -100,32 +102,28 @@ export function FeedPostMeta({
                 className="flex shrink-0 rounded p-0.5 text-slate-500 transition-colors hover:bg-slate-200/80 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                 aria-label={showPriceTiers ? "Hide price tiers" : "Show full price tiers"}
               >
-                <span className="material-symbols-outlined text-base">
-                  {showPriceTiers ? "expand_less" : "expand_more"}
-                </span>
+                <ChevronDown
+                  className={`size-[18px] transition-transform ${showPriceTiers ? "rotate-180" : ""}`}
+                />
               </button>
             ) : null}
-            {hasReserve ? (
-              <span className="inline-flex items-center rounded bg-slate-200/80 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                Reserve: {currency} {formatNumericValue(reservePrice)}
-              </span>
-            ) : null}
           </div>
+          {hasReserve ? (
+            <p className="mt-2 inline-flex max-w-full rounded-lg border border-slate-200/90 bg-slate-100/95 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-100">
+              Reserve: {currency} {formatNumericValue(reservePrice)}
+            </p>
+          ) : null}
         </div>
-        <div>
-          <p className="text-card-meta font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Quantity
-          </p>
-          <p className="text-card-body font-bold text-slate-800 dark:text-slate-200">
+        <div className="min-w-0">
+          <p className={labelClass}>Quantity</p>
+          <p className="mt-1 text-base font-bold leading-tight text-slate-900 sm:text-lg dark:text-slate-100">
             {quantityDisplay}
           </p>
         </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            {timingLabel}
-          </p>
+        <div className="min-w-0">
+          <p className={labelClass}>{timingLabel}</p>
           <p
-            className="text-sm font-semibold text-slate-700 dark:text-slate-300"
+            className="mt-1 text-sm font-semibold leading-tight text-slate-800 sm:text-base dark:text-slate-200"
             title={
               isClosed
                 ? `Closed ${format(new Date(endAt), "MMM d, h:mm a")}`
@@ -137,14 +135,15 @@ export function FeedPostMeta({
             {timingValue}
             {highlight ? (
               <span
-                className={`ml-1.5 ${
+                className={
                   isEndsSoon
                     ? "text-amber-600 dark:text-amber-400"
                     : isNew
                       ? "text-sky-600 dark:text-sky-400"
                       : "text-emerald-600 dark:text-emerald-400"
-                }`}
+                }
               >
+                {" "}
                 · {highlight}
               </span>
             ) : null}

@@ -8,74 +8,41 @@ import {
 interface FeedPostMediaProps {
   image?: string;
   getImageWithFallback?: (image?: string) => string;
-  status: string;
-  auctionType: "SELL" | "BUY";
-}
-
-function getStatusTone(status: string): string {
-  switch (status) {
-    case "SCHEDULED":
-      return "bg-sky-100/90 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300";
-    case "OPEN":
-      return "bg-emerald-100/90 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300";
-    case "REVEAL":
-      return "bg-amber-100/90 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300";
-    case "CLOSED":
-      return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
-    default:
-      return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
-  }
+  isClosed: boolean;
 }
 
 export function FeedPostMedia({
   image,
   getImageWithFallback,
-  status,
-  auctionType,
+  isClosed,
 }: FeedPostMediaProps) {
   const imageUrl = getImageWithFallback
     ? getImageWithFallback(image)
     : image || "/placeholder.svg";
-  const isClosed = status === "CLOSED";
-  const statusLabel = status === "CLOSED" ? "Closed" : status || "";
-  const typeLabel = auctionType === "SELL" ? "Sell" : "Buy";
 
   return (
-    <div className="flex flex-col items-end gap-1.5 self-stretch">
-      <div className="flex shrink-0 flex-wrap justify-end gap-1">
-        {status ? (
-          <span
-            className={`rounded px-1.5 py-0.5 text-card-meta font-bold uppercase tracking-wider ${getStatusTone(status)}`}
-          >
-            {statusLabel}
-          </span>
-        ) : null}
-        {auctionType ? (
-          <span className="rounded bg-slate-200/80 px-1.5 py-0.5 text-card-meta font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-            {typeLabel}
-          </span>
-        ) : null}
-      </div>
-
+    <div className="relative w-full shrink-0 pb-3 md:h-full md:min-h-0 md:w-36 md:shrink-0 md:pb-0 lg:w-[9.5rem]">
       <Dialog>
         <DialogTrigger
           render={
-            <button className="relative block min-h-[80px] w-full flex-1 overflow-hidden rounded-lg border border-slate-200/50 bg-slate-100/80 text-left ring-offset-background transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900/60 md:min-h-[100px] md:w-[88px]" />
+            <button
+              type="button"
+              title={isClosed ? "Click to view image" : "Click to enlarge photo"}
+              className="group relative aspect-square w-full max-w-[11rem] cursor-pointer overflow-hidden rounded-xl border border-slate-200/80 bg-slate-100 text-left shadow-sm ring-offset-background transition-all duration-200 hover:border-primary/35 hover:shadow-md hover:ring-2 hover:ring-primary/20 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-primary/40 md:absolute md:inset-0 md:max-w-none md:aspect-auto md:min-h-[12rem]"
+            />
           }
         >
           <div
-            className={`absolute inset-0 bg-cover bg-center ${
-              isClosed ? "grayscale-[0.18] saturate-[0.82]" : ""
+            className={`absolute inset-0 bg-cover bg-center transition-transform duration-300 ease-out group-hover:scale-[1.05] ${
+              isClosed ? "grayscale-[0.15] saturate-[0.88]" : ""
             }`}
             style={{ backgroundImage: `url("${imageUrl}")` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent" />
-          <div className="absolute bottom-1 right-1">
-            <span className="flex items-center gap-0.5 rounded bg-black/60 px-1 py-0.5 text-[8px] font-medium text-white">
-              <span className="material-symbols-outlined text-[9px]">zoom_in</span>
-              {isClosed ? "Inspect" : "Expand"}
-            </span>
-          </div>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/15 via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-80" />
+
+          <span className="sr-only">
+            {isClosed ? "Listing photo, click to view full size" : "Listing photo, click to enlarge"}
+          </span>
         </DialogTrigger>
 
         <DialogContent className="flex h-[85vh] w-[95vw] max-w-4xl items-center justify-center overflow-hidden rounded-xl border-border/20 bg-black/95 p-0">

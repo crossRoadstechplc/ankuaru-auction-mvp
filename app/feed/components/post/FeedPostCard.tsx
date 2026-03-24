@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { Auction } from "@/lib/types";
 import { FeedPostHeader } from "./FeedPostHeader";
 import { FeedPostBody } from "./FeedPostBody";
-import { FeedPostProperties } from "./FeedPostProperties";
 import { FeedPostMedia } from "./FeedPostMedia";
 import { FeedPostMeta } from "./FeedPostMeta";
 import { FeedPostActions } from "./FeedPostActions";
@@ -30,11 +29,17 @@ export function FeedPostCard({
   onOpenCreatorProfile,
   onOpenCreatorProfileImage,
 }: FeedPostCardProps) {
+  const isClosed = auction.status === "CLOSED";
+
+  const headerLotType =
+    auction.lotType ??
+    (auction.priceTiers && auction.priceTiers.length > 0 ? "FLEXIBLE" : "SEALED");
+
   return (
-    <Card className="w-full overflow-hidden rounded-xl border border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-950">
+    <Card className="w-full overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <FeedPostHeader
         creatorId={auction.createdBy}
-        lotType={auction.lotType}
+        lotType={headerLotType}
         creator={auction.creator}
         createdAt={auction.createdAt}
         isFollowing={isFollowingCreator}
@@ -43,23 +48,29 @@ export function FeedPostCard({
         onOpenProfileImage={onOpenCreatorProfileImage}
       />
 
-      <div className="grid grid-cols-1 gap-2 px-3 pb-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-stretch md:gap-3 md:px-3 md:pb-3">
-        <div className="min-w-0 space-y-1.5">
+      {/* Mobile: image then content. Desktop: image left, content right (LTR). */}
+      <div className="flex flex-col gap-3 px-3 pb-3 pt-0 sm:px-4 sm:pb-4 md:flex-row md:items-stretch md:gap-4">
+        <FeedPostMedia
+          image={auction.image}
+          getImageWithFallback={getImageWithFallback}
+          isClosed={isClosed}
+        />
+
+        <div className="min-w-0 flex-1 space-y-2.5 md:pt-0.5">
           <FeedPostBody
             title={auction.title}
             productName={auction.productName}
             region={auction.region}
             grade={auction.grade}
-          />
-
-          <FeedPostProperties
             category={auction.auctionCategory}
+            status={auction.status}
+            auctionType={auction.auctionType}
             commodityType={auction.commodityType}
-            process={auction.process}
-            transaction={auction.transaction}
-            commodityBrand={auction.commodityBrand}
             commodityClass={auction.commodityClass}
             commoditySize={auction.commoditySize}
+            commodityBrand={auction.commodityBrand}
+            process={auction.process}
+            transaction={auction.transaction}
           />
 
           <FeedPostMeta
@@ -77,13 +88,6 @@ export function FeedPostCard({
             createdAt={auction.createdAt}
           />
         </div>
-
-        <FeedPostMedia
-          image={auction.image}
-          getImageWithFallback={getImageWithFallback}
-          status={auction.status}
-          auctionType={auction.auctionType}
-        />
       </div>
 
       <FeedPostActions auctionId={auction.id} status={auction.status} />

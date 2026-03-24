@@ -13,6 +13,8 @@ import {
   useMyProfileQuery,
   useMySentFollowRequestsQuery,
 } from "@/src/features/profile/queries/hooks";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useAuthStore } from "../../stores/auth.store";
@@ -163,7 +165,7 @@ function toggleSelection(current: string[], nextValue: string): string[] {
 export default function FeedPage() {
   const router = useRouter();
   const [displayLimit, setDisplayLimit] = useState(DISPLAY_PAGE_SIZE);
-  const [isFilterSidebarVisible, setIsFilterSidebarVisible] = useState(true);
+  const [isFilterSidebarVisible, setIsFilterSidebarVisible] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedQuantityRanges, setSelectedQuantityRanges] = useState<string[]>(
@@ -489,6 +491,11 @@ export default function FeedPage() {
               isAuthenticated={isAuthenticated}
               resultCount={filteredAndSortedAuctions.length}
               isLoading={isLoading}
+              onToggleFilters={() =>
+                setIsFilterSidebarVisible((open) => !open)
+              }
+              filtersOpen={isFilterSidebarVisible}
+              activeFilterCount={activeFilterCount}
             />
 
             <FeedAuctionGrid
@@ -511,82 +518,108 @@ export default function FeedPage() {
           </div>
 
           {isFilterSidebarVisible ? (
-          <aside className="xl:sticky xl:top-24">
-            <FeedFilterSidebar
-              totalCount={searchMatchingAuctions.length}
-              resultCount={filteredAndSortedAuctions.length}
-              activeFilterCount={activeFilterCount}
-              onCollapse={() => setIsFilterSidebarVisible(false)}
-              categories={categoryOptions}
-              statuses={statusOptions}
-              quantityRanges={quantityRangeOptions}
-              priceRanges={priceRangeOptions}
-              origins={originOptions}
-              lotTypes={lotTypeOptions}
-              selectedCategories={selectedCategories}
-              selectedStatuses={selectedStatuses}
-              selectedQuantityRanges={selectedQuantityRanges}
-              selectedPriceRanges={selectedPriceRanges}
-              selectedOrigins={selectedOrigins}
-              selectedLotTypes={selectedLotTypes}
-              onToggleCategory={(categoryId) => {
-                setDisplayLimit(DISPLAY_PAGE_SIZE);
-                setSelectedCategories((current) =>
-                  toggleSelection(current, categoryId),
-                );
-              }}
-              onToggleStatus={(statusId) => {
-                setDisplayLimit(DISPLAY_PAGE_SIZE);
-                setSelectedStatuses((current) =>
-                  toggleSelection(current, statusId),
-                );
-              }}
-              onToggleQuantityRange={(quantityRangeId) => {
-                setDisplayLimit(DISPLAY_PAGE_SIZE);
-                setSelectedQuantityRanges((current) =>
-                  toggleSelection(current, quantityRangeId),
-                );
-              }}
-              onTogglePriceRange={(priceRangeId) => {
-                setDisplayLimit(DISPLAY_PAGE_SIZE);
-                setSelectedPriceRanges((current) =>
-                  toggleSelection(current, priceRangeId),
-                );
-              }}
-              onToggleOrigin={(originId) => {
-                setDisplayLimit(DISPLAY_PAGE_SIZE);
-                setSelectedOrigins((current) =>
-                  toggleSelection(current, originId),
-                );
-              }}
-              onToggleLotType={(lotTypeId) => {
-                setDisplayLimit(DISPLAY_PAGE_SIZE);
-                setSelectedLotTypes((current) =>
-                  toggleSelection(current, lotTypeId),
-                );
-              }}
-              onClearAll={() => {
-                setDisplayLimit(DISPLAY_PAGE_SIZE);
-                setSelectedCategories([]);
-                setSelectedStatuses([]);
-                setSelectedQuantityRanges([]);
-                setSelectedPriceRanges([]);
-                setSelectedOrigins([]);
-                setSelectedLotTypes([]);
-              }}
-            />
-          </aside>
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[2px] xl:hidden"
+                aria-label="Close filters"
+                onClick={() => setIsFilterSidebarVisible(false)}
+              />
+              <aside
+                className={cn(
+                  "z-50 flex w-full max-w-[min(100vw,400px)] flex-col",
+                  "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:h-[100dvh] max-xl:min-h-0 max-xl:overflow-hidden max-xl:shadow-2xl",
+                  "xl:static xl:z-auto xl:max-w-none xl:self-start xl:overflow-visible xl:shadow-none",
+                )}
+              >
+                <FeedFilterSidebar
+                  totalCount={searchMatchingAuctions.length}
+                  resultCount={filteredAndSortedAuctions.length}
+                  activeFilterCount={activeFilterCount}
+                  onCollapse={() => setIsFilterSidebarVisible(false)}
+                  categories={categoryOptions}
+                  statuses={statusOptions}
+                  quantityRanges={quantityRangeOptions}
+                  priceRanges={priceRangeOptions}
+                  origins={originOptions}
+                  lotTypes={lotTypeOptions}
+                  selectedCategories={selectedCategories}
+                  selectedStatuses={selectedStatuses}
+                  selectedQuantityRanges={selectedQuantityRanges}
+                  selectedPriceRanges={selectedPriceRanges}
+                  selectedOrigins={selectedOrigins}
+                  selectedLotTypes={selectedLotTypes}
+                  onToggleCategory={(categoryId) => {
+                    setDisplayLimit(DISPLAY_PAGE_SIZE);
+                    setSelectedCategories((current) =>
+                      toggleSelection(current, categoryId),
+                    );
+                  }}
+                  onToggleStatus={(statusId) => {
+                    setDisplayLimit(DISPLAY_PAGE_SIZE);
+                    setSelectedStatuses((current) =>
+                      toggleSelection(current, statusId),
+                    );
+                  }}
+                  onToggleQuantityRange={(quantityRangeId) => {
+                    setDisplayLimit(DISPLAY_PAGE_SIZE);
+                    setSelectedQuantityRanges((current) =>
+                      toggleSelection(current, quantityRangeId),
+                    );
+                  }}
+                  onTogglePriceRange={(priceRangeId) => {
+                    setDisplayLimit(DISPLAY_PAGE_SIZE);
+                    setSelectedPriceRanges((current) =>
+                      toggleSelection(current, priceRangeId),
+                    );
+                  }}
+                  onToggleOrigin={(originId) => {
+                    setDisplayLimit(DISPLAY_PAGE_SIZE);
+                    setSelectedOrigins((current) =>
+                      toggleSelection(current, originId),
+                    );
+                  }}
+                  onToggleLotType={(lotTypeId) => {
+                    setDisplayLimit(DISPLAY_PAGE_SIZE);
+                    setSelectedLotTypes((current) =>
+                      toggleSelection(current, lotTypeId),
+                    );
+                  }}
+                  onClearAll={() => {
+                    setDisplayLimit(DISPLAY_PAGE_SIZE);
+                    setSelectedCategories([]);
+                    setSelectedStatuses([]);
+                    setSelectedQuantityRanges([]);
+                    setSelectedPriceRanges([]);
+                    setSelectedOrigins([]);
+                    setSelectedLotTypes([]);
+                  }}
+                />
+              </aside>
+            </>
           ) : (
-          <aside className="xl:sticky xl:top-24 hidden xl:block">
-            <button
-              type="button"
-              onClick={() => setIsFilterSidebarVisible(true)}
-              className="flex h-12 w-10 items-center justify-center rounded-l-xl border border-r-0 border-slate-200/60 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
-              aria-label="Show filters"
-            >
-              <span className="material-symbols-outlined text-xl">chevron_left</span>
-            </button>
-          </aside>
+            <aside className="hidden shrink-0 xl:static xl:block xl:self-start">
+              <button
+                type="button"
+                onClick={() => setIsFilterSidebarVisible(true)}
+                className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-white"
+                aria-label="Show filters"
+              >
+                <Image
+                  src="/filter.png"
+                  alt=""
+                  width={22}
+                  height={22}
+                  className="size-[22px] object-contain"
+                  aria-hidden
+                />
+                {activeFilterCount > 0 ? (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold tabular-nums text-white ring-2 ring-white dark:ring-slate-950">
+                    {activeFilterCount > 99 ? "99+" : activeFilterCount}
+                  </span>
+                ) : null}
+              </button>
+            </aside>
           )}
         </PageSection>
       </PageContainer>
