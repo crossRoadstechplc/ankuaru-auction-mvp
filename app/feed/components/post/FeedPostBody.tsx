@@ -3,17 +3,31 @@
 function statusChipClass(status: string): string {
   switch (status) {
     case "SCHEDULED":
-      return "border-sky-200/80 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300";
+      return "rounded-full border border-sky-200/90 bg-sky-50 px-2.5 py-0.5 text-sky-900 dark:border-sky-800 dark:bg-sky-950/45 dark:text-sky-200";
     case "OPEN":
-      return "border-emerald-200/80 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
+      return "rounded-full border border-emerald-200/90 bg-emerald-50 px-2.5 py-0.5 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200";
     case "REVEAL":
-      return "border-amber-200/80 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+      return "rounded-full border border-amber-200/90 bg-amber-50 px-2.5 py-0.5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200";
     case "CLOSED":
-      return "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-300";
+      return "rounded-full border border-slate-200/90 bg-slate-100 px-2.5 py-0.5 text-slate-700 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-300";
     default:
-      return "border-slate-200/80 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-400";
+      return "rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-0.5 text-slate-600 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-400";
   }
 }
+
+/** Business type: Sell / Buy */
+const typeChipClass =
+  "rounded-md border border-slate-300/90 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700 shadow-[0_1px_0_rgba(15,23,42,0.04)] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200";
+
+/** Auction mechanism from lot type */
+function lotChipClass(lot: "FLEXIBLE" | "SEALED"): string {
+  return lot === "FLEXIBLE"
+    ? "rounded-md border-2 border-emerald-500/55 bg-emerald-50/90 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-900 dark:border-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-200"
+    : "rounded-md border-2 border-slate-400/70 bg-slate-100/90 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-800 dark:border-slate-500 dark:bg-slate-800/90 dark:text-slate-100";
+}
+
+const categoryChipClass =
+  "rounded-md border border-violet-200/85 bg-violet-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-900 dark:border-violet-800 dark:bg-violet-950/45 dark:text-violet-200";
 
 interface FeedPostBodyProps {
   title: string;
@@ -23,6 +37,7 @@ interface FeedPostBodyProps {
   category?: string;
   status: string;
   auctionType: "SELL" | "BUY";
+  lotType?: "FLEXIBLE" | "SEALED";
   commodityType?: string;
   commodityClass?: string;
   commoditySize?: string;
@@ -39,6 +54,7 @@ export function FeedPostBody({
   category,
   status,
   auctionType,
+  lotType,
   commodityType,
   commodityClass,
   commoditySize,
@@ -78,35 +94,41 @@ export function FeedPostBody({
     transaction?.trim() || null,
   ].filter((v): v is string => !!v);
 
-  const chipBase =
-    "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide";
-
   return (
-    <div className="space-y-2">
-      <h4 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-slate-900 dark:text-white md:text-xl">
+    <div className="space-y-2.5">
+      <h4 className="line-clamp-3 text-xl font-extrabold leading-snug tracking-tight text-slate-900 dark:text-white md:text-2xl md:leading-tight">
         {displayTitle}
       </h4>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Status (state) · Type (business) · Lot · Category — spaced consistently */}
+      <div
+        className="flex flex-wrap items-center gap-2"
+        aria-label={`Auction ${statusLabel}, ${typeLabel}${lotType ? `, ${lotType}` : ""}${categoryChip ? `, ${categoryChip}` : ""}`}
+      >
         {status ? (
-          <span className={`${chipBase} ${statusChipClass(status)}`}>{statusLabel}</span>
+          <span
+            className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wide ${statusChipClass(status)}`}
+          >
+            {statusLabel}
+          </span>
         ) : null}
-        <span
-          className={`${chipBase} border-slate-200/90 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800/70 dark:text-slate-200`}
-        >
+        <span className={`inline-flex items-center ${typeChipClass}`}>
           {typeLabel}
         </span>
+        {lotType ? (
+          <span className={`inline-flex items-center ${lotChipClass(lotType)}`}>
+            {lotType === "FLEXIBLE" ? "Flexible" : "Sealed"}
+          </span>
+        ) : null}
         {categoryChip ? (
-          <span
-            className={`${chipBase} border-violet-200/85 bg-violet-50 text-violet-900 dark:border-violet-800 dark:bg-violet-950/45 dark:text-violet-200`}
-          >
+          <span className={`inline-flex items-center ${categoryChipClass}`}>
             {categoryChip}
           </span>
         ) : null}
       </div>
 
       {detailParts.length > 0 ? (
-        <p className="text-card-body text-xs font-medium leading-relaxed text-slate-600 dark:text-slate-400">
+        <p className="text-xs font-medium leading-relaxed text-slate-600 dark:text-slate-400">
           {detailParts.join(" · ")}
         </p>
       ) : null}

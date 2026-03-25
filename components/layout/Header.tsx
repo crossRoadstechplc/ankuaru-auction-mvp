@@ -10,9 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import MarketTickerBar from "@/components/layout/MarketTickerBar";
 import { NetworkStatusIndicator } from "@/components/layout/NetworkStatusIndicator";
 import { cn } from "../../lib/utils";
+import { NotificationHeaderRow } from "@/src/components/domain/notification/notification-header-row";
 import { useNotificationsWithRealTimeQuery } from "@/src/features/notifications/queries/hooks";
 import { resolveNotificationPresentation } from "@/src/features/notifications/utils/notification-routing";
 import {
@@ -26,7 +28,7 @@ import {
 import { useFavoriteAuctions } from "@/src/shared/favorites/favorite-auctions";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Notification } from "../../lib/types";
 import { useAuthStore } from "../../stores/auth.store";
@@ -195,16 +197,6 @@ export default function Header() {
     }
   };
 
-  const getNotificationText = (notification: Notification) => {
-    const legacyNotification = notification as Notification & { text?: string };
-    return (
-      notification.title ||
-      notification.message ||
-      legacyNotification.text ||
-      "Notification"
-    );
-  };
-
   const handleApproveRequest = async (requestId: string) => {
     try {
       await approveFollowRequestMutation.mutateAsync(requestId);
@@ -222,6 +214,13 @@ export default function Header() {
       toast.error("Failed to reject follow request");
     }
   };
+
+  const notificationPreview = useMemo(() => {
+    return [...notifications].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    ).slice(0, 5);
+  }, [notifications]);
 
   const handleLogout = async () => {
     await logout();
@@ -375,81 +374,80 @@ export default function Header() {
                       </Badge>
                     )}
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-80">
-                    <div className="flex items-center justify-between p-4">
-                      <h3 className="font-semibold">Notifications</h3>
-                      {unreadCount > 0 && (
-                        <Badge variant="secondary" className="text-xs">
-                          {unreadCount} new
-                        </Badge>
-                      )}
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-[min(100vw-1rem,22rem)] rounded-2xl border border-slate-200/90 p-0 shadow-lg dark:border-slate-800"
+                  >
+                    <div className="border-b border-slate-200/80 px-4 py-3 dark:border-slate-800">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold tracking-tight text-foreground">
+                          Notifications
+                        </h3>
+                        {unreadCount > 0 ? (
+                          <Badge
+                            variant="secondary"
+                            className="rounded-md text-[10px] font-semibold tabular-nums"
+                          >
+                            {unreadCount} new
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Stay on top of bids, auctions, and follows.
+                      </p>
                     </div>
-                    <Separator />
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="max-h-[min(24rem,70vh)] overflow-y-auto overscroll-y-contain px-2 py-2">
                       {isLoadingNotifications ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          Loading notifications...
+                        <div className="flex flex-col gap-2 p-1">
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="flex gap-3 rounded-xl border border-border/60 p-3"
+                            >
+                              <Skeleton className="size-9 shrink-0 rounded-xl" />
+                              <div className="flex flex-1 flex-col gap-2">
+                                <div className="flex justify-between gap-2">
+                                  <Skeleton className="h-3.5 w-3/4" />
+                                  <Skeleton className="h-3 w-10 shrink-0" />
+                                </div>
+                                <Skeleton className="h-3 w-full" />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ) : notifications && notifications.length > 0 ? (
-                        notifications.slice(0, 5).map((n) => {
-                          const presentation = resolveNotificationPresentation(n);
-
-                          return (
+                      ) : notificationPreview.length > 0 ? (
+                        <div className="flex flex-col gap-2">
+                          {notificationPreview.map((n) => (
                             <DropdownMenuItem
                               key={n.id}
-                              onClick={() => handleNotificationClick(n)}
-                              className="flex flex-col items-start p-4 cursor-pointer"
+                              variant="rich"
+                              className="rounded-xl p-1"
+                              onClick={() => void handleNotificationClick(n)}
                             >
-                              <div className="flex w-full items-start gap-3">
-                                <div
-                                  className={`flex h-8 w-8 items-center justify-center rounded-xl ${presentation.accentClassName}`}
-                                >
-                                  <span className="material-symbols-outlined text-sm">
-                                    {presentation.iconName}
-                                  </span>
-                                </div>
-                              <div className="flex flex-col gap-1 flex-1">
-                                <p
-                                  className={`text-sm ${!n.is_read ? "font-semibold" : "font-medium"} text-foreground`}
-                                >
-                                  {getNotificationText(n)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {presentation.action.kind === "none"
-                                    ? "View details"
-                                    : presentation.action.label}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(n.created_at).toLocaleTimeString()}
-                                </p>
-                              </div>
-                              </div>
+                              <NotificationHeaderRow notification={n} />
                             </DropdownMenuItem>
-                          );
-                        })
+                          ))}
+                        </div>
                       ) : (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
+                        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
                           No notifications yet.
                         </div>
                       )}
                     </div>
-                    {notifications && notifications.length > 0 && (
-                      <>
-                        <Separator />
-                        <div className="p-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full"
-                            asChild
-                          >
-                            <Link href="/notifications">
-                              View all notifications
-                            </Link>
-                          </Button>
-                        </div>
-                      </>
-                    )}
+                    {notifications && notifications.length > 0 ? (
+                      <div className="border-t border-slate-200/80 p-2 dark:border-slate-800">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-10 w-full rounded-xl text-sm font-semibold"
+                          asChild
+                        >
+                          <Link href="/notifications">
+                            View all notifications
+                          </Link>
+                        </Button>
+                      </div>
+                    ) : null}
                   </DropdownMenuContent>
                 </DropdownMenu>
 

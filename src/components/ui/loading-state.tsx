@@ -24,15 +24,22 @@ export function LoadingState({ type = "spinner", count = 3, className }: Loading
   // List Loading (Rows)
   if (type === "list") {
     return (
-      <div className={cn("flex flex-col gap-4 w-full", className)}>
+      <div className={cn("flex flex-col gap-5 w-full", className)}>
         {Array.from({ length: count }).map((_, i) => (
-          <div key={i} className="flex items-center gap-4 p-4 rounded-lg border border-border">
-            <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
-            <div className="flex flex-col gap-2 flex-1">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-3 w-1/2" />
+          <div
+            key={i}
+            className="flex items-start gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-sm md:p-5"
+          >
+            <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
+            <div className="flex flex-1 flex-col gap-2.5">
+              <div className="flex justify-between gap-2">
+                <Skeleton className="h-4 w-2/5 max-w-[200px]" />
+                <Skeleton className="h-3 w-14 shrink-0" />
+              </div>
+              <Skeleton className="h-3.5 w-full max-w-xl" />
+              <Skeleton className="h-3.5 w-4/5 max-w-lg" />
+              <Skeleton className="mt-1 h-8 w-28 rounded-lg" />
             </div>
-            <Skeleton className="h-8 w-16 rounded-md" />
           </div>
         ))}
       </div>

@@ -1,18 +1,33 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+"use client";
+
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { NotificationVisualKind } from "@/src/features/notifications/utils/notification-visual";
+import {
+  formatNotificationTime,
+  NotificationTypeIcon,
+  notificationRowAccentClass,
+} from "./notification-appearance";
 
 export interface NotificationItemProps {
-  title: string
-  description: string
-  timestamp: string | Date
-  isRead?: boolean
-  categoryLabel?: string
-  iconName?: string
-  icon?: React.ReactNode
-  onClick?: () => void
-  actionLabel?: string
-  onActionClick?: (event: React.MouseEvent<HTMLButtonElement>) => void
-  className?: string
+  title: string;
+  description: string;
+  timestamp: string | Date;
+  isRead?: boolean;
+  categoryLabel?: string;
+  visualKind: NotificationVisualKind;
+  /** Outbid / closing soon / urgent */
+  important?: boolean;
+  /** Merged group size badge */
+  mergeCount?: number;
+  onClick?: () => void;
+  actionLabel?: string;
+  onActionClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  /** Optional secondary (e.g. dismiss-style) — same row as primary */
+  secondaryActionLabel?: string;
+  onSecondaryActionClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  className?: string;
 }
 
 export function NotificationItem({
@@ -21,96 +36,105 @@ export function NotificationItem({
   timestamp,
   isRead = false,
   categoryLabel,
-  iconName,
-  icon,
+  visualKind,
+  important = false,
+  mergeCount,
   onClick,
   actionLabel,
   onActionClick,
+  secondaryActionLabel,
+  onSecondaryActionClick,
   className,
 }: NotificationItemProps) {
-  const formattedTime = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(timestamp))
+  const date = new Date(timestamp);
+  const timeLabel = formatNotificationTime(date);
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "flex gap-4 rounded-2xl border p-4 transition-all cursor-pointer w-full shadow-sm",
+        "group relative flex gap-4 rounded-xl border px-4 py-4 text-left shadow-sm transition-colors md:px-5 md:py-4",
+        "min-h-[4.5rem] w-full cursor-pointer",
         isRead
-          ? "border-border/70 bg-card hover:border-border hover:bg-muted/30"
-          : "border-primary/20 bg-primary/[0.06] hover:border-primary/30 hover:bg-primary/[0.08]",
-        className
+          ? "border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700 dark:hover:bg-slate-900/60"
+          : "border-slate-200/90 bg-sky-50/50 font-medium hover:bg-sky-50/80 dark:border-sky-900/40 dark:bg-sky-950/25 dark:hover:bg-sky-950/35",
+        notificationRowAccentClass(visualKind, important),
+        className,
       )}
     >
-      {/* Icon Area */}
-      <div className="flex-shrink-0 mt-1">
-        {icon ? (
-          icon
-        ) : (
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-xl">
-              {iconName || "notifications"}
-            </span>
-          </div>
-        )}
-      </div>
+      <NotificationTypeIcon
+        kind={visualKind}
+        size="md"
+        className="mt-0.5"
+      />
 
-      {/* Content Area */}
-      <div className="flex flex-col flex-1 gap-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
+              {mergeCount != null && mergeCount > 1 ? (
+                <span className="inline-flex rounded-md bg-slate-900/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white dark:bg-slate-100 dark:text-slate-900">
+                  ×{mergeCount}
+                </span>
+              ) : null}
               {categoryLabel ? (
-                <span className="inline-flex rounded-full border border-border/70 bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {categoryLabel}
                 </span>
               ) : null}
-              {!isRead ? (
-                <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
-                  New
-                </span>
-              ) : null}
             </div>
-            <h4 className={cn("text-sm font-semibold text-foreground", !isRead && "text-primary")}>
+            <h3
+              className={cn(
+                "line-clamp-1 text-sm leading-snug text-slate-900 dark:text-slate-100",
+                !isRead && "font-bold",
+                isRead && "font-semibold",
+              )}
+            >
               {title}
-            </h4>
+            </h3>
           </div>
-          <span className="pt-0.5 text-xs tracking-tight text-muted-foreground whitespace-nowrap">
-            {formattedTime}
-          </span>
+          <time
+            dateTime={date.toISOString()}
+            className="shrink-0 text-[11px] tabular-nums text-muted-foreground"
+          >
+            {timeLabel}
+          </time>
         </div>
-        
-        <p className="text-sm leading-6 text-muted-foreground line-clamp-2">
+
+        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {description}
         </p>
 
-        {actionLabel ? (
-          <div className="mt-2 flex items-center">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                onActionClick?.(event)
-              }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
-            >
-              <span>{actionLabel}</span>
-              <span className="material-symbols-outlined text-sm">arrow_outward</span>
-            </button>
+        {actionLabel || secondaryActionLabel ? (
+          <div
+            className="flex flex-wrap items-center gap-2 pt-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {actionLabel ? (
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-8 rounded-lg text-xs font-semibold shadow-sm"
+                onClick={(e) => onActionClick?.(e)}
+              >
+                {actionLabel}
+              </Button>
+            ) : null}
+            {secondaryActionLabel ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-lg text-xs font-semibold"
+                onClick={(e) => onSecondaryActionClick?.(e)}
+              >
+                {secondaryActionLabel}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
-
-      {/* Unread dot */}
-      {!isRead && (
-        <div className="flex-shrink-0 mt-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-primary"></div>
-        </div>
-      )}
     </div>
-  )
+  );
 }

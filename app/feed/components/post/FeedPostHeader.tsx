@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 
 interface FeedPostHeaderProps {
   creatorId: string;
-  lotType?: "FLEXIBLE" | "SEALED";
   creator?: {
     id: string;
     username: string;
@@ -54,7 +53,6 @@ function pickReadableIdentity(
 
 export function FeedPostHeader({
   creatorId,
-  lotType,
   creator,
   createdAt,
   isFollowing,
@@ -149,7 +147,7 @@ export function FeedPostHeader({
 
   return (
     <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 px-3 py-3 sm:px-4 dark:border-slate-800/80">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
         <button
           type="button"
           onClick={handleProfileImageOpen}
@@ -161,11 +159,11 @@ export function FeedPostHeader({
             "dark:hover:bg-slate-800/90 dark:hover:ring-primary/30",
           )}
         >
-          <Avatar className="size-12 rounded-full border-2 border-slate-200/80 shadow-sm dark:border-slate-600 sm:size-14">
+          <Avatar className="size-14 rounded-full border-2 border-slate-200/80 shadow-md dark:border-slate-600 sm:size-16">
             <AvatarImage src={avatarUrl || ""} alt={displayName} className="object-cover" />
-            <AvatarFallback className="rounded-full bg-slate-100 text-sm font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+            <AvatarFallback className="rounded-full bg-slate-100 text-base font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
               {avatarUrl ? (
-                <User className="size-5" />
+                <User className="size-6" />
               ) : (
                 getInitials(displayName)
               )}
@@ -173,45 +171,52 @@ export function FeedPostHeader({
           </Avatar>
         </button>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-          <button
-            type="button"
-            onClick={handleProfileOpen}
-            disabled={!onOpenProfile}
-            title={onOpenProfile ? "Open profile" : undefined}
-            className={cn(
-              "min-w-0 max-w-full cursor-pointer truncate rounded-md px-0.5 text-left transition-colors sm:max-w-[min(100%,18rem)]",
-              "text-base font-bold tracking-tight text-slate-900 sm:text-[1.05rem]",
-              onOpenProfile
-                ? "hover:text-primary hover:underline decoration-primary/40 underline-offset-2 dark:text-white dark:hover:text-primary"
-                : "cursor-default dark:text-white",
-            )}
-          >
-            {displayName}
-          </button>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={handleProfileOpen}
+              disabled={!onOpenProfile}
+              title={onOpenProfile ? "Open profile" : undefined}
+              className={cn(
+                "block max-w-full cursor-pointer truncate rounded-md px-0.5 text-left transition-colors",
+                "text-lg font-bold leading-tight tracking-tight text-slate-900 sm:text-xl",
+                onOpenProfile
+                  ? "hover:text-primary hover:underline decoration-primary/40 underline-offset-2 dark:text-white dark:hover:text-primary"
+                  : "cursor-default dark:text-white",
+              )}
+            >
+              {displayName}
+            </button>
+            {readableUsername ? (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                @{readableUsername}
+              </p>
+            ) : null}
+          </div>
 
           {canShowFollowButton ? (
             <Button
               type="button"
               size="sm"
-              variant={isFollowing || effectiveIsRequested ? "outline" : "default"}
+              variant={isFollowing || effectiveIsRequested ? "outline" : "secondary"}
               onClick={() => {
                 if (!effectiveIsRequested) void handleFollowToggle();
               }}
               disabled={isFollowActionLoading || effectiveIsRequested}
               className={cn(
-                "h-6 shrink-0 rounded-full px-2 text-[11px] font-semibold leading-none transition-colors",
-                isFollowing
-                  ? "border-emerald-200/90 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/90 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
-                  : effectiveIsRequested
-                    ? "border-amber-300/90 bg-amber-50 text-amber-800 hover:bg-amber-100/80 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-300 dark:hover:bg-amber-950/50"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                "h-7 shrink-0 rounded-full px-2.5 text-[10px] font-semibold leading-none",
+                isFollowing || effectiveIsRequested
+                  ? "border-slate-200/90 text-slate-600 dark:border-slate-600 dark:text-slate-300"
+                  : "",
               )}
             >
               {isFollowing ? (
                 <UserCheck className="mr-0.5 size-3" />
               ) : effectiveIsRequested ? (
-                <span className="material-symbols-outlined mr-0.5 text-[13px] leading-none">schedule</span>
+                <span className="material-symbols-outlined mr-0.5 text-[12px] leading-none">
+                  schedule
+                </span>
               ) : (
                 <UserPlus className="mr-0.5 size-3" />
               )}
@@ -227,22 +232,11 @@ export function FeedPostHeader({
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2.5">
-        {lotType === "SEALED" ? (
-          <span className="inline-flex min-h-8 items-center rounded-full border-2 border-slate-400/70 bg-slate-100 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.08em] text-slate-800 shadow-sm dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100">
-            Sealed
-          </span>
-        ) : lotType === "FLEXIBLE" ? (
-          <span className="inline-flex min-h-8 items-center rounded-full border-2 border-emerald-500/60 bg-emerald-100 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.08em] text-emerald-900 shadow-sm dark:border-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-200">
-            Flexible
-          </span>
-        ) : null}
-        {formattedTime ? (
-          <span className="text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400 sm:max-w-[9rem] sm:text-right">
-            {formattedTime}
-          </span>
-        ) : null}
-      </div>
+      {formattedTime ? (
+        <span className="shrink-0 text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-400 sm:max-w-[9rem] sm:text-right">
+          {formattedTime}
+        </span>
+      ) : null}
     </div>
   );
 }

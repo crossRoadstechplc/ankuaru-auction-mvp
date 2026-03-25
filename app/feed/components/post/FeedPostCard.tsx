@@ -36,10 +36,9 @@ export function FeedPostCard({
     (auction.priceTiers && auction.priceTiers.length > 0 ? "FLEXIBLE" : "SEALED");
 
   return (
-    <Card className="w-full overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <Card className="w-full overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-950 dark:hover:shadow-lg dark:hover:shadow-black/20">
       <FeedPostHeader
         creatorId={auction.createdBy}
-        lotType={headerLotType}
         creator={auction.creator}
         createdAt={auction.createdAt}
         isFollowing={isFollowingCreator}
@@ -49,7 +48,7 @@ export function FeedPostCard({
       />
 
       {/* Mobile: image then content. Desktop: image left, content right (LTR). */}
-      <div className="flex flex-col gap-3 px-3 pb-3 pt-0 sm:px-4 sm:pb-4 md:flex-row md:items-stretch md:gap-4">
+      <div className="flex flex-col gap-3 px-3 pb-3 pt-0 sm:px-4 sm:pb-4 md:flex-row md:items-stretch md:gap-3">
         <FeedPostMedia
           image={auction.image}
           getImageWithFallback={getImageWithFallback}
@@ -65,6 +64,7 @@ export function FeedPostCard({
             category={auction.auctionCategory}
             status={auction.status}
             auctionType={auction.auctionType}
+            lotType={headerLotType}
             commodityType={auction.commodityType}
             commodityClass={auction.commodityClass}
             commoditySize={auction.commoditySize}

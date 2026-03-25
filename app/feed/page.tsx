@@ -514,6 +514,7 @@ export default function FeedPage() {
               onOpenCreatorProfileImage={handleOpenCreatorProfileImage}
               onLoadMore={handleLoadMore}
               hasMore={hasMore}
+              totalMatchingCount={filteredAndSortedAuctions.length}
             />
           </div>
 
@@ -529,7 +530,7 @@ export default function FeedPage() {
                 className={cn(
                   "z-50 flex w-full max-w-[min(100vw,400px)] flex-col",
                   "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:h-[100dvh] max-xl:min-h-0 max-xl:overflow-hidden max-xl:shadow-2xl",
-                  "xl:static xl:z-auto xl:max-w-none xl:self-start xl:overflow-visible xl:shadow-none",
+                  "xl:sticky xl:top-24 xl:z-auto xl:max-h-[calc(100vh-6rem)] xl:w-full xl:max-w-none xl:min-h-0 xl:self-start xl:overflow-hidden xl:shadow-none",
                 )}
               >
                 <FeedFilterSidebar
@@ -598,7 +599,7 @@ export default function FeedPage() {
               </aside>
             </>
           ) : (
-            <aside className="hidden shrink-0 xl:static xl:block xl:self-start">
+            <aside className="hidden shrink-0 xl:sticky xl:top-24 xl:block xl:self-start">
               <button
                 type="button"
                 onClick={() => setIsFilterSidebarVisible(true)}
