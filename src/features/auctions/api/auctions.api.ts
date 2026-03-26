@@ -6,6 +6,7 @@ import {
   AuctionFormOptions,
   AuctionFormOptionsParams,
   AuctionReport,
+  CloseAuctionInput,
   CloseAuctionResult,
   CreateAuctionData,
   EditAuctionData,
@@ -277,10 +278,16 @@ async function editAuction(
   return mapAuctionPayload(response.editAuction);
 }
 
-async function closeAuction(auctionId: string): Promise<CloseAuctionResult> {
+async function closeAuction(
+  auctionId: string,
+  input?: CloseAuctionInput | null,
+): Promise<CloseAuctionResult> {
   const response = await graphqlClient.request<CloseAuctionMutationResultDto>(
     mutations.CLOSE_AUCTION_MUTATION,
-    { id: auctionId },
+    {
+      id: auctionId,
+      input: input ?? null,
+    },
   );
 
   const payload = parseJsonScalar(response.closeAuction);

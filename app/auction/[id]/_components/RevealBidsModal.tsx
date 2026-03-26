@@ -2,7 +2,7 @@
 
 import { useCloseAuctionMutation } from "@/src/features/auctions/queries/hooks";
 import { useAuctionBidsQuery } from "@/src/features/bids/queries/hooks";
-import { getBidTotal } from "@/lib/format";
+import { formatBidDisplayValue, formatCurrencyValue } from "@/lib/format";
 import { CloseAuctionResult } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -23,9 +23,87 @@ interface RevealBidsModalProps {
     endAt: string;
     status: string;
     createdBy: string;
+    lotType?: "FLEXIBLE" | "SEALED";
+    winnerPriority?: "PRICE" | "MANUAL" | "QUANTITY";
+    currency?: string;
   };
   isOpen: boolean;
   onClose: () => void;
+}
+
+function parseNumericValue(value?: string | null): number {
+  const parsed = Number.parseFloat(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getBidderDisplayName(bid: {
+  bidderUsername?: string;
+  bidderEmail?: string;
+  bidderId: string;
+}): string {
+  return bid.bidderUsername || bid.bidderEmail || bid.bidderId;
+}
+
+function formatLotTypeLabel(lotType?: "FLEXIBLE" | "SEALED"): string {
+  return lotType === "FLEXIBLE" ? "Flexible" : "Sealed";
+}
+
+function formatWinnerPriorityLabel(
+  lotType?: "FLEXIBLE" | "SEALED",
+  winnerPriority?: "PRICE" | "MANUAL" | "QUANTITY",
+): string {
+  if (lotType !== "FLEXIBLE") {
+    return "Automatic";
+  }
+
+  if (winnerPriority === "MANUAL") {
+    return "Manual choice";
+  }
+
+  if (winnerPriority === "QUANTITY") {
+    return "Quantity first";
+  }
+
+  return "Price first";
+}
+
+function compareBids(
+  left: {
+    quantity?: string | null;
+    amount?: string | null;
+    revealedAmount?: string | null;
+    createdAt: string;
+  },
+  right: {
+    quantity?: string | null;
+    amount?: string | null;
+    revealedAmount?: string | null;
+    createdAt: string;
+  },
+  auctionType: "SELL" | "BUY",
+  lotType?: "FLEXIBLE" | "SEALED",
+  winnerPriority?: "PRICE" | "MANUAL" | "QUANTITY",
+): number {
+  if (lotType === "FLEXIBLE" && winnerPriority === "QUANTITY") {
+    const quantityDelta =
+      parseNumericValue(right.quantity) - parseNumericValue(left.quantity);
+    if (quantityDelta !== 0) {
+      return quantityDelta;
+    }
+  }
+
+  const amountLeft = parseNumericValue(left.revealedAmount || left.amount);
+  const amountRight = parseNumericValue(right.revealedAmount || right.amount);
+  const amountDelta =
+    auctionType === "SELL"
+      ? amountRight - amountLeft
+      : amountLeft - amountRight;
+
+  if (amountDelta !== 0) {
+    return amountDelta;
+  }
+
+  return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
 }
 
 export function RevealBidsModal({
@@ -44,11 +122,33 @@ export function RevealBidsModal({
   const [closeResult, setCloseResult] = useState<CloseAuctionResult | null>(
     null,
   );
+  const [selectedWinnerBidderId, setSelectedWinnerBidderId] = useState<
+    string | null
+  >(null);
   const isClosing = closeAuctionMutation.isPending;
+  const lotType = auction.lotType === "FLEXIBLE" ? "FLEXIBLE" : "SEALED";
+  const winnerPriority =
+    lotType === "FLEXIBLE" ? auction.winnerPriority ?? "PRICE" : undefined;
+  const requiresManualWinner =
+    lotType === "FLEXIBLE" && winnerPriority === "MANUAL";
 
   const handleCloseAuction = async () => {
+    if (requiresManualWinner && bids.length > 0 && !selectedWinnerBidderId) {
+      toast.error("Select the winning bidder before closing this auction.");
+      return;
+    }
+
     try {
-      const result = await closeAuctionMutation.mutateAsync(auction.id);
+      const result = await closeAuctionMutation.mutateAsync(
+        requiresManualWinner && selectedWinnerBidderId
+          ? {
+              auctionId: auction.id,
+              input: {
+                winnerBidderId: selectedWinnerBidderId,
+              },
+            }
+          : auction.id,
+      );
       setCloseResult(result);
       toast.success("Auction closed successfully!");
     } catch (error) {
@@ -60,20 +160,37 @@ export function RevealBidsModal({
   };
 
   const handleDismiss = () => {
+    setSelectedWinnerBidderId(null);
     onClose();
     router.push("/dashboard");
   };
 
+  const handleCloseModal = () => {
+    setSelectedWinnerBidderId(null);
+    onClose();
+  };
+
   if (!isOpen || typeof document === "undefined") return null;
 
-  const isSell = auction.auctionType === "SELL";
+  const lotTypeLabel = formatLotTypeLabel(lotType);
+  const winnerPriorityLabel = formatWinnerPriorityLabel(
+    lotType,
+    winnerPriority,
+  );
+  const selectedWinnerLabel = selectedWinnerBidderId
+    ? getBidderDisplayName(
+        bids.find((bid) => bid.bidderId === selectedWinnerBidderId) ?? {
+          bidderId: selectedWinnerBidderId,
+        },
+      )
+    : null;
+  const isManualWinnerSelectionMissing =
+    requiresManualWinner && bids.length > 0 && !selectedWinnerBidderId;
 
-  // Sort bids by amount (highest first for SELL, lowest first for BUY)
+  // Sort bids by the configured winner logic so the creator sees the same
+  // ordering the automatic flow would use.
   const sortedBids = [...bids].sort((a, b) => {
-    const amountA = parseFloat(a.revealedAmount || a.amount || "0");
-    const amountB = parseFloat(b.revealedAmount || b.amount || "0");
-    const res = isSell ? amountB - amountA : amountA - amountB;
-    return res;
+    return compareBids(a, b, auction.auctionType, lotType, winnerPriority);
   });
 
   return createPortal(
@@ -101,7 +218,7 @@ export function RevealBidsModal({
           </div>
           {!closeResult && (
             <button
-              onClick={onClose}
+              onClick={handleCloseModal}
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               <span className="material-symbols-outlined text-slate-500 dark:text-slate-400">
@@ -161,7 +278,7 @@ export function RevealBidsModal({
                       Winning Bid
                     </p>
                     <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                      ETB {closeResult?.winningBid || "0"}
+                      {formatCurrencyValue(closeResult?.winningBid || "0", auction.currency)}
                     </p>
                   </div>
                   <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
@@ -215,7 +332,7 @@ export function RevealBidsModal({
                       Reserve Price:
                     </span>{" "}
                     <span className="font-medium text-slate-900 dark:text-white">
-                      ETB {closeResult?.reservePrice || auction.reservePrice}
+                      {formatCurrencyValue(closeResult?.reservePrice || auction.reservePrice, auction.currency)}
                     </span>
                   </div>
                   <div>
@@ -223,7 +340,7 @@ export function RevealBidsModal({
                       Min Bid:
                     </span>{" "}
                     <span className="font-medium text-slate-900 dark:text-white">
-                      ETB ${closeResult?.minBid || auction.minBid}
+                      {formatCurrencyValue(closeResult?.minBid || auction.minBid, auction.currency)}
                     </span>
                   </div>
                 </div>
@@ -263,7 +380,7 @@ export function RevealBidsModal({
             /* ───── BIDS LIST VIEW ───── */
             <div className="space-y-6">
               {/* Auction Info Summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
                   <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">
                     Category
@@ -274,10 +391,26 @@ export function RevealBidsModal({
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
                   <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">
+                    Lot Type
+                  </p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    {lotTypeLabel}
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">
+                    Winner Priority
+                  </p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    {winnerPriorityLabel}
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1">
                     Reserve Price
                   </p>
                   <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    ETB {auction.reservePrice}
+                    {formatCurrencyValue(auction.reservePrice, auction.currency)}
                   </p>
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
@@ -285,7 +418,7 @@ export function RevealBidsModal({
                     Min Bid
                   </p>
                   <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    ETB {auction.minBid}
+                    {formatCurrencyValue(auction.minBid, auction.currency)}
                   </p>
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
@@ -306,6 +439,42 @@ export function RevealBidsModal({
                 <p className="text-sm text-slate-700 dark:text-slate-300">
                   {auction.itemDescription}
                 </p>
+              </div>
+
+              <div
+                className={`rounded-lg border px-4 py-3 ${
+                  requiresManualWinner
+                    ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
+                    : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20"
+                }`}
+              >
+                <p
+                  className={`text-[10px] font-bold uppercase tracking-widest ${
+                    requiresManualWinner
+                      ? "text-amber-700 dark:text-amber-300"
+                      : "text-blue-700 dark:text-blue-300"
+                  }`}
+                >
+                  Closing Logic
+                </p>
+                <p
+                  className={`mt-1 text-sm font-semibold ${
+                    requiresManualWinner
+                      ? "text-amber-900 dark:text-amber-100"
+                      : "text-blue-900 dark:text-blue-100"
+                  }`}
+                >
+                  {requiresManualWinner
+                    ? "This flexible lot requires a manual winner selection."
+                    : `This auction closes automatically using ${winnerPriorityLabel.toLowerCase()}.`}
+                </p>
+                {requiresManualWinner ? (
+                  <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
+                    {selectedWinnerLabel
+                      ? `Selected winner: ${selectedWinnerLabel}. The bidder ID will be sent as winnerBidderId.`
+                      : "Choose one bidder below before closing the auction."}
+                  </p>
+                ) : null}
               </div>
 
               {/* Bidders Table */}
@@ -347,22 +516,40 @@ export function RevealBidsModal({
                           <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                             Submitted
                           </th>
+                          {requiresManualWinner ? (
+                            <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                              Winner
+                            </th>
+                          ) : null}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {sortedBids.map((bid, index) => (
-                          <tr
-                            key={bid.id}
-                            className={`transition-colors ${
-                              index === 0
-                                ? "bg-amber-50/50 dark:bg-amber-900/10"
-                                : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                            }`}
-                          >
+                        {sortedBids.map((bid, index) => {
+                          const isSelectedWinner =
+                            requiresManualWinner &&
+                            selectedWinnerBidderId === bid.bidderId;
+                          const isAutoLeader =
+                            !requiresManualWinner && index === 0;
+
+                          return (
+                            <tr
+                              key={bid.id}
+                              className={`transition-colors ${
+                                isSelectedWinner
+                                  ? "bg-emerald-50 dark:bg-emerald-900/10"
+                                  : isAutoLeader
+                                    ? "bg-amber-50/50 dark:bg-amber-900/10"
+                                    : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                              }`}
+                            >
                             <td className="px-4 py-3 text-sm">
-                              {index === 0 ? (
+                              {isAutoLeader ? (
                                 <span className="material-symbols-outlined text-amber-500 text-lg">
                                   emoji_events
+                                </span>
+                              ) : isSelectedWinner ? (
+                                <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-300 text-lg">
+                                  task_alt
                                 </span>
                               ) : (
                                 <span className="text-slate-400 font-mono font-bold">
@@ -380,19 +567,15 @@ export function RevealBidsModal({
                             <td className="px-4 py-3">
                               <span
                                 className={`text-sm font-bold ${
-                                  index === 0
-                                    ? "text-amber-700 dark:text-amber-300"
+                                  isSelectedWinner
+                                    ? "text-emerald-700 dark:text-emerald-300"
+                                    : isAutoLeader
+                                      ? "text-amber-700 dark:text-amber-300"
                                     : "text-slate-900 dark:text-white"
                                 }`}
                               >
                                 {bid.revealedAmount ?? bid.amount ? (
-                                  bid.quantity &&
-                                  bid.amount &&
-                                  parseFloat(bid.quantity) > 1 ? (
-                                    `${bid.quantity} × ETB ${bid.amount} = ETB ${getBidTotal(bid).toLocaleString()}`
-                                  ) : (
-                                    `ETB ${bid.revealedAmount ?? bid.amount}`
-                                  )
+                                  formatBidDisplayValue(bid, auction.currency)
                                 ) : (
                                   "Hidden"
                                 )}
@@ -418,18 +601,44 @@ export function RevealBidsModal({
                             <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
                               {new Date(bid.createdAt).toLocaleString()}
                             </td>
-                          </tr>
-                        ))}
+                            {requiresManualWinner ? (
+                              <td className="px-4 py-3">
+                                <label className="inline-flex items-center justify-center">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                    checked={selectedWinnerBidderId === bid.bidderId}
+                                    onChange={() =>
+                                      setSelectedWinnerBidderId((current) =>
+                                        current === bid.bidderId
+                                          ? null
+                                          : bid.bidderId,
+                                      )
+                                    }
+                                    aria-label={`Select ${getBidderDisplayName(bid)} as winner`}
+                                  />
+                                </label>
+                              </td>
+                            ) : null}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 )}
               </div>
 
+              {isManualWinnerSelectionMissing ? (
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                  Select one bidder to send `winnerBidderId` with the close-auction mutation.
+                </p>
+              ) : null}
+
               {/* Close Auction Button */}
               <button
                 onClick={handleCloseAuction}
-                disabled={isClosing}
+                disabled={isClosing || isManualWinnerSelectionMissing}
                 className="w-full py-4 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isClosing ? (
@@ -444,7 +653,9 @@ export function RevealBidsModal({
                     <span className="material-symbols-outlined text-lg">
                       gavel
                     </span>
-                    Close Auction &amp; Declare Winner
+                    {requiresManualWinner
+                      ? "Close Auction & Confirm Winner"
+                      : "Close Auction & Declare Winner"}
                   </>
                 )}
               </button>

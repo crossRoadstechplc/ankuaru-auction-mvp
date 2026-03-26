@@ -6,7 +6,7 @@ import type { PriceTier } from "./types";
 
 export function formatNumber(value?: string | null): string {
   if (!value) {
-    return "—";
+    return "\u2014";
   }
 
   const normalized = String(value).replace(/,/g, "").trim();
@@ -22,13 +22,27 @@ export function formatNumber(value?: string | null): string {
 }
 
 export function formatEtbValue(value?: string | null): string {
+  return formatCurrencyValue(value, "ETB");
+}
+
+export function normalizeCurrency(value?: string | null): "ETB" | "USD" {
+  return value?.trim().toUpperCase() === "USD" ? "USD" : "ETB";
+}
+
+export function formatCurrencyValue(
+  value?: string | null,
+  currency?: string | null,
+): string {
   const formatted = formatNumber(value);
-  return formatted === "—" ? "ETB —" : `ETB ${formatted}`;
+  const normalizedCurrency = normalizeCurrency(currency);
+  return formatted === "\u2014"
+    ? `${normalizedCurrency} \u2014`
+    : `${normalizedCurrency} ${formatted}`;
 }
 
 export function formatDateTime(value?: string | null): string {
   if (!value) {
-    return "—";
+    return "\u2014";
   }
 
   return new Intl.DateTimeFormat("en-US", {
@@ -41,7 +55,7 @@ export function formatDateTime(value?: string | null): string {
 
 export function formatShortDateTime(value?: string | null): string {
   if (!value) {
-    return "—";
+    return "\u2014";
   }
 
   return new Intl.DateTimeFormat("en-US", {
@@ -72,7 +86,7 @@ export function formatDuration(milliseconds: number): string {
 
 export function shortId(value?: string | null): string {
   if (!value) {
-    return "—";
+    return "\u2014";
   }
 
   return value.length > 8 ? `${value.slice(0, 8)}...` : value.slice(0, 8);
@@ -88,7 +102,7 @@ export function getLowestTierPrice(priceTiers?: PriceTier[] | null): string | nu
   return Number.isFinite(lowest) ? lowest.toString() : null;
 }
 
-/** Get comparable bid value: quantity × amount when both exist, else revealedAmount, else amount */
+/** Get comparable bid value: quantity x amount when both exist, else revealedAmount, else amount */
 export function getBidTotal(bid: {
   quantity?: string | null;
   amount?: string | null;
@@ -104,20 +118,21 @@ export function getBidTotal(bid: {
   return Number.isFinite(amt) ? amt : 0;
 }
 
-/** Format bid for display: "Qty × ETB X = ETB Total" when quantity>1, else "ETB X" */
+/** Format bid for display: "Qty x CUR X = CUR Total" when quantity>1, else "CUR X" */
 export function formatBidDisplayValue(bid: {
   quantity?: string | null;
   amount?: string | null;
   revealedAmount?: string | null;
-}): string {
+}, currency?: string | null): string {
+  const normalizedCurrency = normalizeCurrency(currency);
   const qty = bid.quantity ? parseFloat(String(bid.quantity).replace(/,/g, "")) : NaN;
   const amt = bid.amount ? parseFloat(String(bid.amount).replace(/,/g, "")) : NaN;
   if (Number.isFinite(qty) && qty > 1 && Number.isFinite(amt)) {
     const total = getBidTotal(bid);
-    return `${bid.quantity} × ETB ${formatNumber(bid.amount)} = ETB ${formatNumber(total.toString())}`;
+    return `${bid.quantity} \u00D7 ${normalizedCurrency} ${formatNumber(bid.amount)} = ${normalizedCurrency} ${formatNumber(total.toString())}`;
   }
-  const fallback = bid.revealedAmount ?? bid.amount ?? "—";
-  return formatEtbValue(fallback);
+  const fallback = bid.revealedAmount ?? bid.amount ?? "\u2014";
+  return formatCurrencyValue(fallback, normalizedCurrency);
 }
 
 export function resolveAuctionDisplayPrice(auction: {

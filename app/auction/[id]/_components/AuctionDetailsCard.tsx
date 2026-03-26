@@ -2,7 +2,7 @@
 
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import {
-  formatEtbValue,
+  formatCurrencyValue,
   formatShortDateTime,
   getLowestTierPrice,
 } from "@/lib/format";
@@ -47,6 +47,7 @@ interface AuctionDetailsCardProps {
     bidCount?: number;
     currentBid?: string;
     winningBid?: string;
+    currency?: string;
     priceTiers?: PriceTier[];
     images?: string[];
     image?: string;
@@ -158,10 +159,10 @@ export function AuctionDetailsCard({
 
   const primaryValue =
     data.status === "CLOSED"
-      ? formatEtbValue(data.winningBid || data.currentBid)
+      ? formatCurrencyValue(data.winningBid || data.currentBid, data.currency)
       : myBid?.amount
-        ? formatEtbValue(myBid.amount)
-        : formatEtbValue(data.currentBid || data.minBid);
+        ? formatCurrencyValue(myBid.amount, data.currency)
+        : formatCurrencyValue(data.currentBid || data.minBid, data.currency);
   const primaryLabel =
     data.status === "CLOSED"
       ? "Winning bid"
@@ -253,7 +254,7 @@ export function AuctionDetailsCard({
                 : "Minimum bid"}
             </p>
             <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
-              {formatEtbValue(minBidDisplay)}
+              {formatCurrencyValue(minBidDisplay, data.currency)}
               {data.priceTiers && data.priceTiers.length > 0 ? "/unit" : ""}
             </p>
           </div>
@@ -268,7 +269,7 @@ export function AuctionDetailsCard({
               Reserve price
             </p>
             <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
-              {formatEtbValue(data.reservePrice)}
+              {formatCurrencyValue(data.reservePrice, data.currency)}
             </p>
           </div>
           <div className="rounded-[12px] border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50">
@@ -331,7 +332,7 @@ export function AuctionDetailsCard({
                         {tier.maxQty ?? "Unlimited"}
                       </td>
                       <td className="px-3 py-3 font-bold text-primary">
-                        {formatEtbValue(tier.pricePerUnit)}
+                        {formatCurrencyValue(tier.pricePerUnit, data.currency)}
                       </td>
                     </tr>
                   ))}

@@ -20,7 +20,7 @@ import {
   bidTotalMeetsStartingMinimum,
   getTierForQuantity,
 } from "@/src/components/domain/auction/detail/bid-composer";
-import { getBidTotal } from "@/lib/format";
+import { formatCurrencyValue, getBidTotal } from "@/lib/format";
 import { CloseEarlyModal } from "./CloseEarlyModal";
 import { FinalReportModal } from "./FinalReportModal";
 import { RevealBidsModal } from "./RevealBidsModal";
@@ -88,7 +88,6 @@ export function BiddingSidebar({
   isCreator: isCreatorProp,
   onAuctionUpdate,
 }: BiddingSidebarProps) {
-  const isSell = data.auctionType === "SELL";
   const listingCurrency =
     data.currency?.trim().toUpperCase() === "USD" ? "USD" : "ETB";
   const userId = useAuthStore((state) => state.userId);
@@ -730,7 +729,7 @@ export function BiddingSidebar({
                   Starting Bid
                 </p>
                 <p className="text-2xl font-black text-blue-900 dark:text-white">
-                  {data.minBid}
+                  {formatCurrencyValue(data.minBid, listingCurrency)}
                 </p>
               </div>
               <div className="mt-4 text-sm text-slate-600 dark:text-slate-400">
@@ -754,7 +753,10 @@ export function BiddingSidebar({
                   Winning Bid
                 </p>
                 <p className="text-2xl font-black text-primary">
-                  {data.winningBid || data.currentBid}
+                  {formatCurrencyValue(
+                    data.winningBid || data.currentBid,
+                    listingCurrency,
+                  )}
                 </p>
               </div>
               <button

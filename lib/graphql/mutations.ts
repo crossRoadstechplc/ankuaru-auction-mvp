@@ -145,8 +145,8 @@ export const EDIT_AUCTION_MUTATION = `
 `;
 
 export const CLOSE_AUCTION_MUTATION = `
-  mutation CloseAuction($id: ID!) {
-    closeAuction(id: $id)
+  mutation CloseAuction($id: ID!, $input: CloseAuctionInput) {
+    closeAuction(id: $id, input: $input)
   }
 `;
 

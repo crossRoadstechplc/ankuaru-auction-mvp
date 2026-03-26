@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Auction,
+  CloseAuctionInput,
   AuctionFormOptions,
   AuctionFormOptionsParams,
   AuctionReport,
@@ -200,9 +201,24 @@ export function useEditAuctionMutation() {
 export function useCloseAuctionMutation() {
   const queryClient = useQueryClient();
 
+  type CloseAuctionMutationInput =
+    | string
+    | {
+        auctionId: string;
+        input?: CloseAuctionInput | null;
+      };
+
   return useMutation({
-    mutationFn: (auctionId: string) => auctionsApi.closeAuction(auctionId),
-    onSuccess: (_data, auctionId) => {
+    mutationFn: (variables: CloseAuctionMutationInput) => {
+      if (typeof variables === "string") {
+        return auctionsApi.closeAuction(variables);
+      }
+
+      return auctionsApi.closeAuction(variables.auctionId, variables.input);
+    },
+    onSuccess: (_data, variables) => {
+      const auctionId =
+        typeof variables === "string" ? variables : variables.auctionId;
       queryClient.invalidateQueries({
         queryKey: auctionsQueryKeys.detail(auctionId),
       });

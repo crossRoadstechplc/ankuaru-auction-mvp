@@ -173,6 +173,10 @@ export interface CloseAuctionResult {
   closedAt?: string;
 }
 
+export interface CloseAuctionInput {
+  winnerBidderId?: string;
+}
+
 export interface CreateAuctionData {
   title: string;
   auctionCategory: string;

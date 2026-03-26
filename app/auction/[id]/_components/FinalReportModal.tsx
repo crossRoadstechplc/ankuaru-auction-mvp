@@ -8,7 +8,11 @@ import { LoadingState } from "@/src/components/ui/loading-state";
 import { UserAvatar } from "@/src/components/domain/user/user-avatar";
 import { useAuctionReportQuery } from "@/src/features/auctions/queries/hooks";
 import { AuctionReport } from "@/lib/types";
-import { getBidTotal, formatBidDisplayValue } from "@/lib/format";
+import {
+  formatBidDisplayValue,
+  formatCurrencyValue,
+  getBidTotal,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -22,24 +26,10 @@ interface FinalReportModalProps {
     currentBid?: string;
     winningBid?: string;
     winnerId?: string;
+    currency?: string;
   };
   isOpen: boolean;
   onClose: () => void;
-}
-
-function formatEtbValue(value?: string | null): string {
-  if (!value) {
-    return "ETB —";
-  }
-
-  const normalized = value.replace(/,/g, "").trim();
-  const numeric = Number(normalized);
-
-  if (!Number.isFinite(numeric)) {
-    return `ETB ${value}`;
-  }
-
-  return `ETB ${numeric.toLocaleString("en-US")}`;
 }
 
 function formatDateTime(value?: string | null): string {
@@ -156,8 +146,8 @@ export function FinalReportModal({
   const winnerAmount =
     reportAuction.winningBid || winnerBid?.revealedAmount || auction.winningBid;
   const winnerDisplay = winnerBid
-    ? formatBidDisplayValue(winnerBid)
-    : formatEtbValue(winnerAmount);
+    ? formatBidDisplayValue(winnerBid, auction.currency)
+    : formatCurrencyValue(winnerAmount, auction.currency);
   const hasReportError = error instanceof Error;
 
   if (!isOpen || typeof document === "undefined") {
@@ -284,13 +274,19 @@ export function FinalReportModal({
                       />
                       <MetricCard
                         label="Highest revealed"
-                        value={formatEtbValue(report.highestRevealedBid)}
+                        value={formatCurrencyValue(
+                          report.highestRevealedBid,
+                          auction.currency,
+                        )}
                         toneClassName="bg-primary/10 text-primary"
                         icon="trending_up"
                       />
                       <MetricCard
                         label="Average revealed"
-                        value={formatEtbValue(report.averageRevealedBid)}
+                        value={formatCurrencyValue(
+                          report.averageRevealedBid,
+                          auction.currency,
+                        )}
                         toneClassName="bg-secondary text-secondary-foreground"
                         icon="stacked_line_chart"
                       />
@@ -407,7 +403,7 @@ export function FinalReportModal({
 
                             <div className="flex shrink-0 flex-col items-end gap-2">
                               <p className="text-right text-lg font-black tracking-tight text-foreground">
-                                {formatBidDisplayValue(bid)}
+                                {formatBidDisplayValue(bid, auction.currency)}
                               </p>
                               <Badge variant={statusVariant} className="px-2.5 py-1 text-[10px]">
                                 {statusLabel}

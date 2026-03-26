@@ -1,7 +1,7 @@
 "use client";
 
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
-import { getBidTotal } from "@/lib/format";
+import { formatBidDisplayValue, getBidTotal } from "@/lib/format";
 import { Auction, Bid } from "../../../../lib/types";
 import { useMyBidQuery } from "@/src/features/bids/queries/hooks";
 import { useCountdownTimer } from "../../../../hooks/useCountdownTimer";
@@ -12,16 +12,10 @@ interface BidActivityProps {
   isCreator: boolean;
 }
 
-function formatBidDisplay(bid: Bid): string {
+function formatBidDisplay(bid: Bid, currency?: string): string {
   if (!bid.revealedAmount && !bid.amount) return "Hidden";
-  const qty = bid.quantity ? parseFloat(bid.quantity) : NaN;
-  const amt = bid.amount ? parseFloat(bid.amount) : NaN;
-  if (Number.isFinite(qty) && qty > 1 && Number.isFinite(amt)) {
-    return `${bid.quantity} × ETB ${bid.amount} = ETB ${getBidTotal(bid).toLocaleString()}`;
-  }
-  return `ETB ${bid.revealedAmount ?? bid.amount ?? "—"}`;
+  return formatBidDisplayValue(bid, currency);
 }
-
 function getReserveStatus(
   currentBid?: string | null,
   reservePrice?: string | null,
@@ -250,7 +244,7 @@ export function BidActivity({ data, bids, isCreator }: BidActivityProps) {
                         <td className="px-3 py-3">
                           <span className={`text-sm font-bold ${isLeader ? "text-amber-700 dark:text-amber-300" : "text-slate-900 dark:text-white"}`}>
                             {isRevealed
-                              ? formatBidDisplay(bid)
+                              ? formatBidDisplay(bid, data.currency)
                               : "Hidden until reveal"}
                           </span>
                         </td>
