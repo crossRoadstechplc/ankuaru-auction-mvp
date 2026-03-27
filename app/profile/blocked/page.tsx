@@ -4,6 +4,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageShell } from "@/components/layout/page-shell";
 import { PanelCard } from "@/components/layout/panel-card";
 import {
+  useBlockUserMutation,
   useMyBlockedUsersQuery,
   useUnblockUserMutation,
 } from "@/src/features/profile/queries/hooks";
@@ -15,8 +16,24 @@ import BlockedUsersTab from "../components/BlockedUsersTab";
 export default function ProfileBlockedPage() {
   const [userActionLoadingId, setUserActionLoadingId] = useState<string | null>(null);
   const { data: blockedUsers = [] } = useMyBlockedUsersQuery();
+  const blockUserMutation = useBlockUserMutation();
   const unblockUserMutation = useUnblockUserMutation();
   const actionLoadingIds = userActionLoadingId ? [userActionLoadingId] : [];
+
+  const handleBlock = async (userId: string) => {
+    if (!userId || userActionLoadingId === userId) return;
+    try {
+      setUserActionLoadingId(userId);
+      await blockUserMutation.mutateAsync(userId);
+      toast.success("User blocked successfully.");
+    } catch (error) {
+      console.error("Failed to block user:", error);
+      toast.error("Failed to block user. Please try again.");
+      throw error;
+    } finally {
+      setUserActionLoadingId((c) => (c === userId ? null : c));
+    }
+  };
 
   const handleUnblock = async (userId: string) => {
     if (!userId || userActionLoadingId === userId) return;
@@ -55,7 +72,7 @@ export default function ProfileBlockedPage() {
           <BlockedUsersTab
             users={blockedUsers}
             loadingIds={actionLoadingIds}
-            onBlock={async () => {}}
+            onBlock={handleBlock}
             onUnblock={handleUnblock}
           />
         </PanelCard>

@@ -13,6 +13,7 @@ interface FeedPostCardProps {
   getImageWithFallback?: (image?: string) => string;
   isFollowingCreator?: boolean;
   isRequestedCreator?: boolean;
+  followStateInline?: boolean;
   onOpenCreatorProfile?: (userId: string) => void;
   onOpenCreatorProfileImage?: (payload: {
     imageUrl?: string | null;
@@ -26,6 +27,7 @@ export function FeedPostCard({
   getImageWithFallback,
   isFollowingCreator,
   isRequestedCreator,
+  followStateInline,
   onOpenCreatorProfile,
   onOpenCreatorProfileImage,
 }: FeedPostCardProps) {
@@ -43,6 +45,7 @@ export function FeedPostCard({
         createdAt={auction.createdAt}
         isFollowing={isFollowingCreator}
         isRequested={isRequestedCreator}
+        followStateInline={followStateInline}
         onOpenProfile={onOpenCreatorProfile}
         onOpenProfileImage={onOpenCreatorProfileImage}
       />

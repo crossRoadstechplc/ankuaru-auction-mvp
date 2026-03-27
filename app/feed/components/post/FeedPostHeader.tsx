@@ -26,6 +26,7 @@ interface FeedPostHeaderProps {
   createdAt?: string;
   isFollowing?: boolean;
   isRequested?: boolean;
+  followStateInline?: boolean;
   onOpenProfile?: (userId: string) => void;
   onOpenProfileImage?: (payload: {
     imageUrl?: string | null;
@@ -57,6 +58,7 @@ export function FeedPostHeader({
   createdAt,
   isFollowing,
   isRequested,
+  followStateInline = false,
   onOpenProfile,
   onOpenProfileImage,
 }: FeedPostHeaderProps) {
@@ -99,7 +101,7 @@ export function FeedPostHeader({
   const getInitials = (name: string) =>
     name
       .split(" ")
-      .map((n) => n[0])
+      .map((entry) => entry[0])
       .join("")
       .substring(0, 2)
       .toUpperCase();
@@ -115,12 +117,14 @@ export function FeedPostHeader({
       router.push("/login");
       return;
     }
+
     try {
       setIsFollowActionLoading(true);
       if (isFollowing) {
         await unfollowUserMutation.mutateAsync(creatorId);
         return;
       }
+
       await followUserMutation.mutateAsync(creatorId);
       setOptimisticRequestedId(creatorId);
     } catch (error) {
@@ -144,6 +148,41 @@ export function FeedPostHeader({
       });
     }
   };
+
+  const followStateButton = canShowFollowButton ? (
+    <Button
+      type="button"
+      size="sm"
+      variant={isFollowing || effectiveIsRequested ? "outline" : "secondary"}
+      onClick={() => {
+        if (!effectiveIsRequested) void handleFollowToggle();
+      }}
+      disabled={isFollowActionLoading || effectiveIsRequested}
+      className={cn(
+        "h-7 shrink-0 rounded-full px-2.5 text-[10px] font-semibold leading-none",
+        isFollowing || effectiveIsRequested
+          ? "border-slate-200/90 text-slate-600 dark:border-slate-600 dark:text-slate-300"
+          : "",
+      )}
+    >
+      {isFollowing ? (
+        <UserCheck className="mr-0.5 size-3" />
+      ) : effectiveIsRequested ? (
+        <span className="material-symbols-outlined mr-0.5 text-[12px] leading-none">
+          schedule
+        </span>
+      ) : (
+        <UserPlus className="mr-0.5 size-3" />
+      )}
+      {isFollowActionLoading
+        ? "..."
+        : isFollowing
+          ? "Following"
+          : effectiveIsRequested
+            ? "Requested"
+            : "Follow"}
+    </Button>
+  ) : null;
 
   return (
     <div className="flex items-center justify-between gap-3 border-b border-slate-200/70 px-3 py-3 sm:px-4 dark:border-slate-800/80">
@@ -171,64 +210,44 @@ export function FeedPostHeader({
           </Avatar>
         </button>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-          <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div
+            className={cn(
+              "min-w-0 items-center gap-2",
+              followStateInline
+                ? "inline-flex max-w-full self-start"
+                : "flex sm:gap-3",
+            )}
+          >
             <button
               type="button"
               onClick={handleProfileOpen}
               disabled={!onOpenProfile}
               title={onOpenProfile ? "Open profile" : undefined}
               className={cn(
-                "block max-w-full cursor-pointer truncate rounded-md px-0.5 text-left transition-colors",
+                "block max-w-full truncate rounded-md px-0.5 text-left transition-colors",
                 "text-lg font-bold leading-tight tracking-tight text-slate-900 sm:text-xl",
+                followStateInline ? "min-w-0 shrink" : "min-w-0 flex-1",
                 onOpenProfile
-                  ? "hover:text-primary hover:underline decoration-primary/40 underline-offset-2 dark:text-white dark:hover:text-primary"
+                  ? "cursor-pointer hover:text-primary hover:underline decoration-primary/40 underline-offset-2 dark:text-white dark:hover:text-primary"
                   : "cursor-default dark:text-white",
               )}
             >
               {displayName}
             </button>
+
+            {followStateInline ? followStateButton : null}
+          </div>
+
+          <div className="flex min-w-0 items-center gap-3">
             {readableUsername ? (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 @{readableUsername}
               </p>
             ) : null}
-          </div>
 
-          {canShowFollowButton ? (
-            <Button
-              type="button"
-              size="sm"
-              variant={isFollowing || effectiveIsRequested ? "outline" : "secondary"}
-              onClick={() => {
-                if (!effectiveIsRequested) void handleFollowToggle();
-              }}
-              disabled={isFollowActionLoading || effectiveIsRequested}
-              className={cn(
-                "h-7 shrink-0 rounded-full px-2.5 text-[10px] font-semibold leading-none",
-                isFollowing || effectiveIsRequested
-                  ? "border-slate-200/90 text-slate-600 dark:border-slate-600 dark:text-slate-300"
-                  : "",
-              )}
-            >
-              {isFollowing ? (
-                <UserCheck className="mr-0.5 size-3" />
-              ) : effectiveIsRequested ? (
-                <span className="material-symbols-outlined mr-0.5 text-[12px] leading-none">
-                  schedule
-                </span>
-              ) : (
-                <UserPlus className="mr-0.5 size-3" />
-              )}
-              {isFollowActionLoading
-                ? "…"
-                : isFollowing
-                  ? "Following"
-                  : effectiveIsRequested
-                    ? "Requested"
-                    : "Follow"}
-            </Button>
-          ) : null}
+            {!followStateInline ? followStateButton : null}
+          </div>
         </div>
       </div>
 
